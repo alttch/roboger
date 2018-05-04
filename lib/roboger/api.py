@@ -292,12 +292,14 @@ class MasterAPI(object):
         r = {}
         if 'endpoint_id' in data:
             e = roboger.endpoints.get_endpoint(data['endpoint_id'])
-            if not e or (check_ownership and e.addr.addr_id != data.get('addr_id')):
+            if not e or (check_ownership and \
+                    e.addr.addr_id != data.get('addr_id')):
                 api_404('No such endpoint or wrong address')
             return e.serialize()
         else:
             try:
-                for i, e in roboger.endpoints.endpoints_by_addr_id[data['addr_id']].copy().items():
+                for i, e in roboger.endpoints.endpoints_by_addr_id[
+                        data['addr_id']].copy().items():
                     if not e._destroyed:
                         r[i] = e.serialize()
             except:
@@ -340,7 +342,8 @@ class MasterAPI(object):
     @cherrypy.expose
     def setendpoint_data(self, data):
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
-        if not e or (check_ownership and e.addr.addr_id != data.get('addr_id')):
+        if not e or (check_ownership and \
+                e.addr.addr_id != data.get('addr_id')):
             api_404('No such endpoint or wrong address')
         try:
             e.set_data(data['data'],data.get('data2'),data.get('data3'),
@@ -352,9 +355,24 @@ class MasterAPI(object):
 
 
     @cherrypy.expose
+    def setendpoint_active(self, data):
+        e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
+        if not e or (check_ownership and \
+                e.addr.addr_id != data.get('addr_id')):
+            api_404('No such endpoint or wrong address')
+        try:
+            _active = int(data['active'])
+        except:
+            _active = 1
+        e.set_active(_active, dbconn = cherrypy.thread_data.db)
+        return e.serialize()
+
+
+    @cherrypy.expose
     def rmendpoint(self, data):
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
-        if not e or (check_ownership and e.addr.addr_id != data.get('addr_id')):
+        if not e or (check_ownership and \
+                e.addr.addr_id != data.get('addr_id')):
             api_404('No such endpoint or wrong address')
         roboger.endpoints.destroy_endpoint(e, dbconn = cherrypy.thread_data.db)
         return api_result()

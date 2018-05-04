@@ -132,6 +132,11 @@ class GenericEndpoint(object):
         self.save(dbconn = dbconn)
 
 
+    def set_active(self, active = 1, dbconn = None):
+        self.active = active
+        self.save(dbconn)
+
+
     def save(self, dbconn = None):
         if self._destroyed: return
         if self.endpoint_id:
