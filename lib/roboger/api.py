@@ -1,0 +1,420 @@
+import cherrypy
+import jsonpickle
+import roboger.core
+import roboger.events
+import roboger.endpoints
+import logging
+
+from netaddr import IPNetwork
+
+from roboger.core import format_json
+from roboger import db            
+
+host = None
+default_port = 719
+ssl_host = None
+ssl_port = None
+ssl_module = 'builtin'
+ssl_cert = None
+ssl_key = None
+ssl_chain = None
+thread_pool = 15
+
+check_ownership = False
+
+masterkey = None
+master_allow = None
+
+def api_forbidden():
+    raise cherrypy.HTTPError('403 Forbidden', 'Invalid API key')
+
+def api_404(obj = None):
+    o = obj if obj else 'object'
+    raise cherrypy.HTTPError('404 Not Found', 'No such %s' % o)
+
+def api_invalid_json_data():
+    raise cherrypy.HTTPError('500 API Error', 'Invalid JSON data')
+
+def api_invalid_data(msg = ''):
+    raise cherrypy.HTTPError('500 API Error', 'Invalid data. %s' % msg)
+
+def api_internal_error():
+    raise cherrypy.HTTPError('500 API Error',
+            'Internal API Error. See logs for details')
+
+def check_db():
+    try:
+        if not roboger.db.check(cherrypy.thread_data.db):
+            cherrypy.thread_data.db = roboger.db.connect()
+    except:
+        cherrypy.thread_data.db = roboger.db.connect()
+
+
+def http_real_ip():
+    if cherrypy.request.headers.get('X-Real-IP'):
+                ip = cherrypy.request.headers.get('X-Real-IP')
+    else: ip = cherrypy.request.remote.ip
+    return ip
+
+
+def api_result(status = 'OK', msg = None, data = None):
+    result = { 'result': status }
+    if msg:
+        result['message'] = msg
+    if data:
+        result.update(data)
+    return result
+
+
+def cp_json_handler(*args, **kwargs):
+    value = cherrypy.serving.request._json_inner_handler(*args, **kwargs)
+    return format_json(value,
+            minimal = not roboger.core.development).encode('utf-8')
+
+def update_config(cfg):
+    global host, port, ssl_host, ssl_port
+    global ssl_module, ssl_cert, ssl_key, ssl_chain
+    global thread_pool, masterkey, master_allow, check_ownership
+    try:
+        host, port = roboger.core.parse_host_port(cfg.get('api', 'listen'))
+        if not port:
+            port = default_port
+        logging.debug('api.listen = %s:%u' % (host, port))
+    except:
+        roboger.core.log_traceback()
+        return False
+    try:
+        ssl_host, ssl_port = parse_host_port(cfg.get('api', 'ssl_listen'))
+        if not ssl_port:
+            ssl_port = default_ssl_port
+        try: ssl_module = cfg.get('api', 'ssl_module')
+        except: ssl_module = 'builtin'
+        ssl_cert = cfg.get('api', 'ssl_cert')
+        if ssl_cert[0] != '/': ssl_cert = roboger.core.dir_etc + '/' + ssl_cert
+        ssl_key = cfg.get('api', 'ssl_key')
+        if ssl_key[0] != '/': ssl_key = roboger.core.dir_etc + '/' + ssl_key
+        logging.debug('api.ssl_listen = %s:%u' % (ssl_host, ssl_port))
+        ssl_chain = cfg.get('api', 'ssl_chain')
+        if ssl_chain[0] != '/':
+            ssl_chain = roboger.core.dir_etc + '/' + ssl_chain
+    except: pass
+    try:
+        thread_pool = int(cfg.get('api', 'thread_pool'))
+    except:
+        pass
+    logging.debug('api.thread_pool = %u' % thread_pool)
+    try:
+        masterkey = cfg.get('api', 'masterkey')
+        logging.debug('api.masterkey loaded')
+    except:
+        print('masterkey not found in config. Can not continue')
+        return None
+    try:
+        _ha = cfg.get('api', 'master_allow')
+    except:
+        _ha = '127.0.0.1'
+    try:
+        _hosts_allow = list(filter(None,
+            [x.strip() for x in _ha.split(',')]))
+        master_allow = [ IPNetwork(h) for h in _hosts_allow ]
+    except:
+        logging.error('roboger bad master host acl!')
+        roboger.core.log_traceback()
+        return None
+    logging.debug('api.master_allow = %s' % \
+            ', '.join([ str(h) for h in master_allow ]))
+    try:
+        check_ownership = (cfg.get('api', 'check_ownership') == 'yes')
+    except:
+        check_ownership = False
+    logging.debug('api.check_ownership = %s' % check_ownership)
+    return True
+
+
+def start():
+    if not host: return False
+    cherrypy.tree.mount(PushAPI(), '/')
+    cherrypy.tree.mount(MasterAPI(), '/control')
+    cherrypy.server.unsubscribe()
+    logging.info('HTTP API listening at at %s:%s' % \
+            (host, port))
+    server1 = cherrypy._cpserver.Server()
+    server1.socket_port = port
+    server1._socket_host = host
+    server1.thread_pool = thread_pool
+    server1.subscribe()
+    if ssl_host and ssl_module and ssl_cert and ssl_key:
+        logging.info('HTTP API SSL listening at %s:%s' % \
+                (ssl_host, ssl_port))
+        server_ssl = cherrypy._cpserver.Server()
+        server_ssl.socket_port = ssl_port
+        server_ssl._socket_host = ssl_host
+        server_ssl.thread_pool = thread_pool
+        server_ssl.ssl_certificate = ssl_cert
+        server_ssl.ssl_private_key = ssl_key
+        if ssl_chain:
+            server_ssl.ssl_certificate_chain = ssl_chain
+        if ssl_module:
+            server_ssl.ssl_module = ssl_module
+        server_ssl.subscribe()
+    if not roboger.core.development:
+        cherrypy.config.update({'environment': 'production'})
+        cherrypy.log.access_log.propagate = False
+        cherrypy.log.error_log.propagate = False
+    else:
+        cherrypy.config.update({ 'global': { 'engine.autoreload.on' : False }})
+    roboger.core.append_stop_func(stop)
+    cherrypy.engine.start()
+
+
+def stop():
+    cherrypy.engine.exit()
+
+
+class MasterAPI(object):
+
+    _cp_config = { 
+         'tools.json_out.on': True,
+         'tools.json_out.handler': cp_json_handler,
+         'tools.auth.on': True,
+         }  
+
+    def __init__(self):
+        cherrypy.tools.auth = cherrypy.Tool('before_handler',
+                self.cp_check_perm, priority=60)
+
+
+    def cp_check_perm(self):
+        if roboger.core.netacl_match(http_real_ip(), master_allow):
+            if 'k' in cherrypy.serving.request.params:
+                k = cherrypy.serving.request.params.get('k')
+                if 'data' in cherrypy.serving.request.params:
+                    try:
+                        cherrypy.serving.request.params['data'] = \
+                    jsonpickle.decode(cherrypy.serving.request.params['data'])
+                    except:
+                        api_invalid_json_data()
+            else:
+                try:
+                    if 'data' in cherrypy.serving.request.params:
+                        try:
+                            d = \
+                    jsonpickle.decode(cherrypy.serving.request.params['data'])
+                        except:
+                            api_invalid_json_data()
+                    else:
+                        cl = cl = cherrypy.request.headers['Content-Length']
+                        rawbody = cherrypy.request.body.read(int(cl))
+                        try:
+                            d = jsonpickle.decode(rawbody.decode())
+                        except:
+                            api_invalid_json_data()
+                    k = d['k']
+                    cherrypy.serving.request.params['data'] = d
+                except:
+                    api_forbidden()
+            if k == masterkey:
+                check_db()
+                return
+        api_forbidden()
+
+
+    @cherrypy.expose
+    def test(self, data):
+        return api_result()
+
+    @cherrypy.expose
+    def lsaddr(self, data):
+        r = {}
+        if 'id' in data or 'addr' in data:
+            addr = roboger.addr.get_addr(data.get('id'), data.get('addr'))
+            if not addr: 
+                api_404('address')
+            return addr.serialize()
+        else:
+            for i, addr in roboger.addr.addrs_by_id.copy().items():
+                if not addr._destroyed: r[i] = addr.serialize()
+        return r
+
+    @cherrypy.expose
+    def mkaddr(self, data):
+        addr = roboger.addr.append_addr(dbconn = cherrypy.thread_data.db)
+        return addr.serialize()
+
+    @cherrypy.expose
+    def chaddr(self, data):
+        addr = roboger.addr.change_addr(data.get('id'), data.get('addr'),
+                dbconn = cherrypy.thread_data.db)
+        if not addr: 
+            api_404('address')
+        return addr.serialize()
+
+    @cherrypy.expose
+    def setaddr_active(self, data):
+        addr = roboger.addr.get_addr(data.get('id'), data.get('addr'))
+        if not addr: 
+            api_404('address')
+        try:
+            _active = int(data['active'])
+        except:
+            _active = 1
+        addr.set_active(_active, dbconn = cherrypy.thread_data.db)
+        return addr.serialize()
+
+
+    @cherrypy.expose
+    def rmaddr(self, data):
+        addr = roboger.addr.get_addr(data.get('id'), data.get('addr'))
+        if not addr:
+            api_404('address')
+        addr.destroy(dbconn = cherrypy.thread_data.db)
+        return api_result()
+
+
+    @cherrypy.expose
+    def lsendpoint_types(self, data):
+        result = {}
+        try:
+            c = db.query('select id, name from endpoint_type order by id')
+            while True:
+                row = c.fetchone()
+                if row is None: break
+                result[row[0]] = row[1]
+            c.close()
+        except:
+            roboger.core.log_traceback()
+            api_internal_error()
+        return result
+
+
+    @cherrypy.expose
+    def lsendpoints(self, data):
+        r = {}
+        if 'endpoint_id' in data:
+            e = roboger.endpoints.get_endpoint(data['endpoint_id'])
+            if not e or (check_ownership and e.addr.addr_id != data.get('addr_id')):
+                api_404('No such endpoint or wrong address')
+            return e.serialize()
+        else:
+            try:
+                for i, e in roboger.endpoints.endpoints_by_addr_id[data['addr_id']].copy().items():
+                    if not e._destroyed:
+                        r[i] = e.serialize()
+            except:
+                roboger.core.log_traceback()
+                api_internal_error()
+        return r
+
+
+    @cherrypy.expose
+    def mkendpoint(self, data):
+        endpoint_type = data.get('et')
+        if not endpoint_type: api_invalid_data('Specify endpoint type')
+        try:
+            addr = roboger.addr.get_addr(data['addr_id'])
+            if addr is None:
+                api_invalid_data('No such address')
+            if endpoint_type == 2:
+                e = roboger.endpoints.EmailEndpoint(addr,
+                        data['data'], autosave = False)
+            elif endpoint_type == 3:
+                e = roboger.endpoints.HTTPPostEndpoint(addr,
+                        data['data'], autosave = False)
+            elif endpoint_type == 4:
+                e = roboger.endpoints.HTTPJSONEndpoint(addr,
+                        data['data'], autosave = False)
+            elif endpoint_type == 100:
+                e = roboger.endpoints.SlackEndpoint(addr,
+                        data['data'], autosave = False)
+            else:
+                e = None
+        except:
+            roboger.core.log_traceback()
+            api_internal_error()
+        if not e:
+            api_invalid_data('No such endpoint type')
+        e.save(dbconn = cherrypy.thread_data.db)
+        return e.serialize()
+
+
+    @cherrypy.expose
+    def setendpoint_data(self, data):
+        e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
+        if not e or (check_ownership and e.addr.addr_id != data.get('addr_id')):
+            api_404('No such endpoint or wrong address')
+        try:
+            e.set_data(data['data'],data.get('data2'),data.get('data3'),
+                    dbconn = cherrypy.thread_data.db)
+        except:
+            roboger.core.log_traceback()
+            api_internal_error()
+        return e.serialize()
+
+
+    @cherrypy.expose
+    def rmendpoint(self, data):
+        e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
+        if not e or (check_ownership and e.addr.addr_id != data.get('addr_id')):
+            api_404('No such endpoint or wrong address')
+        roboger.endpoints.destroy_endpoint(e, dbconn = cherrypy.thread_data.db)
+        return api_result()
+
+
+class PushAPI(object):
+
+    _cp_config = { 
+         'tools.json_out.on': True,
+         'tools.json_out.handler': cp_json_handler,
+         }  
+
+    @cherrypy.expose
+    def push(self, r = '', x = '', n = '', k = '',
+            l = '', s = '', e = '', m = '', a = ''):
+        if r:
+            d = {
+                    'addr': r,
+                    'sender': x,
+                    'location': n,
+                    'keywords': k,
+                    'subject': s,
+                    'expires': _e,
+                    'msg': m,
+                    'level': l,
+                    'expires': e,
+                    'media': a
+                 }
+        else:
+            try:
+                cl = cherrypy.request.headers['Content-Length']
+                rawbody = cherrypy.request.body.read(int(cl))
+                d = jsonpickle.decode(rawbody.decode())
+            except:
+                roboger.core.log_traceback()
+                api_invalid_json_data()
+        try: d['expires'] = int(d['expires'])
+        except: d['expires'] = None
+        try:
+            d['level'] = roboger.events.level_codes[str(d['level'])[0].lower()]
+        except:
+            d['level'] = 20
+        check_db()
+        result = roboger.events.push_event(
+                d.get('addr'),
+                d.get('level'),
+                d.get('sender'),
+                d.get('location'),
+                d.get('keywords'),
+                d.get('subject'),
+                d.get('expires'),
+                d.get('msg'),
+                d.get('media'),
+                dbconn = cherrypy.thread_data.db
+                )
+        if result is None:
+                api_404('address')
+        if result is False:
+                api_internal_error()
+        if result is True:
+            return api_result()
+        raise cherrypy.HTTPError('403 Forbidden',
+                'Address is disabled: %u' % result)

@@ -1,0 +1,16 @@
+#!/usr/bin/perl
+
+use Config::IniFiles;
+use WWW::Curl;
+use Getopt::Long;
+
+# -f config file
+# -x sender
+# -n location
+# -k keywords
+# -l level (d, i, w, e, c)
+# -r receiver
+# -s subject
+# -a attachment
+# -e expires (not implemented yet)
+# stdin - text
