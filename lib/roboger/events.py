@@ -31,6 +31,7 @@ q = Queue()
 
 subscriptions_by_id = {}
 subscriptions_by_addr_id = {}
+subscriptions_by_endpoint_id = {}
 
 queue_processor_active = False
 queue_processor = None
@@ -83,7 +84,7 @@ def _t_queue_processor():
                 ', addr id: %s' % eq.event.addr.addr_id)
         t = threading.Thread(target = eq.send)
         t.start()
-        eq.mark_delivered(dbconn)
+        eq.mark_delivered(dbconn = dbconn)
     dbconn.close()
 
 
@@ -177,6 +178,8 @@ def destroy_subscription(s, dbconn):
     try:
         del subscriptions_by_id[_s.subscription_id]
         del subscriptions_by_addr_id[_s.addr.addr_id][_s.subscription_id]
+        del subscriptions_by_endpoint_id[
+                _s.endpoint.endpoint_id][_s.subscription_id]
     except:
         roboger.core.log_traceback()
 
@@ -207,7 +210,10 @@ def load_subscriptions():
         subscriptions_by_id[row[0]] = s
         if u.addr_id not in subscriptions_by_addr_id:
             subscriptions_by_addr_id[u.addr_id] = {}
+        if e.endpoint_id not in subscriptions_by_endpoint_id:
+            subscriptions_by_endpoint_id[e.endpoint_id] = {}
         subscriptions_by_addr_id[u.addr_id][row[0]] = s
+        subscriptions_by_endpoint_id[e.endpoint_id][row[0]] = s
     logging.debug('endpoint subscriptions: %u subscription(s) loaded' % \
             len(subscriptions_by_id))
     c.close()
@@ -285,9 +291,9 @@ class EventQueueItem(object):
     def mark_delivered(self, dbconn = None):
         self.dd = datetime.datetime.now()
         self.status = 1
-        self.save(dbconn)
+        self.save(dbconn = dbconn)
         self.event.delivered += 1
-        self.event.save(dbconn)
+        self.event.save(dbconn = dbconn)
 
 
     def destroy(dbconn = None):
@@ -318,13 +324,23 @@ class EventSubscription(object):
         self.addr = addr
         self.endpoint = endpoint
         self.active = active
-        self.location = location
-        self.keywords = list(filter(None,
-            [x.strip() for x in keywords.split(',')]))
-        self.senders = list(filter(None,
-            [x.strip() for x in senders.split(',')]))
+        self.location = location if location else ''
+        if isinstance(keywords, list):
+            self.keywords = keywords
+        elif isinstance(keywords, str):
+            self.keywords = list(filter(None,
+                [x.strip() for x in keywords.split(',')]))
+        else:
+            self.keywords = []
+        if isinstance(senders, list):
+            self.senders = senders
+        elif isinstance(senders, str):
+            self.senders = list(filter(None,
+                [x.strip() for x in senders.split(',')]))
+        else:
+            self.senders = []
         self.level_id = level_id
-        self.level_match = level_match
+        self.level_match = level_match if level_match else 'ge'
         if subscription_id:
             self.subscription_id = subscription_id
         else:
@@ -411,11 +427,18 @@ class Event(object):
                 datetime.datetime.now()
         self.scheduled = scheduled
         self.delivered = delivered
-        self.location = location
-        self.subject = subject
-        self.keywords = list(filter(None,
-            [x.strip() for x in keywords.split(',')]))
-        self.sender = sender
+        self.location = location if location else ''
+        self.subject = subject if subject else ''
+        if not keywords:
+            self.keywords = []
+        elif isinstance(keywords, list):
+            self.keywords = keywords
+        elif isinstance(keywords, str):
+            self.keywords = list(filter(None,
+                [x.strip() for x in keywords.split(',')]))
+        else:
+            self.keywords = []
+        self.sender = sender if sender else ''
         self.level_id = level_id
         if expires: self.expires = expires
         self.msg = msg
