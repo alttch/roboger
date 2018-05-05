@@ -318,16 +318,24 @@ class MasterAPI(object):
         try:
             if endpoint_type == 2:
                 e = roboger.endpoints.EmailEndpoint(addr,
-                        data['data'], autosave = False)
+                        data['data'],
+                        description = data.get('description'),
+                        autosave = False)
             elif endpoint_type == 3:
                 e = roboger.endpoints.HTTPPostEndpoint(addr,
-                        data['data'], autosave = False)
+                        data['data'],
+                        description = data.get('description'),
+                        autosave = False)
             elif endpoint_type == 4:
                 e = roboger.endpoints.HTTPJSONEndpoint(addr,
-                        data['data'], autosave = False)
+                        data['data'],
+                        description = data.get('description'),
+                        autosave = False)
             elif endpoint_type == 100:
                 e = roboger.endpoints.SlackEndpoint(addr,
-                        data['data'], autosave = False)
+                        data['data'],
+                        description = data.get('description'),
+                        autosave = False)
             else:
                 e = None
         except:
@@ -347,6 +355,21 @@ class MasterAPI(object):
             api_404('No such endpoint or wrong address')
         try:
             e.set_data(data['data'],data.get('data2'),data.get('data3'),
+                    dbconn = cherrypy.thread_data.db)
+        except:
+            roboger.core.log_traceback()
+            api_internal_error()
+        return e.serialize()
+
+
+    @cherrypy.expose
+    def set_endpoint_description(self, data):
+        e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
+        if not e or (check_ownership and \
+                e.addr.addr_id != data.get('addr_id')):
+            api_404('No such endpoint or wrong address')
+        try:
+            e.set_data(data.get('description'),
                     dbconn = cherrypy.thread_data.db)
         except:
             roboger.core.log_traceback()
@@ -387,13 +410,14 @@ class MasterAPI(object):
             addr = roboger.addr.get_addr(data.get('addr_id'))
             if addr is None:
                 api_invalid_data('No such address')
-        if not e or (check_ownership and e.addr.addr_id != data.get('addr_id')):
+        if not e or (check_ownership and \
+                e.addr.addr_id != data.get('addr_id')):
             api_invalid_data('No such endpoint or wrong address')
         _lm = data.get('level_match')
         if _lm and _lm not in ['e', 'ge', 'le', 'g', 'l']:
             api_invalid_data('Invalid level match')
         s = roboger.events.EventSubscription(addr, e,
-                location  = data.get('location'),
+                location = data.get('location'),
                 keywords = data.get('keywords'),
                 senders = data.get('senders'),
                 level_id = data.get('level_id'),
@@ -402,11 +426,13 @@ class MasterAPI(object):
         s.save(dbconn = cherrypy.thread_data.db)
         return s.serialize()
 
+
     @cherrypy.expose
     def ls_subscriptions(self, data):
         r = {}
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
-        if not e or (check_ownership and e.addr.addr_id != data.get('addr_id')):
+        if not e or (check_ownership and \
+                e.addr.addr_id != data.get('addr_id')):
             api_invalid_data('No such endpoint or wrong address')
         if 'subscription_id' in data:
             s = roboger.events.get_subscription(data['subscription_id'])
@@ -424,6 +450,109 @@ class MasterAPI(object):
             except:
                 roboger.core.log_traceback()
                 api_internal_error()
+        return r
+
+
+    @cherrypy.expose
+    def set_subscription_active(self, data):
+        s = roboger.events.get_subscription(data['subscription_id'])
+        if not s or (check_ownership and \
+                s.addr.addr_id != data.get('addr_id')):
+            api_404('No such subscription or wrong address')
+        try:
+            _active = int(data['active'])
+        except:
+            _active = 1
+        s.set_active(_active, dbconn = cherrypy.thread_data.db)
+        return s.serialize()
+
+
+    @cherrypy.expose
+    def set_subscription_location(self, data):
+        s = roboger.events.get_subscription(data['subscription_id'])
+        if not s or (check_ownership and \
+                s.addr.addr_id != data.get('addr_id')):
+            api_404('No such subscription or wrong address')
+        s.set_location(data.get('location'), dbconn = cherrypy.thread_data.db)
+        return s.serialize()
+
+
+    @cherrypy.expose
+    def set_subscription_keywords(self, data):
+        s = roboger.events.get_subscription(data['subscription_id'])
+        if not s or (check_ownership and \
+                s.addr.addr_id != data.get('addr_id')):
+            api_404('No such subscription or wrong address')
+        s.set_keywords(data.get('keywords'), dbconn = cherrypy.thread_data.db)
+        return s.serialize()
+
+
+    @cherrypy.expose
+    def set_subscription_senders(self, data):
+        s = roboger.events.get_subscription(data['subscription_id'])
+        if not s or (check_ownership and \
+                s.addr.addr_id != data.get('addr_id')):
+            api_404('No such subscription or wrong address')
+        s.set_senders(data.get('senders'), dbconn = cherrypy.thread_data.db)
+        return s.serialize()
+
+
+    @cherrypy.expose
+    def set_subscription_level(self, data):
+        s = roboger.events.get_subscription(data['subscription_id'])
+        if not s or (check_ownership and \
+                s.addr.addr_id != data.get('addr_id')):
+            api_404('No such subscription or wrong address')
+        _lm = data.get('level_match')
+        if _lm and _lm not in ['e', 'ge', 'le', 'g', 'l']:
+            api_invalid_data('Invalid level match')
+        s.set_level(data.get('level_id'), _lm, dbconn = cherrypy.thread_data.db)
+        return s.serialize()
+
+
+    @cherrypy.expose
+    def rm_subscription(self, data):
+        s = roboger.events.get_subscription(data['subscription_id'])
+        if not s or (check_ownership and \
+                s.addr.addr_id != data.get('addr_id')):
+            api_404('No such subscription or wrong address')
+        s.destroy(dbconn = cherrypy.thread_data.db)
+        return api_result()
+
+
+    @cherrypy.expose
+    def ls_events(self, data):
+        if 'addr' in data or 'addr_id' in data:
+            addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
+            if not addr:
+                api_404('address')
+        else:
+            addr = None
+        try: limit = int(data['limit'])
+        except: limit = None
+        q = 'select id, addr_id, d, scheduled,' + \
+            ' delivered, location, keywords, sender, level_id, expires,' + \
+            'subject, msg, media from event'
+        qp = ()
+        if addr:
+            q += ' where addr_id=%s'
+            qp += (addr.addr_id, )
+        q += ' order by d desc'
+        if limit:
+            q += ' limit %u' % limit
+        c = roboger.db.query(q, qp, dbconn = cherrypy.thread_data.db)
+        r = []
+        while True:
+            row = c.fetchone()
+            if row is None: break
+            u = roboger.addr.get_addr(row[1])
+            if not u: continue
+            e = roboger.events.Event(u, row[0], row[2], row[3], row[4], row[5], row[6],
+                row[7], row[8], row[9], row[10], row[11], row[12])
+            ev = e.serialize()
+            ev['addr'] = u.a
+            r.append(ev)
+        c.close()
         return r
 
 

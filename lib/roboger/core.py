@@ -41,7 +41,7 @@ primary_config = None
 
 logger = None
 
-store_events = False
+keep_events = 0
 
 debug = False
 
@@ -160,7 +160,7 @@ def reset_log(initial = False):
 
 def load(fname = None, initial = False, init_log = True):
     global log_file, pid_file, debug, development, show_traceback
-    global timeout, smtp_host, smtp_port, store_events
+    global timeout, smtp_host, smtp_port, keep_events
     fname_full = format_cfg_fname(fname)
     cfg = configparser.ConfigParser(inline_comment_prefixes=';')
     try:
@@ -223,10 +223,10 @@ def load(fname = None, initial = False, init_log = True):
         except: pass
         logging.debug('server.smtp_host = %s:%u' % (smtp_host, smtp_port))
         try:
-            store_events = (cfg.get('server', 'store_events') == 'yes')
+            keep_events = int(cfg.get('server', 'keep_events'))
         except:
-            store_events = False
-        logging.debug('server.store_events = %s' % store_events)
+            keep_events = 0
+        logging.debug('server.keep_events = %s' % keep_events)
         return cfg
     except:
         print('Can not read primary config %s' % fname_full)

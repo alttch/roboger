@@ -52,7 +52,7 @@ def destroy_endpoints_by_addr(u, dbconn = None):
 
 def load():
     c = db.query('select id, addr_id, endpoint_type_id, ' + \
-            'data, data2, data3, active from endpoint')
+            'data, data2, data3, active, description from endpoint')
     while True:
         row = c.fetchone()
         if row is None: break
@@ -62,13 +62,13 @@ def load():
             continue
         e = None
         if row[2] == 2:
-            e = EmailEndpoint(u, row[3], row[0], row[6])
+            e = EmailEndpoint(u, row[3], row[0], row[6], row[7])
         elif row[2] == 3:
-            e = HTTPJSONEndpoint(u, row[3], row[0], row[6])
+            e = HTTPJSONEndpoint(u, row[3], row[0], row[6], row[7])
         elif row[2] == 4:
-            e = HTTPPostEndpoint(u, row[3], row[0], row[6])
+            e = HTTPPostEndpoint(u, row[3], row[0], row[6], row[7])
         elif row[2] == 100:
-            e = SlackEndpoint(u, row[3], row[0], row[6])
+            e = SlackEndpoint(u, row[3], row[0], row[6], row[7])
         append_endpoint(e)
     c.close()
     logging.debug('endpoint: %u endpoint(s) loaded' % len(endpoints_by_id))
@@ -82,19 +82,22 @@ class GenericEndpoint(object):
     data = None
     data2 = None
     data3 = None
+    description = ''
     active = 1
     type_id = None
     _destroyed = False
     subscriptions = []
 
     def __init__(self, addr, type_id, endpoint_id = None,
-            data = '', data2 = '', data3 = '', active = 1, autosave = True):
+            data = '', data2 = '', data3 = '', active = 1,
+            description = '', autosave = True):
         self.addr = addr
         self.type_id = type_id
         self.active = active
-        self.data = data
-        self.data2 = data2
-        self.data3 = data3
+        self.data = data if data else ''
+        self.data2 = data2 if data2 else ''
+        self.data3 = data3 if data3 else ''
+        self.description = description if description else ''
         if endpoint_id:
             self.endpoint_id = endpoint_id
         else:
@@ -132,6 +135,11 @@ class GenericEndpoint(object):
         self.save(dbconn = dbconn)
 
 
+    def set_description(self, description = '', dbconn = None):
+        self.description = description if description else ''
+        self.save(dbconn = dbconn)
+
+
     def set_active(self, active = 1, dbconn = None):
         self.active = active
         self.save(dbconn)
@@ -140,18 +148,18 @@ class GenericEndpoint(object):
     def save(self, dbconn = None):
         if self._destroyed: return
         if self.endpoint_id:
-            db.query('update endpoint set active = %s, ' + \
+            db.query('update endpoint set active = %s, description = %s, ' + \
                     'data = %s, data2 = %s, data3 = %s' + \
                     ' where id = %s',
-                    (self.active, self.data, self.data2, self.data3,
+                    (self.active, self.description, self.data, self.data2, self.data3,
                         self.endpoint_id), True, dbconn)
         else:
             self.endpoint_id = db.query(
                     'insert into endpoint(addr_id, endpoint_type_id,' + \
-                    ' data, data2, data3, active) values ' + \
+                    ' data, data2, data3, active, description) values ' + \
                     ' (%s, %s, %s, %s, %s, %s)',
                     (self.addr.addr_id, self.type_id,
-                        self.data, self.data2, self.data3, self.active),
+                        self.data, self.data2, self.data3, self.active, self.description),
                     True, dbconn)
 
 
@@ -176,10 +184,10 @@ class EmailEndpoint(GenericEndpoint):
     rcpt = None
 
     def __init__(self, addr, rcpt, endpoint_id = None, active = 1,
-            autosave = True):
+            description = '', autosave = True):
         self.rcpt = rcpt
         super().__init__(addr, 2, endpoint_id, rcpt, active = active,
-                autosave = autosave)
+                description = description, autosave = autosave)
 
 
     def serialize(self):
@@ -219,10 +227,10 @@ class HTTPPostEndpoint(GenericEndpoint):
     url = None
 
     def __init__(self, addr, url, endpoint_id = None, active = 1,
-            autosave = True):
+            description = '', autosave = True):
         self.url = url
         super().__init__(addr, 3, endpoint_id, url, active = active,
-                autosave = autosave)
+                description = description, autosave = autosave)
 
 
     def serialize(self):
@@ -259,10 +267,10 @@ class HTTPJSONEndpoint(GenericEndpoint):
     url = None
 
     def __init__(self, addr, url, endpoint_id = None, active = 1,
-            autosave = True):
+            description = '', autosave = True):
         self.url = url
         super().__init__(addr, 4, endpoint_id, url, active = active,
-                autosave = autosave)
+                description = description, autosave = autosave)
 
 
     def serialize(self):
@@ -299,10 +307,10 @@ class SlackEndpoint(GenericEndpoint):
     webhook = None
 
     def __init__(self, addr, webhook, endpoint_id = None, active = 1,
-            autosave = True):
+            description = '', autosave = True):
         self.webhook = webhook
         super().__init__(addr, 100, endpoint_id, webhook, active = active,
-                autosave = autosave)
+                description = description, autosave = autosave)
 
 
     def serialize(self):
@@ -332,3 +340,4 @@ class SlackEndpoint(GenericEndpoint):
         except:
             roboger.core.log_traceback()
             return False
+
