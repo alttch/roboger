@@ -12,7 +12,7 @@ retry_delay=5
 ;server response timeout
 timeout=5
 ;backup server in case of failed push 
-;backup=local
+;backup=local1
 
 [local1]
 addr=de79411c0127b9443e3b15e6c7613e04c16216bdfb07e5ccd91cb9d8e74ab16a
