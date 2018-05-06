@@ -628,6 +628,7 @@ class PushAPI(object):
             try:
                 cl = cherrypy.request.headers['Content-Length']
                 rawbody = cherrypy.request.body.read(int(cl))
+                print(rawbody)
                 d = jsonpickle.decode(rawbody.decode())
             except:
                 roboger.core.log_traceback()
