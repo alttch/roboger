@@ -304,7 +304,7 @@ class MasterAPI(object):
             return e.serialize()
         else:
             try:
-                if addr.addr_id in \
+                if addr and addr.addr_id in \
                         roboger.endpoints.endpoints_by_addr_id:
                     for i, e in roboger.endpoints.endpoints_by_addr_id[
                             addr.addr_id].copy().items():

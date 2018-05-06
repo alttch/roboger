@@ -113,7 +113,7 @@ function sendPush() {
     if [ "x${ADDR}" != "x" ] && [ "x{$PUSH}" != "x" ]; then
         for ((i=1; i<=${RETRIES}; i+=1))
         do
-            local _data="{ \"msg\": \"${MSG}\", \"location\": \"${LOCATION}\", \"keywords\": \"${KEYWORDS}\", \"expires\": \"${EXPIRES}\", \"level\": \"${LEVEL}\", \"sender\" : \"${SENDER}\", \"addr\":\"${ADDR}\" }"
+            local _data="{ \"msg\": \"${MSG}\", \"subject\": \"${SUBJECT}\", \"location\": \"${LOCATION}\", \"keywords\": \"${KEYWORDS}\", \"expires\": \"${EXPIRES}\", \"level\": \"${LEVEL}\", \"sender\" : \"${SENDER}\", \"addr\":\"${ADDR}\" }"
             local CODE=`curl --header "Content-Type: application/json" --data "${_data}" -X POST -m ${T} -s -o /dev/null -w "%{http_code}" ${PUSH}/push`
             if [ "x${CODE}" == "x200" ]; then
                 echoV "${SRV} ${ADDR} - sent"

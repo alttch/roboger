@@ -73,7 +73,7 @@ def load():
         elif row[2] == 4:
             e = HTTPPostEndpoint(u, row[3], row[0], row[6], row[7])
         elif row[2] == 100:
-            e = SlackEndpoint(u, row[3], row[0], row[6], row[7])
+            e = SlackEndpoint(u, row[3], row[4], row[0], row[6], row[7])
         append_endpoint(e)
     c.close()
     logging.debug('endpoint: %u endpoint(s) loaded' % len(endpoints_by_id))
@@ -312,37 +312,63 @@ class HTTPJSONEndpoint(GenericEndpoint):
 class SlackEndpoint(GenericEndpoint):
 
     webhook = None
+    rich_fmt = False
+    slack_color = {
+            10: '#555555',
+            20: 'good',
+            30: 'warning',
+            40: 'danger',
+            50: '#FF2222'
+            }
 
-    def __init__(self, addr, webhook, endpoint_id = None, active = 1,
-            description = '', autosave = True):
+    def __init__(self, addr, webhook, fmt = 'plain',
+            endpoint_id = None, active = 1, description = '', autosave = True):
         self.webhook = webhook
-        super().__init__(addr, 100, endpoint_id, webhook, active = active,
+        self.rich_fmt = (fmt == 'rich')
+        super().__init__(addr, 100, endpoint_id, webhook, fmt, active = active,
                 description = description, autosave = autosave)
 
 
     def serialize(self):
         d = super().serialize()
         d['webhook'] = self.webhook
+        d['rich_fmt'] = self.rich_fmt
         return d
 
 
     def set_data(self, data = None, data2 = None, data3 = None,
             dbconn = None):
         self.webhook = data
+        self.rich_fmt = (data2 == 'rich')
         super().set_data(data, data2, data3, dbconn)
 
 
     def send(self, event):
         # return True
         if not self.webhook: return False
-        msg = event.formatted_subject + '\n' + event.msg
-        j = { 'text': msg }
+        if self.rich_fmt:
+            j = { 'text': '' }
+            color = self.slack_color.get(event.level_id)
+            if not color: color = 'good'
+            j['attachments'] = [{
+                'fallback': event.formatted_subject,
+                'color': color,
+                'fields': [{
+                    'title': event.formatted_subject,
+                    'value': event.msg,
+                    'short': event.subject
+                    }]
+                }]
+        else:
+            msg = event.formatted_subject + '\n' + event.msg
+            j = { 'text': msg }
         if event.sender:
             j['username' ] = event.sender
         try:
             r = requests.post(self.webhook,
                     json = j, timeout = roboger.core.timeout)
-            if r.status_code != 200: return False
+            if r.status_code != 200:
+                return False
             return True
         except:
             roboger.core.log_traceback()

@@ -40,7 +40,7 @@ Commands:
     set_addr_active <-a addr> [-i active]       set address active or inactive
     rm_addr <-a addr>                           delete address
 
-    ls_endpoint_types                           list types of supported endpoints
+    ls_endpoint_types                           list ids of endpoint types
     ls_endpoints <-a addr> <-e endpoint_id>     list endpoints
 
     mk_endpoint <-a addr> <-p type> <-d data> <-o description>
@@ -61,7 +61,7 @@ Commands:
                                                 create new subscription
 
     set_subscription_active <-s subscr_id> <-i active>
-                                                set subscription active or inactive
+                                                set subscription active or not
 
 
     set_subscription_location <-s subscr_id> <-n location>
@@ -98,7 +98,9 @@ Command arguments:
         4 - http/json
         100 - slack
         101 - telegram
-    -d  endpoint data
+    -d  endpoint data field
+    -g  endpoint data field 2
+    -j  endpoint data field 3
     -o  description
     -e  endpoint id
     -s  subscription id
@@ -130,7 +132,7 @@ xparams = {}
 try:
     func = sys.argv[1]
     o, a = getopt.getopt(sys.argv[2:],
-            'T:U:K:a:i:p:d:o:e:s:n:k:x:l:m:c:b:D')
+            'T:U:K:a:i:p:d:g:j:o:e:s:n:k:x:l:m:c:b:D')
 except:
     usage()
     sys.exit(99)
@@ -169,6 +171,10 @@ for i, v in o:
             sys.exit(99)
     elif i == '-d':
         xparams['data'] = v
+    elif i == '-g':
+        xparams['data2'] = v
+    elif i == '-j':
+        xparams['data3'] = v
     elif i == '-o':
         xparams['description'] = v
     elif i == '-e':
