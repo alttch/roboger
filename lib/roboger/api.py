@@ -649,8 +649,10 @@ class PushAPI(object):
                     'media': a
                  }
         else:
+            cl = cherrypy.request.headers.get('Content-Length')
+            if not cl:
+                api_invalid_json_data()
             try:
-                cl = cherrypy.request.headers['Content-Length']
                 rawbody = cherrypy.request.body.read(int(cl))
                 d = jsonpickle.decode(rawbody.decode())
             except:
