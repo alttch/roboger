@@ -124,6 +124,7 @@ class GenericEndpoint(object):
         u['data2'] = self.data2
         u['data3'] = self.data3
         u['active'] = self.active
+        u['description'] = self.description
         if roboger.core.development: u['destroyed'] = self._destroyed
         return u
 
@@ -151,15 +152,16 @@ class GenericEndpoint(object):
             db.query('update endpoint set active = %s, description = %s, ' + \
                     'data = %s, data2 = %s, data3 = %s' + \
                     ' where id = %s',
-                    (self.active, self.description, self.data, self.data2, self.data3,
-                        self.endpoint_id), True, dbconn)
+                    (self.active, self.description, self.data, self.data2,
+                        self.data3, self.endpoint_id), True, dbconn)
         else:
             self.endpoint_id = db.query(
                     'insert into endpoint(addr_id, endpoint_type_id,' + \
                     ' data, data2, data3, active, description) values ' + \
-                    ' (%s, %s, %s, %s, %s, %s)',
+                    ' (%s, %s, %s, %s, %s, %s, %s)',
                     (self.addr.addr_id, self.type_id,
-                        self.data, self.data2, self.data3, self.active, self.description),
+                        self.data, self.data2, self.data3, self.active,
+                        self.description),
                     True, dbconn)
 
 

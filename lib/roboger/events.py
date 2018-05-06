@@ -154,7 +154,8 @@ def get_subscription(s_id):
 def queue_event(event, dbconn = None):
     endp = []
     for i, s in subscriptions_by_addr_id[event.addr.addr_id].copy().items():
-        if s.active == 1 and s.endpoint.active == 1 and \
+        if event.addr.active == 1 and s.active == 1 and \
+                s.endpoint.active == 1 and \
                 s.endpoint.endpoint_id not in endp and \
                 location_match(s.location, event.location) and \
                 keyword_match(s.keywords, event.keywords) and \
@@ -188,6 +189,19 @@ def get_event_level_name(level_id):
     return level_names.get(level_id)
 
 
+def append_subscription(s):
+    e = s.endpoint
+    u = s.addr
+    e.append_subscription(s)
+    subscriptions_by_id[s.subscription_id] = s
+    if u.addr_id not in subscriptions_by_addr_id:
+        subscriptions_by_addr_id[u.addr_id] = {}
+    if e.endpoint_id not in subscriptions_by_endpoint_id:
+        subscriptions_by_endpoint_id[e.endpoint_id] = {}
+    subscriptions_by_addr_id[u.addr_id][s.subscription_id] = s
+    subscriptions_by_endpoint_id[e.endpoint_id][s.subscription_id] = s
+
+
 def load_subscriptions():
     c = db.query('select id, addr_id, endpoint_id, active,' + \
             'location, keywords, senders, level_id, level_match ' + \
@@ -206,14 +220,7 @@ def load_subscriptions():
             continue
         s = EventSubscription(u, e, row[0], row[3], row[4], row[5], row[6], \
                 row[7], row[8])
-        e.append_subscription(s)
-        subscriptions_by_id[row[0]] = s
-        if u.addr_id not in subscriptions_by_addr_id:
-            subscriptions_by_addr_id[u.addr_id] = {}
-        if e.endpoint_id not in subscriptions_by_endpoint_id:
-            subscriptions_by_endpoint_id[e.endpoint_id] = {}
-        subscriptions_by_addr_id[u.addr_id][row[0]] = s
-        subscriptions_by_endpoint_id[e.endpoint_id][row[0]] = s
+        append_subscription(s)
     logging.debug('endpoint subscriptions: %u subscription(s) loaded' % \
             len(subscriptions_by_id))
     c.close()
@@ -339,7 +346,7 @@ class EventSubscription(object):
                 [x.strip() for x in senders.split(',')]))
         else:
             self.senders = []
-        self.level_id = level_id
+        self.level_id = level_id if level_id else 20
         self.level_match = level_match if level_match else 'ge'
         if subscription_id:
             self.subscription_id = subscription_id
