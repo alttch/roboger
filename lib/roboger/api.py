@@ -552,7 +552,8 @@ class MasterAPI(object):
             api_404('No such target endpoint or wrong address')
         for i, s in roboger.events.subscriptions_by_endpoint_id[
                 et.endpoint_id].copy().items():
-            roboger.events.destroy_subscription(s, dbconn = cherrypy.thread_data.db)
+            roboger.events.destroy_subscription(s,
+                    dbconn = cherrypy.thread_data.db)
         for i, s in roboger.events.subscriptions_by_endpoint_id[
                 e.endpoint_id].copy().items():
             s_new = roboger.events.EventSubscription(s.addr, et,
