@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+
+__author__ = "Altertech Group, http://www.altertech.com/"
+__copyright__ = "Copyright (C) 2018 Altertech Group"
+__license__ = "See https://www.roboger.com/"
+__version__ = "0.0.1"
+
+import os
+import sys
+import getopt
+import json
+import jsonpickle
+import configparser
+import requests
+
+def format_json(obj, minimal = False):
+    return json.dumps(json.loads(jsonpickle.encode(obj,
+            unpicklable = False)), indent = 4, sort_keys = True) \
+                if not minimal else jsonpickle.encode(obj, unpicklable = False)
+
+def print_json(obj):
+    print(format_json(obj))
+
+def usage():
+    print('Roboger version %s' % __version__)
+    print("""
+Usage: roboger-control <command> [args] [-U API uri] [-K key] [-T sec] [-D]
+
+    -U   specify API uri (http://host:port), if no uri specified, API will be
+         called in local mode (with data from ../etc/uc.ini and uc_apikeys.ini)
+    -K   master key, if no key specified, local master key will be used
+    -T   API request timeout
+    -D   Enable debug messages
+
+Commands:
+
+    ls_addr [-a addr]                           list address(es)
+    mk_addr                                     create new address
+    ch_addr <-a addr>                           change existing address
+    set_addr_active <-a addr> [-i active]       set address active or inactive
+    rm_addr <-a addr>                           delete address
+
+    ls_endpoint_types                           list types of supported endpoints
+    ls_endpoints <-a addr> <-e endpoint_id>     list endpoints
+
+    mk_endpoint <-a addr> <-p type> <-d data> <-o description>
+                                                create new endpoint
+
+    set_endpoint_data <-e endpoint_id> <-d data>
+                                                set endpoint parameters data
+    set_endpoint_description <-e endpoint_id> <-o description>
+                                                set endpoint description
+    set_endpoint_active <-e endpoint_id> <-i active>
+                                                set endpoint active or inactive
+    rm_endpoint <-e endpoint_id>                delete endpoint
+
+    ls_subscriptions <-e endpoint_id>           list endpoint subscriptions
+
+    mk_subscription <-e endpoint_id> <-n location> <-k keywords> <-s senders>
+                    <-l level> <-m level match>
+                                                create new subscription
+
+    set_subscription_active <-s subscr_id> <-i active>
+                                                set subscription active or inactive
+
+
+    set_subscription_location <-s subscr_id> <-n location>
+                                                set subscription location
+    set_subscription_keywords <-s subscr_id> <-k keywords>
+                                                set subscription keywords
+    set_subscription_senders <-s subscr_id> <-x senders>
+                                                set subscription senders
+
+    set_subscription_level [-l level] [-m level match]
+                                                set subscription level (default
+                                                info, greater or equal)
+
+    rm_subscription <-s subscr_id>              delete subscription
+
+    copy_subscription <-s subscr_id>            copy subsciption to a new one
+
+    copy_endpoint_subscriptions <-e endpoint_id> <-c target_endpoint_id>
+                                                delete target endpoint
+                                                subscriptions and copy source
+                                                endpoint subscriptions to it
+
+
+    ls_events <-a addr> [-b limit]              list events (if kept)
+
+
+Command arguments:
+
+    -a  address or address id
+    -i  active (0 - inactive 1 - active)
+    -p  endpoint type
+        2 - email
+        3 - http/post
+        4 - http/json
+        100 - slack
+        101 - telegram
+    -d  endpoint data
+    -o  description
+    -e  endpoint id
+    -s  subscription id
+    -n  location
+    -k  keywords, comma separated
+    -x  senders, comma separated
+    -l  level
+    -m  level match
+            e = equal
+            l - less
+            g - greater
+            le - less or equal
+            ge - greater or equal
+    -c  endpoint target id
+    -b  limit
+
+    """)
+
+dir_etc = os.path.dirname(os.path.realpath(__file__)) + '/../etc'
+
+timeout = 5
+apikey = None
+apiuri = None
+
+debug = False
+
+xparams = {}
+
+try:
+    func = sys.argv[1]
+    o, a = getopt.getopt(sys.argv[2:],
+            'T:U:K:a:i:p:d:o:e:s:n:k:x:l:m:c:b:D')
+except:
+    usage()
+    sys.exit(99)
+
+for i, v in o:
+    if i == '-T':
+        try:
+            timeout = float(v)
+        except:
+            print('Invalid timeout value')
+            usage()
+            sys.exit(99)
+    elif i == '-U':
+        apiuri = v
+        if apiuri[-1] == '/': apiuri = apiuri[:-1]
+    elif i == '-K':
+        apikey = v
+    elif i == '-D':
+        debug = True
+    elif i == '-a':
+        if v.isdigit(): xparams['addr_id'] = int(v)
+        else: xparams['addr'] = v
+    elif i == '-i':
+        try:
+            xparams['active'] = int(v)
+        except:
+            print('Invalid active value')
+            usage()
+            sys.exit(99)
+    elif i == '-p':
+        try:
+            xparams['et'] = int(v)
+        except:
+            print('Invalid endpoint type value')
+            usage()
+            sys.exit(99)
+    elif i == '-d':
+        xparams['data'] = v
+    elif i == '-o':
+        xparams['description'] = v
+    elif i == '-e':
+        try:
+            xparams['endpoint_id'] = int(v)
+        except:
+            print('Invalid endpoint id value')
+            usage()
+            sys.exit(99)
+    elif i == '-c':
+        try:
+            xparams['endpoint_id_t'] = int(v)
+        except:
+            print('Invalid target endpoint id value')
+            usage()
+            sys.exit(99)
+    elif i == '-s':
+        try:
+            xparams['subscription_id'] = int(v)
+        except:
+            print('Invalid subscription id value')
+            usage()
+            sys.exit(99)
+    elif i == '-b':
+        try:
+            xparams['limit'] = int(v)
+        except:
+            print('Invalid limit value')
+            usage()
+            sys.exit(99)
+    elif i == '-n':
+        xparams['location'] = v
+    elif i == '-k':
+        xparams['keywords'] = v
+    elif i == '-x':
+        xparams['senders'] = v
+    elif i == '-m':
+        xparams['level_match'] = v
+    elif i == '-l':
+        try:
+            xparams['level_id'] = int(v)
+        except:
+            xparams['level'] = v
+
+
+if not apiuri or not apikey:
+    cfg = configparser.ConfigParser(inline_comment_prefixes=';')
+    cfg.readfp(open(dir_etc + '/roboger.ini'))
+    if not apikey:
+        try: apikey = cfg.get('api', 'masterkey')
+        except: pass
+    if not apiuri:
+        try:
+            l = cfg.get('api', 'listen')
+            proto = 'http'
+        except:
+            try:
+                l = cfg.get('api', 'ssl_listen')
+                proto = 'https'
+            except:
+                l = None
+        if l:
+            try: host, port = l.split(':')
+            except:
+                host = l
+                port = '80'
+            if host == '0.0.0.0': host = '127.0.0.1'
+            apiuri = '%s://%s:%s' % (proto, host, port)
+    try:
+        development = (cfg.get('server','development') == 'yes')
+        if development: debug = True
+    except: pass
+
+if not apiuri:
+    print('no API URI specified')
+    sys.exit(5)
+
+
+apiuri_r = apiuri + '/control/' + func
+
+if debug:
+    print("API request: %s" % apiuri_r)
+    print("API max timeout: %u sec" % timeout)
+    print("API requsts params:")
+    print_json(xparams)
+    print()
+
+xparams['k'] = apikey
+
+if not apikey:
+    print('no API masterkey specified')
+    sys.exit(6)
+
+try:
+    r = requests.post(apiuri_r, json=xparams, timeout=timeout)
+except:
+    print('API error: can not connect (%s)' % apiuri)
+    sys.exit(1)
+
+if debug:
+    print("API response code: %s" % r.status_code)
+if r.status_code == 200:
+    try:
+        j = jsonpickle.decode(r.text)
+    except:
+        print('API error: invalid json response')
+        sys.exit(3)
+    print_json(j)
+else:
+    print("API error %u" % (r.status_code))
+    if debug: print(r.text)
+    sys.exit(2)
+

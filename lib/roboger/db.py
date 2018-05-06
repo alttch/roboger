@@ -1,3 +1,8 @@
+__author__ = "Altertech Group, http://www.altertech.com/"
+__copyright__ = "Copyright (C) 2018 Altertech Group"
+__license__ = "See https://www.roboger.com/"
+__version__ = "0.0.1"
+
 import MySQLdb
 import logging
 import roboger.core
