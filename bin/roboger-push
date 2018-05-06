@@ -56,7 +56,7 @@ function parseIniFile() {
             if [[ $LINE =~ ^\[([[:alnum:]]+)\] ]]       # Section
             then
                 SECTION=${BASH_REMATCH[1]}
-				_SECTIONS="${_SECTIONS} ${SECTION}"
+                _SECTIONS="${_SECTIONS} ${SECTION}"
                 KEY=""
             elif [[ $LINE =~ ^([^[:space:]]+)[[:space:]]*=[[:space:]]*(.+) ]] # Property
             then 
