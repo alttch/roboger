@@ -22,6 +22,12 @@ SUBJECT=""
 EXPIRES=""
 MSG=""
 CONFIG_FILE=${DEFAULT_CONFIG_FILE}
+VERBOSE=0
+
+
+function echoV() {
+    [ ${VERBOSE} -gt 0 ] && echo $*
+}
 
 function parseIniFile() {
     local LINE=""
@@ -74,7 +80,6 @@ function getProperty() {
     do
         if [[ ${_CONFIG[$i]} =~ ^\.?${KEY} ]]
         then
-            #echo ${_CONFIG[((i+1))]}
             _PROP=${_CONFIG[((i+1))]}
             return 0
         fi
@@ -106,35 +111,35 @@ function sendPush() {
             local _data="{ \"msg\": \"${MSG}\", \"location\": \"${LOCATION}\", \"keywords\": \"${KEYWORDS}\", \"expires\": \"${EXPIRES}\", \"level\": \"${LEVEL}\", \"sender\" : \"${SENDER}\", \"addr\":\"${ADDR}\" }"
             local CODE=`curl --header "Content-Type: application/json" --data "${_data}" -X POST -m ${T} -s -o /dev/null -w "%{http_code}" ${PUSH}/push`
             if [ "x${CODE}" == "x200" ]; then
-                echo "${SRV} ${ADDR} - sent"
+                echoV "${SRV} ${ADDR} - sent"
                 _EX=0
                 break
             fi
             if [ "x${CODE}" == "x500" ] || [ "x${CODE}" == "x404" ] || [ "x${CODE}" == "x403" ]; then
-                echo -n "${SRV} ${ADDR} - error"
+                echoV -n "${SRV} ${ADDR} - error"
                 if [ "x${BACKUP_SRV}" != "x" ]; then
-                    echo ", sending via backup"
+                    echoV ", sending via backup"
                     sendPush ${BACKUP_SRV}
                 else
-                    echo
+                    echoV
                 fi
                 break
             fi
             if [ $i -lt ${RETRIES} ]; then
-                echo "${SRV} ${ADDR} - failed, retrying"
+                echoV "${SRV} ${ADDR} - failed, retrying"
                 sleep ${RETRY_DELAY}
             else
-                echo -n "${SRV} ${ADDR} - error"
+                echoV -n "${SRV} ${ADDR} - error"
                 if [ "x${BACKUP_SRV}" != "x" ]; then
-                    echo ", sending via backup"
+                    echoV ", sending via backup"
                     sendPush ${BACKUP_SRV}
                 else
-                    echo
+                    echoV
                 fi
             fi
         done
     else
-        echo "Skipping ${SRV}, no addr or push"
+        echoV "Skipping ${SRV}, no addr or push"
 
     fi
 }
@@ -142,19 +147,19 @@ function sendPush() {
 
 function showHelp() {
 cat <<EOF
-Usage: roboger-push [-f config] [-s subject] [-l level] [-x sender] [-n location] [-k keywords] [-m message]
-
-    -f  config file to use (default: ${DEFAULT_CONFIG_FILE})
-
-    -s  event subject
+Usage: roboger-push [-f config] [-s subject] [-l level] [-x sender] [-n location] [-k keywords] [-m message] [-v]
 
     -l  event level: debug, info(default), warning, error or critical
         you may use a single letter, i.e. 'e' for 'error'
 
-    -x  sender (default: user @ hostname)
+    -s  event subject
+    -x  event sender (default: user @ hostname)
     -n  event location
     -k  event keywords (comma separated)
     -m  event message (will be read from stdin if not specified)
+
+    -f  config file to use (default: ${DEFAULT_CONFIG_FILE})
+    -v  log push progress to stdout
 
 EOF
 }
@@ -195,6 +200,9 @@ do
         ;;
         -m) MSG="$2"
             shift
+            shift
+        ;;
+        -v) VERBOSE=1
             shift
         ;;
         -h) showHelp
