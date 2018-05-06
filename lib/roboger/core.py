@@ -59,6 +59,7 @@ timeout = 5
 
 
 def set_build(build):
+    global product_build
     product_build = build
 
 

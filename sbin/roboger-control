@@ -5,7 +5,7 @@ PYTHON=python3
 D=`realpath $0`
 cd `dirname ${D}`/..
 
-WAIT_TO_KILL=40 # sec * 2 before kill -KILL
+WAIT_TO_KILL=60 # sec * 2 before kill -KILL
 
 export EVA_DIR=`pwd`
 

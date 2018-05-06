@@ -5,6 +5,7 @@ __version__ = "0.0.1"
 
 import sys
 import os
+import getopt
 
 dir_lib = os.path.dirname(os.path.realpath(__file__)) + '/../lib'
 sys.path.append(dir_lib)
@@ -15,12 +16,42 @@ import roboger.api
 
 import logging
 
+def usage(version_only = False):
+    print('Roboger version %s build %s ' % \
+            (
+                roboger.core.version,
+                roboger.core.product_build
+            )
+        )
+    if version_only: return
+    print ("""Usage: roboger-server.py [-f config_file ]
+
+ -f config_file     start with an alternative config file
+
+for production use roboger-control only to start/stop Roboger server
+""")
+
 product_build = 2018050101
 
 roboger.core.init()
 roboger.core.set_build(product_build)
 
 _ini = None
+
+try:
+    optlist, args = getopt.getopt(sys.argv[1:], 'f:hV')
+except:
+    usage()
+    sys.exit(99)
+
+for o, a in optlist:
+    if o == '-f': _ini = a
+    if o == '-V':
+        usage(version_only = True)
+        sys.exit()
+    if o == '-h':
+        usage()
+        sys.exit()
 
 cfg = roboger.core.load(fname = _ini, initial = True)
 if not cfg: sys.exit(2)
