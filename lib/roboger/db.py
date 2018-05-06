@@ -76,9 +76,7 @@ def query(sql, args = (), do_commit = False, dbconn = None):
                 cursor = dbconn.cursor()
             else:
                 cursor = db.cursor()
-            print(cursor)
             cursor.execute(sql, args)
-            print(1)
         except:
             return None
     if do_commit:
