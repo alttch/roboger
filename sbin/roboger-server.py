@@ -62,6 +62,8 @@ if not roboger.db.update_config(cfg): sys.exit(3)
 
 if not roboger.api.update_config(cfg): sys.exit(4)
 
+if not roboger.endpoints.update_config(cfg): sys.exit(5)
+
 roboger.addr.load()
 
 u = roboger.addr.get_addr(addr_id = 53)
@@ -72,8 +74,11 @@ roboger.events.load_subscriptions()
 
 roboger.events.load_queued_events()
 
+roboger.endpoints.start()
+
 roboger.events.start()
 
 roboger.api.start()
 
 roboger.core.block()
+

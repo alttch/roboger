@@ -227,7 +227,7 @@ if [ ! -f ${CONFIG_FILE} ]; then
 fi
 
 [ "x${SENDER}" == "x" ] && SENDER="`whoami`@`hostname -f`"
-[ "x${MSG}" == "x" ] && MSG=`sed ':a;N;$!ba;s/\n/\\\\n/g'`
+[ "x${MSG}" == "x" ] && MSG=`tr "\t" "    "|sed 's/"/\\\"/g'|sed ':a;N;$!ba;s/\n/\\\\n/g'`
 
 parseIniFile < $CONFIG_FILE
 for SRV in ${_SECTIONS}; do

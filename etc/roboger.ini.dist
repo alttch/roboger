@@ -28,3 +28,8 @@ thread_pool = 15
 masterkey = VERYSECRETKEY
 ;keep this
 master_allow = 127.0.0.1
+
+[endpoint_telegram]
+;fill this to run own telegram bot
+;bot_token = see https://core.telegram.org/bots#6-botfather
+;poll_interval = 2

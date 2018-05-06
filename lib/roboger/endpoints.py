@@ -13,9 +13,52 @@ import roboger.events
 import requests
 import logging
 
+from roboger.bots.telegram import RTelegramBot
+
 
 endpoints_by_id = {}
 endpoints_by_addr_id = {}
+
+telegram_bot_token = None
+telegram_poll_interval = 1
+
+telegram_bot = None
+
+endpoint_types = {}
+
+
+def update_config(cfg):
+    global telegram_bot_token, telegram_poll_interval
+    try:
+        telegram_bot_token = cfg.get('endpoint_telegram', 'bot_token')
+        logging.debug('endpoint.telegram bot token loaded')
+    except: pass
+    try:
+        telegram_poll_interval = \
+                int(cfg.get('endpoint_telegram', 'poll_interval'))
+    except:
+        pass
+    if telegram_bot_token:
+        logging.debug('endpoint.telegram.poll_interval = %s' % \
+                telegram_poll_interval)
+    return True
+
+
+def start():
+    global telegram_bot
+    roboger.core.append_stop_func(stop)
+    if telegram_bot_token:
+        telegram_bot = RTelegramBot(telegram_bot_token)
+        telegram_bot.poll_interval = telegram_poll_interval
+        if telegram_bot.test():
+            telegram_bot.start()
+        else:
+            logging.error('Failed to start RTelegramBot')
+
+
+def stop():
+    if telegram_bot:
+        telegram_bot.stop()
 
 
 def get_endpoint(endpoint_id):
@@ -56,6 +99,12 @@ def destroy_endpoints_by_addr(u, dbconn = None):
 
 
 def load():
+    c = db.query('select id, name from endpoint_type')
+    while True:
+        row = c.fetchone()
+        if row is None: break
+        endpoint_types[row[0]] = row[1]
+    c.close()
     c = db.query('select id, addr_id, endpoint_type_id, ' + \
             'data, data2, data3, active, description from endpoint')
     while True:
@@ -74,6 +123,8 @@ def load():
             e = HTTPPostEndpoint(u, row[3], row[0], row[6], row[7])
         elif row[2] == 100:
             e = SlackEndpoint(u, row[3], row[4], row[0], row[6], row[7])
+        elif row[2] == 101:
+            e = TelegramEndpoint(u, row[3], row[0], row[6], row[7])
         append_endpoint(e)
     c.close()
     logging.debug('endpoint: %u endpoint(s) loaded' % len(endpoints_by_id))
@@ -130,6 +181,8 @@ class GenericEndpoint(object):
         u['data3'] = self.data3
         u['active'] = self.active
         u['description'] = self.description
+        u['type_id' ] = self.type_id
+        u['type'] = endpoint_types.get(self.type_id)
         if roboger.core.development: u['destroyed'] = self._destroyed
         return u
 
@@ -374,3 +427,42 @@ class SlackEndpoint(GenericEndpoint):
             roboger.core.log_traceback()
             return False
 
+
+class TelegramEndpoint(GenericEndpoint):
+
+    chat_id = None
+
+    def __init__(self, addr, chat_id = None, endpoint_id = None, active = 1,
+            description = '', autosave = True):
+        try:
+            self.chat_id = int(chat_id)
+        except:
+            self.chat_id = None
+        super().__init__(addr, 101, endpoint_id, chat_id, active = active,
+                description = description, autosave = autosave)
+
+    def serialize(self):
+        d = super().serialize()
+        d['chat_id'] = self.chat_id
+        return d
+
+
+    def set_data(self, data = None, data2 = None, data3 = None,
+            dbconn = None):
+        try:
+            self.chat_id = int(data)
+        except:
+            self.chat_id = None
+        super().set_data(data, data2, data3, dbconn)
+
+
+    def send(self, event):
+        if self.chat_id:
+            msg = event.sender
+            if msg: msg += '\n'
+            msg += '<b>' + event.formatted_subject + \
+                    '</b>\n'
+            msg += event.msg
+            return telegram_bot.send_message(
+                    self.chat_id, msg, (event.level_id <= 10))
+        return False

@@ -326,22 +326,27 @@ class MasterAPI(object):
         try:
             if endpoint_type == 2:
                 e = roboger.endpoints.EmailEndpoint(addr,
-                        data['data'],
+                        data.get('data'),
                         description = data.get('description'),
                         autosave = False)
             elif endpoint_type == 3:
                 e = roboger.endpoints.HTTPPostEndpoint(addr,
-                        data['data'],
+                        data.get('data'),
                         description = data.get('description'),
                         autosave = False)
             elif endpoint_type == 4:
                 e = roboger.endpoints.HTTPJSONEndpoint(addr,
-                        data['data'],
+                        data.get('data'),
                         description = data.get('description'),
                         autosave = False)
             elif endpoint_type == 100:
                 e = roboger.endpoints.SlackEndpoint(addr,
-                        data['data'],
+                        data.get('data'),
+                        description = data.get('description'),
+                        autosave = False)
+            elif endpoint_type == 101:
+                e = roboger.endpoints.TelegramEndpoint(addr,
+                        data.get('data'),
                         description = data.get('description'),
                         autosave = False)
             else:
@@ -657,6 +662,8 @@ class PushAPI(object):
             d['level'] = roboger.events.level_codes[str(d['level'])[0].lower()]
         except:
             d['level'] = 20
+        if len(d['msg']) > 2048:
+            api_invalid_data('message too long (max is 2048 bytes)')
         check_db()
         result = roboger.events.push_event(
                 d.get('addr'),
