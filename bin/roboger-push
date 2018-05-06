@@ -221,7 +221,7 @@ if [ ! -f ${CONFIG_FILE} ]; then
     exit 3
 fi
 
-[ "x${SENDER}" == "x" ] && SENDER="`whoami`@`hostname`"
+[ "x${SENDER}" == "x" ] && SENDER="`whoami`@`hostname -f`"
 [ "x${MSG}" == "x" ] && MSG=`sed ':a;N;$!ba;s/\n/\\\\n/g'`
 
 parseIniFile < $CONFIG_FILE
