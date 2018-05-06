@@ -458,8 +458,7 @@ class TelegramEndpoint(GenericEndpoint):
 
     def send(self, event):
         if self.chat_id:
-            msg = event.sender
-            if msg: msg += '\n'
+            msg = '<pre>%s</pre>\n' % event.sender if event.sender else ''
             msg += '<b>' + event.formatted_subject + \
                     '</b>\n'
             msg += event.msg
