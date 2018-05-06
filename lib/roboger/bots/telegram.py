@@ -33,7 +33,7 @@ class RTelegramBot(object):
                     timeout = self.timeout)
             if r.status_code != 200: return None
             result = jsonpickle.decode(r.text)
-            return result if result['ok'] else None
+            return result if result.get('ok') else None
         except:
             roboger.core.log_traceback()
             return None

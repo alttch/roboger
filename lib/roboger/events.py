@@ -322,7 +322,7 @@ class EventQueueItem(object):
             roboger.core.log_traceback()
 
     def save(self, initial = False, dbconn = None):
-        if self._destroyed: return True
+        if self._destroyed or not roboger.core.keep_events: return True
         if initial:
             db.query('insert into event_queue ' + \
                     '(event_id, subscription_id, status, dd)' + \

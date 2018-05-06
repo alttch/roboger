@@ -663,7 +663,8 @@ class PushAPI(object):
         except:
             d['level'] = 20
         if len(d['msg']) > 2048:
-            api_invalid_data('message too long (max is 2048 bytes)')
+            logging.warning('message too long (max is 2048 bytes)')
+            d['msg'] = d['msg'][:2048]
         check_db()
         result = roboger.events.push_event(
                 d.get('addr'),

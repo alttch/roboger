@@ -40,7 +40,8 @@ def update_config(cfg):
 
 def connect():
     try:
-        db = MySQLdb.connect(db_host, db_user, db_password, db_name)
+        db = MySQLdb.connect(db_host, db_user, db_password, db_name,
+                charset='utf8')
         return db
     except:
         roboger.core.log_traceback()
