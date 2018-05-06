@@ -141,7 +141,7 @@ class Addr:
     def destroy(self, dbconn = None):
         self._destroyed = True
         if self.addr_id:
-            for e in self.endpoints:
+            for e in self.endpoints.copy():
                 roboger.endpoints.destroy_endpoints_by_addr(self, dbconn)
             db.query('delete from addr where id = %s', (self.addr_id, ),
                     True, dbconn)

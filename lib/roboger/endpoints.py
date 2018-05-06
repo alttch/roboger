@@ -175,7 +175,7 @@ class GenericEndpoint(object):
         self.active = 0
         self.addr.remove_endpoint(self)
         if self.endpoint_id:
-            for s in self.subscriptions:
+            for s in self.subscriptions.copy():
                 roboger.events.destroy_subscription(s, dbconn)
             db.query('delete from endpoint where id = %s',
                     (self.endpoint_id, ), True, dbconn)
