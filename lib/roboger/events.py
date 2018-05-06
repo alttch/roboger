@@ -2,6 +2,7 @@ import datetime
 import base64
 import logging
 import uuid
+import time
 
 import threading
 
@@ -36,6 +37,10 @@ subscriptions_by_endpoint_id = {}
 queue_processor_active = False
 queue_processor = None
 
+event_cleaner_active = False
+event_cleaner = None
+
+
 def push_event(a, level, sender = '', location = '', keywords = '',
         subject = '', expires = '', msg = '', media = None, dbconn = None):
     addr = roboger.addr.get_addr(a = a)
@@ -69,11 +74,15 @@ def push_event(a, level, sender = '', location = '', keywords = '',
 
 def _t_queue_processor():
     global queue_processor_active
-    dbconn = db.connect()
+    if roboger.core.keep_events:
+        dbconn = db.connect()
+    else:
+        dbconn = None
     queue_processor_active = True
     while queue_processor_active or not roboger.core.keep_events:
         eq = q.get()
-        if not db.check(dbconn): dbconn = db.connect()
+        if dbconn and not db.check(dbconn):
+            dbconn = db.connect()
         if not eq or \
                 (roboger.core.keep_events and not queue_processor_active):
                     break
@@ -85,27 +94,55 @@ def _t_queue_processor():
         t = threading.Thread(target = eq.send)
         t.start()
         eq.mark_delivered(dbconn = dbconn)
-    dbconn.close()
+    if dbconn:
+        dbconn.close()
+
+
+def _t_event_cleaner():
+    global event_cleaner_active
+    clean_interval = 60
+    dbconn = db.connect()
+    event_cleaner_active = True
+    c = clean_interval
+    while event_cleaner_active:
+        c += 1
+        if c > clean_interval:
+            logging.debug('cleaning old events')
+            if dbconn and not db.check(dbconn):
+                dbconn = db.connect()
+            db.query('delete from event where d<NOW() - INTERVAL %s SECOND',
+                    (roboger.core.keep_events,), True, dbconn = dbconn)
+            c = 0
+        time.sleep(1)
 
 
 def stop():
     global queue_processor_active
+    global event_cleaner_active
     if queue_processor_active and \
             queue_processor and queue_processor.isAlive():
             queue_processor_active = False
             q.put(None)
             queue_processor.join()
+    if event_cleaner_active and \
+            event_cleaner and event_cleaner.isAlive():
+            event_cleaner_active = False
+            event_cleaner.join()
     return
 
 
 def start():
-    global queue_processor
+    global queue_processor, event_cleaner
     if queue_processor_active and \
             queue_processor and queue_processor.isAlive(): return
     roboger.core.append_stop_func(stop)
     queue_processor = threading.Thread(
             target = _t_queue_processor, name = "_t_queue_processor")
     queue_processor.start()
+    if roboger.core.keep_events:
+        event_cleaner = threading.Thread(
+                target = _t_event_cleaner, name = "_t_event_cleaner")
+        event_cleaner.start()
 
 
 def location_match(lmask, location):
