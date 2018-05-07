@@ -113,10 +113,14 @@ def _t_event_cleaner():
         c += 1
         if c > clean_interval:
             logging.debug('cleaning old events')
-            if dbconn and not db.check(dbconn):
-                dbconn = db.connect()
-            db.query('delete from event where d<NOW() - INTERVAL %s SECOND',
+            try:
+                if dbconn and not db.check(dbconn):
+                    dbconn = db.connect()
+                db.query(
+                    'delete from event where d<NOW() - INTERVAL %s SECOND',
                     (roboger.core.keep_events,), True, dbconn = dbconn)
+            except:
+                roboger.core.log_traceback()
             c = 0
         time.sleep(1)
 
@@ -138,16 +142,18 @@ def stop():
 
 def start():
     global queue_processor, event_cleaner
-    if queue_processor_active and \
-            queue_processor and queue_processor.isAlive(): return
     roboger.core.append_stop_func(stop)
-    queue_processor = threading.Thread(
-            target = _t_queue_processor, name = "_t_queue_processor")
-    queue_processor.start()
+    if not ( queue_processor_active and \
+            queue_processor and queue_processor.isAlive() ):
+        queue_processor = threading.Thread(
+                target = _t_queue_processor, name = "_t_queue_processor")
+        queue_processor.start()
     if roboger.core.keep_events:
-        event_cleaner = threading.Thread(
-                target = _t_event_cleaner, name = "_t_event_cleaner")
-        event_cleaner.start()
+        if not ( event_cleaner_active and \
+                event_cleaner and event_cleaner.isAlive() ):
+            event_cleaner = threading.Thread(
+                    target = _t_event_cleaner, name = "_t_event_cleaner")
+            event_cleaner.start()
 
 
 def location_match(lmask, location):
