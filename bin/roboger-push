@@ -26,6 +26,8 @@ LEVEL=""
 SUBJECT=""
 EXPIRES=""
 MSG=""
+MEDIA=""
+MEDIA_FILE=""
 CONFIG_FILE=${DEFAULT_CONFIG_FILE}
 VERBOSE=0
 
@@ -113,7 +115,7 @@ function sendPush() {
     if [ "x${ADDR}" != "x" ] && [ "x{$PUSH}" != "x" ]; then
         for ((i=1; i<=${RETRIES}; i+=1))
         do
-            local _data="{ \"msg\": \"${MSG}\", \"subject\": \"${SUBJECT}\", \"location\": \"${LOCATION}\", \"keywords\": \"${KEYWORDS}\", \"expires\": \"${EXPIRES}\", \"level\": \"${LEVEL}\", \"sender\" : \"${SENDER}\", \"addr\":\"${ADDR}\" }"
+            local _data="{ \"msg\": \"${MSG}\", \"subject\": \"${SUBJECT}\", \"location\": \"${LOCATION}\", \"keywords\": \"${KEYWORDS}\", \"expires\": \"${EXPIRES}\", \"level\": \"${LEVEL}\", \"sender\" : \"${SENDER}\", \"addr\":\"${ADDR}\", \"media\": \"${MEDIA}\" }"
             local CODE=`curl --header "Content-Type: application/json" --data "${_data}" -X POST -m ${T} -s -o /dev/null -w "%{http_code}" ${PUSH}/push`
             if [ "x${CODE}" == "x200" ]; then
                 echoV "${SRV} ${ADDR} - sent"
@@ -207,6 +209,10 @@ do
             shift
             shift
         ;;
+        -a) MEDIA_FILE="$2"
+            shift
+            shift
+        ;;
         -v) VERBOSE=1
             shift
         ;;
@@ -228,6 +234,12 @@ fi
 
 [ "x${SENDER}" == "x" ] && SENDER="`whoami`@`hostname -f`"
 [ "x${MSG}" == "x" ] && MSG=`sed 's/\t/    /g'|sed 's/\\\\/\\\\\\\\/g'|sed 's/\"/\\\"/g'|sed ':a;N;$!ba;s/\n/\\\\n/g'|head -c 2048`
+
+if [ -f ${MEDIA_FILE} ]; then
+    MEDIA=`openssl base64 -in /root/1.jpg |sed ':a;N;$!ba;s/\n//g'`
+else
+    >&2 echo "Warning: no such file ${MEDIA_FILE}"
+fi
 
 parseIniFile < $CONFIG_FILE
 for SRV in ${_SECTIONS}; do

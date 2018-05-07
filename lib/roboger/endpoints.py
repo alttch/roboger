@@ -4,6 +4,10 @@ __license__ = "See https://www.roboger.com/"
 __version__ = "0.0.1"
 
 from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+import email.utils
+
 import smtplib
 
 from roboger import db
@@ -12,6 +16,8 @@ import roboger.events
 
 import requests
 import logging
+
+import filetype
 
 from roboger.bots.telegram import RTelegramBot
 
@@ -267,10 +273,23 @@ class EmailEndpoint(GenericEndpoint):
         if not self.active or event._destroyed: return True
         if not self.rcpt: return False
         t = event.msg if event.msg else ''
-        msg = MIMEText(t)
+        if event.media:
+            msg = MIMEMultipart()
+        else:
+            msg = MIMEText(t)
         msg['Subject'] = event.formatted_subject
         msg['From'] = event.sender
         msg['To'] = self.rcpt
+        if event.media:
+            msg.attach(MIMEText(t))
+            ft = filetype.guess(event.media)
+            if ft is None:
+                fname = 'attachment.txt'
+            else:
+                fname = 'attachment.' + ft.extension
+            a = MIMEApplication(event.media, Name=fname)
+            a['Content-Disposition'] = 'attachment; filename="%s"' % fname
+            msg.attach(a)
         try:
             logging.info('EmailEndpoint sending event to %s' % self.rcpt)
             sm = smtplib.SMTP(roboger.core.smtp_host, roboger.core.smtp_port)
@@ -352,7 +371,7 @@ class HTTPJSONEndpoint(GenericEndpoint):
         try:
             logging.info('HTTPJSONEndpoint sending event to %s' % self.url)
             r = requests.post(self.url,
-                    data = data, timeout = roboger.core.timeout)
+                    json = data, timeout = roboger.core.timeout)
             if r.status_code != 200:
                 logging.info('HTTPJSONEndpoint %s return code %s' % \
                         (self.url, r.status_code))
@@ -480,6 +499,42 @@ class TelegramEndpoint(GenericEndpoint):
             msg += '<b>' + event.formatted_subject + \
                     '</b>\n'
             msg += event.msg
-            return telegram_bot.send_message(
-                    self._chat_id_plain, msg, (event.level_id <= 10))
+            if not telegram_bot.send_message(
+                    self._chat_id_plain, msg, (event.level_id <= 10)):
+                return False
+            if event.media:
+                ft = filetype.guess(event.media)
+                if ft:
+                    mt = ft.mime.split('/')[0]
+                else:
+                    mt = None
+                if not ft or not mt:
+                    if not telegram_bot.send_document(
+                            self._chat_id_plain,
+                            event.formatted_subject,
+                            event.media,
+                            (event.level_id <= 10)):
+                        return False
+                elif mt == 'image':
+                    if not telegram_bot.send_photo(
+                            self._chat_id_plain,
+                            event.formatted_subject,
+                            event.media,
+                            (event.level_id <= 10)):
+                        return False
+                elif mt == 'video':
+                    if not telegram_bot.send_video(
+                            self._chat_id_plain,
+                            event.formatted_subject,
+                            event.media,
+                            (event.level_id <= 10)):
+                        return False
+                elif mt == 'audio':
+                    if not telegram_bot.send_audio(
+                            self._chat_id_plain,
+                            event.formatted_subject,
+                            event.media,
+                            (event.level_id <= 10)):
+                        return False
+            return True
         return False

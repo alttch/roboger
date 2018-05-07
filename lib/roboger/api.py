@@ -648,7 +648,7 @@ class PushAPI(object):
                     'msg': m,
                     'level': l,
                     'expires': e,
-                    'media': _a
+                    'media': a
                  }
             _decode_a = True
         else:
@@ -671,11 +671,14 @@ class PushAPI(object):
         if len(d['msg']) > 2048:
             logging.debug('message too long (max is 2048 bytes)')
             d['msg'] = d['msg'][:2048]
-        if _decode_a:
+        if _decode_a and d['media']:
             try:
                 d['media'] = base64.b64decode(d['media'])
             except:
                 d['media'] = ''
+        if d['media'] and len(d['media']) > 16777215:
+            logging.debug('attached media too large, dropping')
+            d['media'] = ''
         check_db()
         result = roboger.events.push_event(
                 d.get('addr'),

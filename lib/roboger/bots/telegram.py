@@ -35,9 +35,13 @@ class RTelegramBot(object):
         return result is not None
 
 
-    def call(self, func, args = None):
+    def call(self, func, args = None, files = None):
         try:
-            r = requests.post('%s/%s' % (self.uri, func), json = args,
+            if files:
+                r = requests.post('%s/%s' % (self.uri, func), data = args,
+                    files = files, timeout = self.timeout)
+            else:
+                r = requests.post('%s/%s' % (self.uri, func), json = args,
                     timeout = self.timeout)
             if r.status_code != 200: return None
             result = jsonpickle.decode(r.text)
@@ -87,6 +91,46 @@ class RTelegramBot(object):
                     'disable_web_page_preview': True,
                     'disable_notification': quiet
                 }) is not None
+
+
+    def send_document(self, chat_id, caption, media, quiet = False):
+        return self.call('sendDocument',
+                {
+                    'chat_id': chat_id,
+                    'caption': caption,
+                    'parse_mode': 'HTML',
+                    'disable_notification': quiet
+                    }, { 'document': media}) is not None
+
+
+    def send_photo(self, chat_id, caption, media, quiet = False):
+        return self.call('sendPhoto',
+                {
+                    'chat_id': chat_id,
+                    'caption': caption,
+                    'parse_mode': 'HTML',
+                    'disable_notification': quiet
+                    }, { 'photo': media}) is not None
+
+
+    def send_audio(self, chat_id, caption, media, quiet = False):
+        return self.call('sendAudio',
+                {
+                    'chat_id': chat_id,
+                    'caption': caption,
+                    'parse_mode': 'HTML',
+                    'disable_notification': quiet
+                    }, { 'audio': media}) is not None
+
+
+    def send_video(self, chat_id, caption, media, quiet = False):
+        return self.call('sendVideo',
+                {
+                    'chat_id': chat_id,
+                    'caption': caption,
+                    'parse_mode': 'HTML',
+                    'disable_notification': quiet
+                    }, { 'video': media}) is not None
 
 
     def process_update(self, msg):

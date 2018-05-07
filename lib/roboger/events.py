@@ -589,7 +589,8 @@ class Event(object):
                     '(addr_id, d, dd, scheduled, delivered, location,' + \
                     ' keywords, sender, ' + \
                     'level_id, expires, subject, msg, media) values ' + \
-                    '(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+                    '(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,' + \
+                    ' _binary %s)',
                     (self.addr.addr_id, self.d, self.dd, self.scheduled,
                         self.delivered, self.location, ','.join(self.keywords),
                         self.sender, self.level_id, self.expires, self.subject,

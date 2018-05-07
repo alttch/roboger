@@ -12,6 +12,7 @@ mods = [
         'cryptography',
         'datetime',
         'email.mime.text',
+        'filetype',
         'hashlib',
         'json',
         'jsonpickle',
