@@ -462,7 +462,8 @@ class TelegramEndpoint(GenericEndpoint):
             try:
                 self.chat_id = chat_id
                 self._chat_id_plain = \
-                        int(telegram_bot.ce.decrypt(chat_id.encode()))
+                        int(telegram_bot.ce.decrypt(chat_id.encode())) if \
+                            telegram_bot else None
             except:
                 self.chat_id = None
                 self._chat_id_plain = None
