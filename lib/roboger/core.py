@@ -13,9 +13,13 @@ import logging
 import time
 import json
 import jsonpickle
+import requests
+import urllib3
 
 from netaddr import IPNetwork, IPAddress
 
+logging.getLogger('requests').setLevel(logging.CRITICAL)
+logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 
 dir_roboger_default = '/opt/roboger'
 

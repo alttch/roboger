@@ -35,7 +35,8 @@ class RTelegramBot(object):
         return result is not None
 
 
-    def call(self, func, args = None, files = None):
+    def call(self, func, args = None, files = None, retry = True):
+        logging.debug('Telegram API call %s' % func)
         try:
             if files:
                 r = requests.post('%s/%s' % (self.uri, func), data = args,
@@ -43,9 +44,13 @@ class RTelegramBot(object):
             else:
                 r = requests.post('%s/%s' % (self.uri, func), json = args,
                     timeout = self.timeout)
-            if r.status_code != 200: return None
-            result = jsonpickle.decode(r.text)
-            return result if result.get('ok') else None
+            if r.status_code == 200:
+                result = jsonpickle.decode(r.text)
+                if result.get('ok'): return result
+            if not retry: return None
+            time.sleep(self.poll_interval)
+            return self.call(func = func, args = args,
+                    files = files, retry = False)
         except:
             roboger.core.log_traceback()
             return None
