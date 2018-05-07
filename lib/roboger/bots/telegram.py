@@ -143,7 +143,9 @@ class RTelegramBot(object):
         if not chat: return
         chat_id = chat.get('id')
         if not chat_id: return
-        text = msg.get('text').split('@')[0]
+        text = msg.get('text')
+        if not text: return
+        text = text.split('@')[0]
         if text == '/start':
             self.send_message(chat_id, 'Hello, I\'m Roboger Telegram Bot' + \
                     ' ( https://www.roboger.com/ )')
