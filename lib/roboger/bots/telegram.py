@@ -91,7 +91,7 @@ class RTelegramBot(object):
             self.send_message(chat_id, 'Hello, I\'m Roboger Telegram Bot' + \
                     ' ( https://www.roboger.com/ )')
             self.send_message(chat_id,
-                    'I\'m at your service. Put your chat ID' + 
+                    'I\'m at your service. Put your chat ID ' + 
                     'into endpoint parameters and we will start. ' + \
                             'Your chat ID is:')
             self.send_message(chat_id, '<b>%u</b>' % chat_id)
