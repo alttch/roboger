@@ -29,6 +29,7 @@ endpoint_types = {}
 
 def update_config(cfg):
     global telegram_bot_token, telegram_poll_interval
+    global telegram_bot
     try:
         telegram_bot_token = cfg.get('endpoint_telegram', 'bot_token')
         logging.debug('endpoint.telegram bot token loaded')
@@ -41,14 +42,14 @@ def update_config(cfg):
     if telegram_bot_token:
         logging.debug('endpoint.telegram.poll_interval = %s' % \
                 telegram_poll_interval)
+        telegram_bot = RTelegramBot(telegram_bot_token)
     return True
 
 
 def start():
     global telegram_bot
     roboger.core.append_stop_func(stop)
-    if telegram_bot_token:
-        telegram_bot = RTelegramBot(telegram_bot_token)
+    if telegram_bot:
         telegram_bot.poll_interval = telegram_poll_interval
         if telegram_bot.test():
             telegram_bot.start()
@@ -431,37 +432,53 @@ class SlackEndpoint(GenericEndpoint):
 class TelegramEndpoint(GenericEndpoint):
 
     chat_id = None
+    _chat_id_plain = None
 
     def __init__(self, addr, chat_id = None, endpoint_id = None, active = 1,
             description = '', autosave = True):
-        try:
-            self.chat_id = int(chat_id)
-        except:
-            self.chat_id = None
         super().__init__(addr, 101, endpoint_id, chat_id, active = active,
                 description = description, autosave = autosave)
+        self._set_chat_id(chat_id)
+
 
     def serialize(self):
         d = super().serialize()
         d['chat_id'] = self.chat_id
+        if roboger.core.development:
+            d['chat_id_plain'] = self._chat_id_plain
+        else:
+            d['chat_id_plain'] = 'valid' if self._chat_id_plain else None
         return d
 
 
     def set_data(self, data = None, data2 = None, data3 = None,
             dbconn = None):
-        try:
-            self.chat_id = int(data)
-        except:
-            self.chat_id = None
+        self._set_chat_id(data)
         super().set_data(data, data2, data3, dbconn)
 
 
+    def _set_chat_id(self, chat_id):
+        if chat_id:
+            try:
+                self.chat_id = chat_id
+                self._chat_id_plain = \
+                        int(telegram_bot.ce.decrypt(chat_id.encode()))
+            except:
+                self.chat_id = None
+                self._chat_id_plain = None
+                logging.debug('Telegram endpoint %s: invalid chat id' % \
+                        self.endpoint_id)
+        else:
+            self.chat_id = None
+            self._chat_id_plain = None
+
+
     def send(self, event):
-        if self.chat_id:
+        if self._chat_id_plain:
             msg = '<pre>%s</pre>\n' % event.sender if event.sender else ''
             msg += '<b>' + event.formatted_subject + \
                     '</b>\n'
             msg += event.msg
             return telegram_bot.send_message(
-                    self.chat_id, msg, (event.level_id <= 10))
+                    self._chat_id_plain, msg, (event.level_id <= 10))
         return False

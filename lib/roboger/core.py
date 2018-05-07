@@ -16,6 +16,7 @@ import jsonpickle
 
 from netaddr import IPNetwork, IPAddress
 
+
 dir_roboger_default = '/opt/roboger'
 
 version = __version__
@@ -281,3 +282,4 @@ def netacl_match(host, acl):
     for a in acl:
         if IPAddress(host) in a: return True
     return False
+

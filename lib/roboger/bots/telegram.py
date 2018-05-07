@@ -5,6 +5,10 @@ import time
 import roboger.core
 import logging
 
+from cryptography.fernet import Fernet
+import base64
+import hashlib
+
 
 class RTelegramBot(object):
 
@@ -15,11 +19,15 @@ class RTelegramBot(object):
     update_offset = 0
     update_thread = None
     update_thread_active = True
+    ce = None
     
 
     def __init__(self, token):
         self.token = token
         self.uri = 'https://api.telegram.org/bot%s' % self.token
+        if self.token:
+            _k = base64.b64encode(hashlib.sha256(token.encode()).digest())
+            self.ce = Fernet(_k)
 
 
     def test(self):
@@ -94,10 +102,8 @@ class RTelegramBot(object):
                     'I\'m at your service. Put your chat ID ' + 
                     'into endpoint parameters and we will start. ' + \
                             'Your chat ID is:')
-            self.send_message(chat_id, '<b>%u</b>' % chat_id)
-            if chat_id < 0:
-                self.send_message(chat_id, 'Warning: your chat ID starts' + \
-                        ' with a minus sign (-), don\'t forget to copy it too')
+            chat_id_e = self.ce.encrypt(str(chat_id).encode())
+            self.send_message(chat_id, '<b>%s</b>' % chat_id_e.decode())
         else:
             self.send_message(chat_id,
                 'Type /start to obtain chat ID and register your endpoint')
