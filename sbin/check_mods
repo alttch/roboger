@@ -9,6 +9,7 @@ mods = [
         'base64',
         'cherrypy',
         'configparser',
+        'cryptography',
         'datetime',
         'email.mime.text',
         'hashlib',
