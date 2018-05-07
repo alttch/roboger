@@ -66,8 +66,6 @@ if not roboger.endpoints.update_config(cfg): sys.exit(5)
 
 roboger.addr.load()
 
-u = roboger.addr.get_addr(addr_id = 53)
-
 roboger.endpoints.load()
 
 roboger.events.load_subscriptions()
