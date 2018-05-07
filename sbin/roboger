@@ -7,13 +7,13 @@ cd `dirname ${D}`/..
 
 WAIT_TO_KILL=60 # sec * 2 before kill -KILL
 
-export EVA_DIR=`pwd`
+export ROBOGER_DIR=`pwd`
 
-PIDFILE=${EVA_DIR}/var/roboger.pid
-ROBOGER=${EVA_DIR}/sbin/roboger-server.py
+PIDFILE=${ROBOGER_DIR}/var/roboger.pid
+ROBOGER=${ROBOGER_DIR}/sbin/roboger-server.py
 ROBOGER_ARGS=
-SAFE_RUN_PIDFILE=${EVA_DIR}/var/roboger_safe.pid
-SAFE_RUN=${EVA_DIR}/sbin/safe-run.sh
+SAFE_RUN_PIDFILE=${ROBOGER_DIR}/var/roboger_safe.pid
+SAFE_RUN=${ROBOGER_DIR}/sbin/safe-run.sh
 
 case $1 in
 start)
