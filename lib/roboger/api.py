@@ -9,6 +9,7 @@ import roboger.core
 import roboger.events
 import roboger.endpoints
 import logging
+import base64
 
 from netaddr import IPNetwork
 
@@ -635,6 +636,7 @@ class PushAPI(object):
     @cherrypy.expose
     def push(self, r = '', x = '', n = '', k = '',
             l = '', s = '', e = '', m = '', a = ''):
+        _decode_a = False
         if r:
             d = {
                     'addr': r,
@@ -646,8 +648,9 @@ class PushAPI(object):
                     'msg': m,
                     'level': l,
                     'expires': e,
-                    'media': a
+                    'media': _a
                  }
+            _decode_a = True
         else:
             cl = cherrypy.request.headers.get('Content-Length')
             if not cl:
@@ -655,6 +658,7 @@ class PushAPI(object):
             try:
                 rawbody = cherrypy.request.body.read(int(cl))
                 d = jsonpickle.decode(rawbody.decode())
+                _decode_a = True
             except:
                 roboger.core.log_traceback()
                 api_invalid_json_data()
@@ -665,8 +669,13 @@ class PushAPI(object):
         except:
             d['level'] = 20
         if len(d['msg']) > 2048:
-            logging.warning('message too long (max is 2048 bytes)')
+            logging.debug('message too long (max is 2048 bytes)')
             d['msg'] = d['msg'][:2048]
+        if _decode_a:
+            try:
+                d['media'] = base64.b64decode(d['media'])
+            except:
+                d['media'] = ''
         check_db()
         result = roboger.events.push_event(
                 d.get('addr'),
