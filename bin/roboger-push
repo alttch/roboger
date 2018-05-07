@@ -116,7 +116,7 @@ function sendPush() {
         for ((i=1; i<=${RETRIES}; i+=1))
         do
             local _data="{ \"msg\": \"${MSG}\", \"subject\": \"${SUBJECT}\", \"location\": \"${LOCATION}\", \"keywords\": \"${KEYWORDS}\", \"expires\": \"${EXPIRES}\", \"level\": \"${LEVEL}\", \"sender\" : \"${SENDER}\", \"addr\":\"${ADDR}\", \"media\": \"${MEDIA}\" }"
-            local CODE=`curl --header "Content-Type: application/json" --data "${_data}" -X POST -m ${T} -s -o /dev/null -w "%{http_code}" ${PUSH}/push`
+            local CODE=`echo ${_data} | curl --header "Content-Type: application/json" --data @- -X POST -m ${T} -s -o /dev/null -w "%{http_code}" ${PUSH}/push`
             if [ "x${CODE}" == "x200" ]; then
                 echoV "${SRV} ${ADDR} - sent"
                 _EX=0
@@ -235,10 +235,12 @@ fi
 [ "x${SENDER}" == "x" ] && SENDER="`whoami`@`hostname -f`"
 [ "x${MSG}" == "x" ] && MSG=`sed 's/\t/    /g'|sed 's/\\\\/\\\\\\\\/g'|sed 's/\"/\\\"/g'|sed ':a;N;$!ba;s/\n/\\\\n/g'|head -c 2048`
 
-if [ -f ${MEDIA_FILE} ]; then
-    MEDIA=`openssl base64 -in /root/1.jpg |sed ':a;N;$!ba;s/\n//g'`
-else
-    >&2 echo "Warning: no such file ${MEDIA_FILE}"
+if [ "x${MEDIA_FILE}" != "x" ]; then
+    if [ -f ${MEDIA_FILE} ]; then
+        MEDIA=`openssl base64 -in ${MEDIA_FILE} |sed ':a;N;$!ba;s/\n//g'`
+    else
+        >&2 echo "Warning: no such file ${MEDIA_FILE}"
+    fi
 fi
 
 parseIniFile < $CONFIG_FILE

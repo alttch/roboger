@@ -508,31 +508,13 @@ class TelegramEndpoint(GenericEndpoint):
                     mt = ft.mime.split('/')[0]
                 else:
                     mt = None
-                if not ft or not mt:
-                    if not telegram_bot.send_document(
+                if mt == 'image': send_func = telegram_bot.send_photo
+                elif mt == 'video': send_func = telegram_bot.send_video
+                elif mt == 'audio': send_func = telegram_bot.send_audio
+                else: send_func = telegram_bot.send_document
+                if not send_func(
                             self._chat_id_plain,
-                            event.formatted_subject,
-                            event.media,
-                            (event.level_id <= 10)):
-                        return False
-                elif mt == 'image':
-                    if not telegram_bot.send_photo(
-                            self._chat_id_plain,
-                            event.formatted_subject,
-                            event.media,
-                            (event.level_id <= 10)):
-                        return False
-                elif mt == 'video':
-                    if not telegram_bot.send_video(
-                            self._chat_id_plain,
-                            event.formatted_subject,
-                            event.media,
-                            (event.level_id <= 10)):
-                        return False
-                elif mt == 'audio':
-                    if not telegram_bot.send_audio(
-                            self._chat_id_plain,
-                            event.formatted_subject,
+                            '<pre>%s</pre>' % event.sender,
                             event.media,
                             (event.level_id <= 10)):
                         return False
