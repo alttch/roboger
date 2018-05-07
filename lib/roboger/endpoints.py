@@ -151,6 +151,15 @@ class GenericEndpoint(object):
     _destroyed = False
     subscriptions = []
 
+
+    emoji_code = {
+            20: u'\U00002139',
+            30: u'\U000026A0',
+            40: u'\U0000203C',
+            50: u'\U0001F170'
+            }
+
+
     def __init__(self, addr, type_id, endpoint_id = None,
             data = '', data2 = '', data3 = '', active = 1,
             description = '', autosave = True):
@@ -496,7 +505,9 @@ class TelegramEndpoint(GenericEndpoint):
     def send(self, event):
         if self._chat_id_plain:
             msg = '<pre>%s</pre>\n' % event.sender if event.sender else ''
-            msg += '<b>' + event.formatted_subject + \
+            em = '' if event.level_id not in self.emoji_code else \
+                    self.emoji_code.get(event.level_id) + ' '
+            msg += '<b>' + em + event.formatted_subject + \
                     '</b>\n'
             msg += event.msg
             if not telegram_bot.send_message(
