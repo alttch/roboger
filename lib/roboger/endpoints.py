@@ -198,7 +198,7 @@ class GenericEndpoint(object):
         if self.last_event_hash and self.last_event_time and \
                  h == self.last_event_hash  and \
                  time.time() - self.last_event_time < self.skip_dups:
-                    logging.debug('endpoint %s duplicate event' % \
+                    logging.info('endpoint %s duplicate event' % \
                         self.endpoint_id)
                     return False
         self.last_event_hash = h
@@ -321,6 +321,8 @@ class EmailEndpoint(GenericEndpoint):
             msg = MIMEMultipart()
         else:
             msg = MIMEText(t)
+        logging.info('sending event %u via endpoint %u' % \
+                (event.event_id, self.endpoint_id))
         msg['Subject'] = event.formatted_subject
         msg['From'] = event.sender
         msg['To'] = self.rcpt
@@ -341,6 +343,8 @@ class EmailEndpoint(GenericEndpoint):
             sm.close()
             return True
         except:
+            logging.warning('failed to send event %u via endpoint %u' % \
+                    (event.event_id, self.endpoint_id))
             roboger.core.log_traceback()
             return False
 
@@ -374,6 +378,8 @@ class HTTPPostEndpoint(GenericEndpoint):
         if not self.check_dup(event): return False
         if not self.url: return False
         data = event.serialize(for_endpoint = True)
+        logging.info('sending event %u via endpoint %u' % \
+                (event.event_id, self.endpoint_id))
         try:
             logging.info('HTTPPostEndpoint sending event to %s' % self.url)
             r = requests.post(self.url,
@@ -384,6 +390,8 @@ class HTTPPostEndpoint(GenericEndpoint):
                 return False
             return True
         except:
+            logging.warning('failed to send event %u via endpoint %u' % \
+                    (event.event_id, self.endpoint_id))
             roboger.core.log_traceback()
             return False
 
@@ -416,6 +424,8 @@ class HTTPJSONEndpoint(GenericEndpoint):
         if not self.check_dup(event): return False
         if not self.url: return False
         data = event.serialize(for_endpoint = True)
+        logging.info('sending event %u via endpoint %u' % \
+                (event.event_id, self.endpoint_id))
         try:
             logging.info('HTTPJSONEndpoint sending event to %s' % self.url)
             r = requests.post(self.url,
@@ -426,6 +436,8 @@ class HTTPJSONEndpoint(GenericEndpoint):
                 return False
             return True
         except:
+            logging.warning('failed to send event %u via endpoint %u' % \
+                    (event.event_id, self.endpoint_id))
             roboger.core.log_traceback()
             return False
 
@@ -487,6 +499,8 @@ class SlackEndpoint(GenericEndpoint):
             j = { 'text': msg }
         if event.sender:
             j['username' ] = event.sender
+        logging.info('sending event %u via endpoint %u' % \
+                (event.event_id, self.endpoint_id))
         try:
             r = requests.post(self.webhook,
                     json = j, timeout = roboger.core.timeout)
@@ -494,6 +508,8 @@ class SlackEndpoint(GenericEndpoint):
                 return False
             return True
         except:
+            logging.warning('failed to send event %u via endpoint %u' % \
+                    (event.event_id, self.endpoint_id))
             roboger.core.log_traceback()
             return False
 
@@ -537,7 +553,7 @@ class TelegramEndpoint(GenericEndpoint):
             except:
                 self.chat_id = None
                 self._chat_id_plain = None
-                logging.debug('Telegram endpoint %s: invalid chat id' % \
+                logging.info('Telegram endpoint %s: invalid chat id' % \
                         self.endpoint_id)
         else:
             self.chat_id = None
@@ -553,8 +569,12 @@ class TelegramEndpoint(GenericEndpoint):
             msg += '<b>' + em + event.formatted_subject + \
                     '</b>\n'
             msg += event.msg
+            logging.info('sending event %u via endpoint %u' % \
+                    (event.event_id, self.endpoint_id))
             if not telegram_bot.send_message(
                     self._chat_id_plain, msg, (event.level_id <= 10)):
+                logging.warning('failed to send event %u via endpoint %u' % \
+                    (event.event_id, self.endpoint_id))
                 return False
             if event.media:
                 ft = filetype.guess(event.media)

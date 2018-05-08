@@ -51,13 +51,13 @@ def push_event(a, level, sender = '', location = '', keywords = '',
         subject = '', expires = '', msg = '', media = None, dbconn = None):
     addr = roboger.addr.get_addr(a = a)
     if not addr:
-        logging.debug('push: no such address %s' % a)
+        logging.info('push: no such address %s' % a)
         return None
     if addr.active != 1:
-        logging.debug('push: skipping event for address %s, status' % \
+        logging.info('push: skipping event for address %s, status' % \
                 (a, addr.active))
         return addr.active
-    logging.debug('push: new event for address %s' % a)
+    logging.info('push: new event for address %s' % a)
     try:
        e = Event(addr,
                level_id = level,
@@ -96,7 +96,9 @@ def _t_queue_processor():
         logging.info('Sending queued event id: %s' % eq.event.event_id + \
                 ', endpoint id: %s' % eq.subscription.endpoint.endpoint_id + \
                 ', subscription id: %s' % eq.subscription.subscription_id + \
-                ', addr id: %s' % eq.event.addr.addr_id)
+                ', addr id: %s, addr: %s' % (eq.event.addr.addr_id,
+                                    eq.event.addr.a)
+                                    )
         t = threading.Thread(target = eq.send)
         t.start()
         eq.mark_delivered(dbconn = dbconn)
