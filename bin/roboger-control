@@ -26,8 +26,8 @@ def usage():
     print("""
 Usage: roboger-control <command> [args] [-U API uri] [-K key] [-T sec] [-D]
 
-    -U   specify API uri (http://host:port), if no uri specified, API will be
-         called in local mode (with data from ../etc/uc.ini and uc_apikeys.ini)
+    -U   specify API uri (http://host:port), if no uri specified, local
+         config will be parsed
     -K   master key, if no key specified, local master key will be used
     -T   API request timeout
     -D   Enable debug messages
