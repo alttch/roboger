@@ -1,7 +1,7 @@
 __author__ = "Altertech Group, http://www.altertech.com/"
 __copyright__ = "Copyright (C) 2018 Altertech Group"
 __license__ = "See https://www.roboger.com/"
-__version__ = "0.0.1"
+__version__ = "1.0.0"
 
 import cherrypy
 import jsonpickle
@@ -228,7 +228,10 @@ class MasterAPI(object):
 
     @cherrypy.expose
     def test(self, data):
-        return api_result()
+        d = {}
+        d['version'] = roboger.core.version
+        d['build'] = roboger.core.product_build
+        return d
 
     @cherrypy.expose
     def ls_addr(self, data):

@@ -1,7 +1,7 @@
 __author__ = "Altertech Group, http://www.altertech.com/"
 __copyright__ = "Copyright (C) 2018 Altertech Group"
 __license__ = "See https://www.roboger.com/"
-__version__ = "0.0.1"
+__version__ = "1.0.0"
 
 import sys
 import os
@@ -31,7 +31,7 @@ def usage(version_only = False):
 for production use roboger only to start/stop Roboger server
 """)
 
-product_build = 2018050101
+product_build = 2018050901
 
 roboger.core.init()
 roboger.core.set_build(product_build)
