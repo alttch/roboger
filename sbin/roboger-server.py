@@ -28,7 +28,7 @@ def usage(version_only = False):
 
  -f config_file     start with an alternative config file
 
-for production use roboger-control only to start/stop Roboger server
+for production use roboger only to start/stop Roboger server
 """)
 
 product_build = 2018050101
