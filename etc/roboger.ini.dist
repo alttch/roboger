@@ -12,7 +12,7 @@ debug = no
 smtp_host = 127.0.0.1
 ;seconds to keep events in db (0 - don't keep at all)
 keep_events = 86400
-;log_file = var/roboger.log
+log_file = var/roboger.log
 
 [api]
 ;API host/port to listen to
