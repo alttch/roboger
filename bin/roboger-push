@@ -116,7 +116,11 @@ function sendPush() {
         for ((i=1; i<=${RETRIES}; i+=1))
         do
             local _data="{ \"msg\": \"${MSG}\", \"subject\": \"${SUBJECT}\", \"location\": \"${LOCATION}\", \"keywords\": \"${KEYWORDS}\", \"expires\": \"${EXPIRES}\", \"level\": \"${LEVEL}\", \"sender\" : \"${SENDER}\", \"addr\":\"${ADDR}\", \"media\": \"${MEDIA}\" }"
-            local CODE=`echo ${_data} | curl --header "Content-Type: application/json" --data @- -X POST -m ${T} -s -o /dev/null -w "%{http_code}" ${PUSH}/push`
+            local VERB=""
+            if [ ${VERBOSE} == "2" ]; then
+                VERB="-v"
+            fi
+            local CODE=`echo ${_data} | curl --header "Content-Type: application/json" --data @- -X POST -m ${T} -s ${VERB} -o /dev/null -w "%{http_code}" ${PUSH}/push`
             if [ "x${CODE}" == "x200" ]; then
                 echoV "${SRV} ${ADDR} - sent"
                 _EX=0
@@ -167,6 +171,7 @@ Usage: roboger-push [-f config] [-s subject] [-l level] [-x sender] [-n location
 
     -f  config file to use (default: ${DEFAULT_CONFIG_FILE})
     -v  log push progress to stdout
+    -vv more verbose output with curl debug messages
 
 EOF
 }
@@ -214,6 +219,9 @@ do
             shift
         ;;
         -v) VERBOSE=1
+            shift
+        ;;
+        -vv) VERBOSE=2
             shift
         ;;
         -h) showHelp
