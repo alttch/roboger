@@ -52,6 +52,11 @@ Commands:
                                                 set endpoint description
     set_endpoint_active <-e endpoint_id> <-i active>
                                                 set endpoint active or inactive
+
+    set_endpoint_skip_dups <-e endpoint_id> [-d sec]
+                                                set endpoint to skip duplicate
+                                                events for -d seconds
+
     rm_endpoint <-e endpoint_id>                delete endpoint
 
     ls_subscriptions <-e endpoint_id>           list endpoint subscriptions

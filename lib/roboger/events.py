@@ -10,6 +10,7 @@ import uuid
 import time
 
 import threading
+import hashlib
 
 from queue import Queue
 
@@ -557,6 +558,24 @@ class Event(object):
             except:
                 roboger.core.log_traceback()
                 self._destroyed = True
+
+
+    def get_hash(self):
+        h = hashlib.sha256()
+        h.update(self.location.encode())
+        h.update('\x00'.encode())
+        h.update((','.join(self.keywords)).encode())
+        h.update('\x00'.encode())
+        h.update(self.sender.encode())
+        h.update('\x00'.encode())
+        h.update(str(self.level_id).encode())
+        h.update('\x00'.encode())
+        h.update(self.subject.encode())
+        h.update('\x00'.encode())
+        h.update(self.msg.encode())
+        h.update('\x00'.encode())
+        if self.media: h.update(self.media)
+        return h.hexdigest()
 
 
     def serialize(self, for_endpoint = False):

@@ -19,6 +19,8 @@ import logging
 
 import filetype
 
+import time
+
 from roboger.bots.telegram import RTelegramBot
 
 
@@ -113,7 +115,7 @@ def load():
         endpoint_types[row[0]] = row[1]
     c.close()
     c = db.query('select id, addr_id, endpoint_type_id, ' + \
-            'data, data2, data3, active, description from endpoint')
+            'data, data2, data3, active, skip_dups, description from endpoint')
     while True:
         row = c.fetchone()
         if row is None: break
@@ -151,6 +153,11 @@ class GenericEndpoint(object):
     _destroyed = False
     subscriptions = []
 
+    skip_dups = 0
+
+    last_event_hash = None
+    last_event_time = None
+
 
     emoji_code = {
             20: u'\U00002139',
@@ -161,7 +168,7 @@ class GenericEndpoint(object):
 
 
     def __init__(self, addr, type_id, endpoint_id = None,
-            data = '', data2 = '', data3 = '', active = 1,
+            data = '', data2 = '', data3 = '', active = 1, skip_dups = 0,
             description = '', autosave = True):
         self.addr = addr
         self.type_id = type_id
@@ -170,6 +177,7 @@ class GenericEndpoint(object):
         self.data2 = data2 if data2 else ''
         self.data3 = data3 if data3 else ''
         self.description = description if description else ''
+        self.skip_dups = skip_dups
         if endpoint_id:
             self.endpoint_id = endpoint_id
         else:
@@ -184,6 +192,20 @@ class GenericEndpoint(object):
         self.subscriptions.append(s)
 
 
+    def check_dup(self, event):
+        if self.skip_dups <= 0: return True
+        h = event.get_hash()
+        if self.last_event_hash and self.last_event_time and \
+                 h == self.last_event_hash  and \
+                 time.time() - self.last_event_time < self.skip_dups:
+                    logging.debug('endpoint %s duplicate event' % \
+                        self.endpoint_id)
+                    return False
+        self.last_event_hash = h
+        self.last_event_time = time.time()
+        return True
+
+
     def remove_subscription(self, s):
         self.subscriptions.remove(s)
 
@@ -196,6 +218,7 @@ class GenericEndpoint(object):
         u['data2'] = self.data2
         u['data3'] = self.data3
         u['active'] = self.active
+        u['skip_dups'] = self.skip_dups
         u['description'] = self.description
         u['type_id' ] = self.type_id
         u['type'] = endpoint_types.get(self.type_id)
@@ -207,6 +230,14 @@ class GenericEndpoint(object):
         self.data = data if data else ''
         self.data2 = data2 if data2 else ''
         self.data3 = data3 if data3 else ''
+        self.save(dbconn = dbconn)
+
+
+    def set_skip_dups(self, skip_dups = 0, dbconn = None):
+        try:
+            self.skip_dups = int(skip_dups)
+        except:
+            self.skip_dups = 0
         self.save(dbconn = dbconn)
 
 
@@ -223,19 +254,20 @@ class GenericEndpoint(object):
     def save(self, dbconn = None):
         if self._destroyed: return
         if self.endpoint_id:
-            db.query('update endpoint set active = %s, description = %s, ' + \
-                    'data = %s, data2 = %s, data3 = %s' + \
+            db.query('update endpoint set active = %s, skip_dups = %s, ' + \
+                    'description = %s, data = %s, data2 = %s, data3 = %s' + \
                     ' where id = %s',
-                    (self.active, self.description, self.data, self.data2,
-                        self.data3, self.endpoint_id), True, dbconn)
+                    (self.active, self.skip_dups, self.description,
+                        self.data, self.data2, self.data3, self.endpoint_id),
+                    True, dbconn)
         else:
             self.endpoint_id = db.query(
                     'insert into endpoint(addr_id, endpoint_type_id,' + \
-                    ' data, data2, data3, active, description) values ' + \
-                    ' (%s, %s, %s, %s, %s, %s, %s)',
+                    ' data, data2, data3, active, skip_dups, description) ' + \
+                    'values (%s, %s, %s, %s, %s, %s, %s, %s)',
                     (self.addr.addr_id, self.type_id,
                         self.data, self.data2, self.data3, self.active,
-                        self.description),
+                        self.skip_dups, self.description),
                     True, dbconn)
 
 
@@ -251,7 +283,8 @@ class GenericEndpoint(object):
 
 
     def send(self, event):
-        return False
+        if not self.check_dup(event): return False
+        return True
 
 
 
@@ -260,10 +293,11 @@ class EmailEndpoint(GenericEndpoint):
     rcpt = None
 
     def __init__(self, addr, rcpt, endpoint_id = None, active = 1,
-            description = '', autosave = True):
+            skip_dups = 0, description = '', autosave = True):
         self.rcpt = rcpt
         super().__init__(addr, 2, endpoint_id, rcpt, active = active,
-                description = description, autosave = autosave)
+                description = description, skip_dups=skip_dups,
+                autosave = autosave)
 
 
     def serialize(self):
@@ -279,6 +313,7 @@ class EmailEndpoint(GenericEndpoint):
 
 
     def send(self, event):
+        if not self.check_dup(event): return False
         if not self.active or event._destroyed: return True
         if not self.rcpt: return False
         t = event.msg if event.msg else ''
@@ -316,10 +351,11 @@ class HTTPPostEndpoint(GenericEndpoint):
     url = None
 
     def __init__(self, addr, url, endpoint_id = None, active = 1,
-            description = '', autosave = True):
+            skip_dups = 0, description = '', autosave = True):
         self.url = url
         super().__init__(addr, 3, endpoint_id, url, active = active,
-                description = description, autosave = autosave)
+                skip_dups=skip_dups, description = description,
+                autosave = autosave)
 
 
     def serialize(self):
@@ -335,6 +371,7 @@ class HTTPPostEndpoint(GenericEndpoint):
 
 
     def send(self, event):
+        if not self.check_dup(event): return False
         if not self.url: return False
         data = event.serialize(for_endpoint = True)
         try:
@@ -356,10 +393,11 @@ class HTTPJSONEndpoint(GenericEndpoint):
     url = None
 
     def __init__(self, addr, url, endpoint_id = None, active = 1,
-            description = '', autosave = True):
+            skip_dups = 0, description = '', autosave = True):
         self.url = url
         super().__init__(addr, 4, endpoint_id, url, active = active,
-                description = description, autosave = autosave)
+                skip_dups=skip_dups, description = description,
+                autosave = autosave)
 
 
     def serialize(self):
@@ -375,6 +413,7 @@ class HTTPJSONEndpoint(GenericEndpoint):
 
 
     def send(self, event):
+        if not self.check_dup(event): return False
         if not self.url: return False
         data = event.serialize(for_endpoint = True)
         try:
@@ -404,11 +443,13 @@ class SlackEndpoint(GenericEndpoint):
             }
 
     def __init__(self, addr, webhook, fmt = 'plain',
-            endpoint_id = None, active = 1, description = '', autosave = True):
+            endpoint_id = None, active = 1, skip_dups = 0, description = '',
+            autosave = True):
         self.webhook = webhook
         self.rich_fmt = (fmt == 'rich')
         super().__init__(addr, 100, endpoint_id, webhook, fmt, active = active,
-                description = description, autosave = autosave)
+                skip_dups = skip_dups, description = description,
+                autosave = autosave)
 
 
     def serialize(self):
@@ -426,7 +467,7 @@ class SlackEndpoint(GenericEndpoint):
 
 
     def send(self, event):
-        # return True
+        if not self.check_dup(event): return False
         if not self.webhook: return False
         if self.rich_fmt:
             j = { 'text': '' }
@@ -463,9 +504,10 @@ class TelegramEndpoint(GenericEndpoint):
     _chat_id_plain = None
 
     def __init__(self, addr, chat_id = None, endpoint_id = None, active = 1,
-            description = '', autosave = True):
+            skip_dups = 0, description = '', autosave = True):
         super().__init__(addr, 101, endpoint_id, chat_id, active = active,
-                description = description, autosave = autosave)
+                skip_dups=skip_dups, description = description,
+                autosave = autosave)
         self._set_chat_id(chat_id)
 
 
@@ -503,6 +545,7 @@ class TelegramEndpoint(GenericEndpoint):
 
 
     def send(self, event):
+        if not self.check_dup(event): return False
         if self._chat_id_plain:
             msg = '<pre>%s</pre>\n' % event.sender if event.sender else ''
             em = '' if event.level_id not in self.emoji_code else \

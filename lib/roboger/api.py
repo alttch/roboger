@@ -378,6 +378,20 @@ class MasterAPI(object):
 
 
     @cherrypy.expose
+    def set_endpoint_skip_dups(self, data):
+        addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
+        e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
+        if not e or (check_ownership and e.addr != addr):
+            api_404('endpoint or wrong address')
+        try:
+            e.set_skip_dups(data.get('data'), dbconn = cherrypy.thread_data.db)
+        except:
+            roboger.core.log_traceback()
+            api_internal_error()
+        return e.serialize()
+
+
+    @cherrypy.expose
     def set_endpoint_description(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))

@@ -28,8 +28,17 @@ CREATE TABLE `addr` (
   `active` int(11) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id`),
   UNIQUE KEY `nk` (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=165 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=167 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `addr`
+--
+
+LOCK TABLES `addr` WRITE;
+/*!40000 ALTER TABLE `addr` DISABLE KEYS */;
+/*!40000 ALTER TABLE `addr` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `endpoint`
@@ -46,14 +55,24 @@ CREATE TABLE `endpoint` (
   `data2` varchar(256) DEFAULT NULL,
   `data3` varchar(256) DEFAULT NULL,
   `active` int(11) NOT NULL DEFAULT '1',
+  `skip_dups` int(11) NOT NULL DEFAULT '0',
   `description` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `addr_id` (`addr_id`),
   KEY `endpoint_type_id` (`endpoint_type_id`),
   CONSTRAINT `endpoint_ibfk_1` FOREIGN KEY (`addr_id`) REFERENCES `addr` (`id`),
   CONSTRAINT `endpoint_ibfk_2` FOREIGN KEY (`endpoint_type_id`) REFERENCES `endpoint_type` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=114 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=119 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `endpoint`
+--
+
+LOCK TABLES `endpoint` WRITE;
+/*!40000 ALTER TABLE `endpoint` DISABLE KEYS */;
+/*!40000 ALTER TABLE `endpoint` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `endpoint_type`
@@ -76,7 +95,7 @@ CREATE TABLE `endpoint_type` (
 
 LOCK TABLES `endpoint_type` WRITE;
 /*!40000 ALTER TABLE `endpoint_type` DISABLE KEYS */;
-INSERT INTO `endpoint_type` VALUES (2,'email'),(4,'http/json'),(3,'http/post'),(100,'slack'),(101,'telegram');
+INSERT INTO `endpoint_type` VALUES (1,'android'),(2,'email'),(4,'http/json'),(3,'http/post'),(100,'slack'),(101,'telegram');
 /*!40000 ALTER TABLE `endpoint_type` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -107,8 +126,17 @@ CREATE TABLE `event` (
   KEY `level_id` (`level_id`),
   CONSTRAINT `event_ibfk_1` FOREIGN KEY (`addr_id`) REFERENCES `addr` (`id`) ON DELETE CASCADE,
   CONSTRAINT `event_ibfk_2` FOREIGN KEY (`level_id`) REFERENCES `level` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=406 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=738 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `event`
+--
+
+LOCK TABLES `event` WRITE;
+/*!40000 ALTER TABLE `event` DISABLE KEYS */;
+/*!40000 ALTER TABLE `event` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `event_queue`
@@ -187,12 +215,18 @@ CREATE TABLE `subscription` (
   CONSTRAINT `subscription_ibfk_1` FOREIGN KEY (`addr_id`) REFERENCES `addr` (`id`),
   CONSTRAINT `subscription_ibfk_2` FOREIGN KEY (`endpoint_id`) REFERENCES `endpoint` (`id`),
   CONSTRAINT `subscription_ibfk_3` FOREIGN KEY (`level_id`) REFERENCES `level` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=86 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=95 DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
 -- Dumping data for table `subscription`
 --
+
+LOCK TABLES `subscription` WRITE;
+/*!40000 ALTER TABLE `subscription` DISABLE KEYS */;
+/*!40000 ALTER TABLE `subscription` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
@@ -202,4 +236,4 @@ CREATE TABLE `subscription` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2018-05-06 17:55:42
+-- Dump completed on 2018-05-08 14:49:17
