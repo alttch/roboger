@@ -95,7 +95,7 @@ CREATE TABLE `endpoint_type` (
 
 LOCK TABLES `endpoint_type` WRITE;
 /*!40000 ALTER TABLE `endpoint_type` DISABLE KEYS */;
-INSERT INTO `endpoint_type` VALUES (1,'android'),(2,'email'),(4,'http/json'),(3,'http/post'),(100,'slack'),(101,'telegram');
+INSERT INTO `endpoint_type` VALUES (2,'email'),(4,'http/json'),(3,'http/post'),(100,'slack'),(101,'telegram');
 /*!40000 ALTER TABLE `endpoint_type` ENABLE KEYS */;
 UNLOCK TABLES;
 
