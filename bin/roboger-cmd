@@ -24,7 +24,7 @@ def print_json(obj):
 def usage():
     print('Roboger version %s' % __version__)
     print("""
-Usage: roboger-control <command> [args] [-U API uri] [-K key] [-T sec] [-D]
+Usage: roboger-cmd <command> [args] [-U API uri] [-K key] [-T sec] [-D]
 
     -U   specify API uri (http://host:port), if no uri specified, local
          config will be parsed

@@ -20,7 +20,7 @@
 
 - run sbin/roboger start
 
-- test it: bin/roboger-control test
+- test it: bin/roboger-cmd test
 
 - append '/opt/roboger/sbin/roboger start' to /etc/rc.local or any other
   startup place
