@@ -28,7 +28,7 @@ CREATE TABLE `addr` (
   `active` int(11) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id`),
   UNIQUE KEY `nk` (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=167 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -62,7 +62,7 @@ CREATE TABLE `endpoint` (
   KEY `endpoint_type_id` (`endpoint_type_id`),
   CONSTRAINT `endpoint_ibfk_1` FOREIGN KEY (`addr_id`) REFERENCES `addr` (`id`),
   CONSTRAINT `endpoint_ibfk_2` FOREIGN KEY (`endpoint_type_id`) REFERENCES `endpoint_type` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=119 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -126,7 +126,7 @@ CREATE TABLE `event` (
   KEY `level_id` (`level_id`),
   CONSTRAINT `event_ibfk_1` FOREIGN KEY (`addr_id`) REFERENCES `addr` (`id`) ON DELETE CASCADE,
   CONSTRAINT `event_ibfk_2` FOREIGN KEY (`level_id`) REFERENCES `level` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=738 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -215,7 +215,7 @@ CREATE TABLE `subscription` (
   CONSTRAINT `subscription_ibfk_1` FOREIGN KEY (`addr_id`) REFERENCES `addr` (`id`),
   CONSTRAINT `subscription_ibfk_2` FOREIGN KEY (`endpoint_id`) REFERENCES `endpoint` (`id`),
   CONSTRAINT `subscription_ibfk_3` FOREIGN KEY (`level_id`) REFERENCES `level` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=95 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
