@@ -52,8 +52,8 @@ stop)
     echo ' stopped'
     ;;
 restart)
-    ./sbin/roboger stop $2
-    ./sbin/roboger start $2
+    ./sbin/roboger-control stop $2
+    ./sbin/roboger-control start $2
     ;;
 logrotate)
     [ -f ${PIDFILE} ] && kill -HUP `cat ${PIDFILE}`
