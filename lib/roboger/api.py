@@ -448,6 +448,13 @@ class MasterAPI(object):
         _lm = data.get('level_match')
         if _lm and _lm not in ['e', 'ge', 'le', 'g', 'l']:
             api_invalid_data('Invalid level match')
+        if 'level_id' not in data:
+            try:
+                data['level_id'] = \
+                        roboger.events.level_codes[
+                                str(data['level'])[0].lower()]
+            except:
+                data['level_id'] = 20
         s = roboger.events.EventSubscription(addr, e,
                 location = data.get('location'),
                 keywords = data.get('keywords'),
