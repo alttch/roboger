@@ -62,5 +62,5 @@ version)
     ${PYTHON} ${ROBOGER} -V
     ;;
 *)
-    echo "Usage: roboger start|stop|restart|logrotate|version"
+    echo "Usage: roboger-control start|stop|restart|logrotate|version"
 esac

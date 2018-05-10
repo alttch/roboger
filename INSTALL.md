@@ -18,11 +18,11 @@
 - obtain Telegram bot token for your private bot if you plan to use
   Telegram endpoints and put it to roboger.ini as well
 
-- run sbin/roboger start
+- run sbin/roboger-control start
 
 - test it: bin/roboger-cmd test
 
-- append '/opt/roboger/sbin/roboger start' to /etc/rc.local or any other
+- append '/opt/roboger/sbin/roboger-control start' to /etc/rc.local or any other
   startup place
 
 - copy etc/logrotate.d/roboger to /etc/logrotate.d/roboger
