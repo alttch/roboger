@@ -1,0 +1,13 @@
+/opt/roboger/log/roboger.log {
+    daily
+    missingok
+    rotate 7
+    compress
+    delaycompress
+    notifempty
+    create 640 root adm
+    sharedscripts
+    postrotate
+        /opt/roboger/sbin/roboger logrotate
+    endscript
+}
