@@ -258,7 +258,7 @@ if not apiuri:
     sys.exit(5)
 
 
-apiuri_r = apiuri + '/control/' + func
+apiuri_r = apiuri + '/manage/' + func
 
 if debug:
     print("API request: %s" % apiuri_r)

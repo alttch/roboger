@@ -141,7 +141,7 @@ def update_config(cfg):
 def start():
     if not host: return False
     cherrypy.tree.mount(PushAPI(), '/')
-    cherrypy.tree.mount(MasterAPI(), '/control')
+    cherrypy.tree.mount(MasterAPI(), '/manage')
     cherrypy.server.unsubscribe()
     logging.info('HTTP API listening at at %s:%s' % \
             (host, port))
