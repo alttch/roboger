@@ -13,6 +13,8 @@ retry_delay=5
 timeout=5
 ;backup server in case of failed push 
 ;backup=local1
+;default sender, use instead of user@hostname
+;sender=sendername
 
 [local1]
 addr=de79411c0127b9443e3b15e6c7613e04c16216bdfb07e5ccd91cb9d8e74ab16a
@@ -22,3 +24,5 @@ push=http://192.168.1.99:719
 retries=1
 retry_delay=2
 timeout=5
+;default sender, use instead of user@hostname
+;sender=sendername
