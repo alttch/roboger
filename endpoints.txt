@@ -20,7 +20,7 @@ Supported endpoints in standalone installation:
                     subject - event subject
                     msg - event message
                     media - event attachment, base64 encoded
-                    params - event custom params, if data3 is set
+                    params - endpoint custom params, if data3 is set
 
 
     type = 4 - http/json endpoint
