@@ -83,13 +83,12 @@ class Addr:
     a = None
     active = None
 
-    endpoints = []
-
     _destroyed = False
 
     def __init__(self, addr_id = None, a = None, active = 1, autosave = True):
         self.active = active
         self.set_a(a, False)
+        self.endpoints = []
         if addr_id:
             self.addr_id = addr_id
         else:

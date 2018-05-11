@@ -263,7 +263,8 @@ def load_subscriptions():
         u = roboger.addr.get_addr(addr_id = row[1])
         e = roboger.endpoints.get_endpoint(endpoint_id = row[2])
         if not u:
-            logging.error('Addr %u not found but subscriptions exist!' % row[1])
+            logging.error('Addr %u not found but subscriptions exist!' % \
+                    row[1])
             continue
         if not e:
             logging.error('Endpoint %u not found but subscriptions exist!' % \
@@ -368,8 +369,6 @@ class EventSubscription(object):
     endpoint = None
     active = 0
     location = ''
-    keywords = []
-    senders = []
     level_id = 20
     level_match = 'ge'
     subscription_id = None
@@ -506,7 +505,6 @@ class Event(object):
     scheduled = 0
     delivered = 0
     location = ''
-    keywords = []
     sender = ''
     level_id = 20
     expires = 86400
@@ -583,10 +581,11 @@ class Event(object):
     def serialize(self, for_endpoint = False):
         u = {}
         u['id'] = self.event_id
-        if not for_endpoint: u['addr_id'] = self.addr.addr_id
+        if not for_endpoint:
+            u['addr_id'] = self.addr.addr_id
+            u['scheduled'] = self.scheduled
+            u['delivered'] = self.delivered
         u['d'] = self.d
-        u['scheduled'] = self.scheduled
-        u['delivered'] = self.delivered
         u['location'] = self.location
         u['keywords'] = self.keywords
         u['sender'] = self.sender

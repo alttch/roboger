@@ -153,7 +153,6 @@ class GenericEndpoint(object):
     active = 1
     type_id = None
     _destroyed = False
-    subscriptions = []
 
     skip_dups = 0
 
@@ -180,6 +179,7 @@ class GenericEndpoint(object):
         self.data3 = data3 if data3 else ''
         self.description = description if description else ''
         self.skip_dups = skip_dups
+        self.subscriptions = []
         if endpoint_id:
             self.endpoint_id = endpoint_id
         else:
