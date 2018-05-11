@@ -1,0 +1,64 @@
+#!/bin/sh
+
+ADDR=$1
+CFG_FILE=/usr/local/etc/roboger_push.ini
+
+which curl > /dev/null 2>&1
+
+if [ $? != 0 ]; then
+  echo "curl command not found. can not continue"
+  exit 3
+fi
+
+if [ "x${ADDR}" == "x" ]; then
+  echo "Usage: install-roboger-push <your_roboger_address>"
+  exit 1
+fi
+
+echo "Configuring roboger-push with address ${ADDR}"
+
+echo "Creating ${CFG_FILE}"
+
+if [ -f ${CFG_FILE} ]; then
+  echo "The configuration file already exist on this system"
+  echo "The script will not overwrite it"
+  echo
+  echo "Remove the config file and run the script again"
+  exit 2
+fi
+
+sed "s/PUT_HERE_YOUR_ROBOGER_ADDRESS/${ADDR}/g" > /usr/local/etc/roboger_push.ini <<EOF
+;section name = server name, any custom name you wish
+;section name should contain only letters and numbers and be unique
+[roboger]
+;address on the server
+addr=PUT_HERE_YOUR_ROBOGER_ADDRESS
+;push address
+push=http://roboger.com
+;how many times the script should try to send a message
+retries=3
+;delay between retries
+retry_delay=5
+;server response timeout
+timeout=5
+;backup server in case of failed push 
+;backup=local1
+;default sender, use instead of user@hostname
+;sender=sendername
+
+;[local1]
+;addr=PUT_HERE_YOUR_LOCAL_ROBOGER_ADDRESS
+;backups servers are used only if the script failed to push msg on primary
+;type=backup
+;push=http://192.168.1.99:719
+;retries=1
+;retry_delay=2
+;timeout=5
+;default sender, use instead of user@hostname
+;sender=sendername
+EOF
+
+echo "Fetching roboger-push"
+rm -f /usr/local/bin/roboger-push
+curl -s https://raw.githubusercontent.com/alttch/roboger/master/bin/roboger-push -o /usr/local/bin/roboger-push || exit 4
+echo "All done!"
