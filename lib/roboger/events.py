@@ -308,15 +308,9 @@ def load_queued_events():
 
 class EventQueueItem(object):
 
-    event = None
-    subscription = None
-    status = 0
-    dd = None
-    
-    _destroyed = False
-
     def __init__(self, event, subscription, status = 0,
             dd = None, initial = False, autosave = True):
+        self._destroyed = False
         self.event = event
         self.subscription = subscription
         self.status = status
@@ -365,19 +359,10 @@ class EventQueueItem(object):
 
 class EventSubscription(object):
 
-    addr = None
-    endpoint = None
-    active = 0
-    location = ''
-    level_id = 20
-    level_match = 'ge'
-    subscription_id = None
-    _destroyed = False
-
-
     def __init__(self, addr, endpoint, subscription_id = None, active = 1,
             location = '', keywords = '', senders = '',
             level_id = 20, level_match = 'ge', autosave = True):
+        self._destroyed = False
         self.addr = addr
         self.endpoint = endpoint
         self.active = active
@@ -398,9 +383,8 @@ class EventSubscription(object):
             self.senders = []
         self.level_id = level_id if level_id else 20
         self.level_match = level_match if level_match else 'ge'
-        if subscription_id:
-            self.subscription_id = subscription_id
-        else:
+        self.subscription_id = subscription_id
+        if not subscription_id:
             try:
                 if autosave: self.save()
             except:
@@ -498,27 +482,11 @@ class EventSubscription(object):
 
 class Event(object):
 
-    addr = None
-    event_id = None
-    d = None
-    dd = None
-    scheduled = 0
-    delivered = 0
-    location = ''
-    sender = ''
-    level_id = 20
-    expires = 86400
-    msg = ''
-    media = None
-    subject = ''
-    formatted_subject = ''
-    _destroyed = False
-
-
     def __init__(self, addr, event_id = None, d = None, scheduled = 0,
             delivered = 0, location = '', keywords = '', sender = '',
             level_id = 20, expires = 86400,
             subject = '', msg = '', media = None, autosave = True):
+        self._destroyed = False
         self.addr = addr
         self.d = d if d else \
                 datetime.datetime.now()
@@ -526,6 +494,7 @@ class Event(object):
         self.delivered = delivered
         self.location = location if location else ''
         self.subject = subject if subject else ''
+        self._destroyed = False
         if not keywords:
             self.keywords = []
         elif isinstance(keywords, list):
@@ -550,9 +519,8 @@ class Event(object):
             if self.location:
                 self.formatted_subject = self.location
         if self.subject: self.formatted_subject += ': ' + self.subject
-        if event_id:
-            self.event_id = event_id
-        else:
+        self.event_id = event_id
+        if not event_id:
             try:
                 if autosave: self.save()
             except:

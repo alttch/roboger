@@ -79,19 +79,13 @@ def destroy_addr(addr_id):
 
 class Addr:
 
-    addr_id = None
-    a = None
-    active = None
-
-    _destroyed = False
-
     def __init__(self, addr_id = None, a = None, active = 1, autosave = True):
+        self._destroyed = False
         self.active = active
         self.set_a(a, False)
         self.endpoints = []
-        if addr_id:
-            self.addr_id = addr_id
-        else:
+        self.addr_id = addr_id
+        if not addr_id:
             try:
                 if autosave: self.save()
             except:

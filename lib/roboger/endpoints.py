@@ -144,22 +144,6 @@ def load():
 
 class GenericEndpoint(object):
 
-    endpoint_id = None
-    addr = None
-    data = None
-    data2 = None
-    data3 = None
-    description = ''
-    active = 1
-    type_id = None
-    _destroyed = False
-
-    skip_dups = 0
-
-    last_event_hash = None
-    last_event_time = None
-
-
     emoji_code = {
             20: u'\U00002139',
             30: u'\U000026A0',
@@ -171,6 +155,7 @@ class GenericEndpoint(object):
     def __init__(self, addr, type_id, endpoint_id = None,
             data = '', data2 = '', data3 = '', active = 1, skip_dups = 0,
             description = '', autosave = True):
+        self._destroyed = False
         self.addr = addr
         self.type_id = type_id
         self.active = active
@@ -180,9 +165,8 @@ class GenericEndpoint(object):
         self.description = description if description else ''
         self.skip_dups = skip_dups
         self.subscriptions = []
-        if endpoint_id:
-            self.endpoint_id = endpoint_id
-        else:
+        self.endpoint_id = endpoint_id
+        if not endpoint_id:
             try:
                 if autosave: self.save()
             except:
@@ -292,8 +276,6 @@ class GenericEndpoint(object):
 
 class EmailEndpoint(GenericEndpoint):
 
-    rcpt = None
-
     def __init__(self, addr, rcpt, endpoint_id = None, active = 1,
             skip_dups = 0, description = '', autosave = True):
         self.rcpt = rcpt
@@ -354,9 +336,6 @@ class EmailEndpoint(GenericEndpoint):
 
 class HTTPPostEndpoint(GenericEndpoint):
     
-    url = None
-    params = None
-
     def __init__(self, addr, url, params = None, endpoint_id = None, active = 1,
             skip_dups = 0, description = '', autosave = True):
         self.url = url
@@ -407,9 +386,6 @@ class HTTPPostEndpoint(GenericEndpoint):
 
 class HTTPJSONEndpoint(GenericEndpoint):
     
-    url = None
-    params = None
-
     def __init__(self, addr, url, params = None, endpoint_id = None, active = 1,
             skip_dups = 0, description = '', autosave = True):
         self.url = url
@@ -472,8 +448,6 @@ class HTTPJSONEndpoint(GenericEndpoint):
 
 class SlackEndpoint(GenericEndpoint):
 
-    webhook = None
-    rich_fmt = False
     slack_color = {
             10: '#555555',
             20: 'good',
@@ -543,9 +517,6 @@ class SlackEndpoint(GenericEndpoint):
 
 
 class TelegramEndpoint(GenericEndpoint):
-
-    chat_id = None
-    _chat_id_plain = None
 
     def __init__(self, addr, chat_id = None, endpoint_id = None, active = 1,
             skip_dups = 0, description = '', autosave = True):

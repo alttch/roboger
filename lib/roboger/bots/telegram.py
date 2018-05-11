@@ -12,19 +12,15 @@ import hashlib
 
 class RTelegramBot(object):
 
-    token = None
-    uri = ''
-    timeout = 5
-    poll_interval = 2
-    update_offset = 0
-    update_thread = None
-    update_thread_active = True
-    ce = None
-    
-
     def __init__(self, token):
         self.token = token
         self.uri = 'https://api.telegram.org/bot%s' % self.token
+        self.timeout = 5
+        self.poll_interval = 2
+        self.update_offset = 0
+        self.update_thread = None
+        self.update_thread_active = True
+        self.ce = None
         if self.token:
             _k = base64.b64encode(hashlib.sha256(token.encode()).digest())
             self.ce = Fernet(_k)
