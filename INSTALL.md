@@ -18,7 +18,8 @@ Installing Roboger server:
 - copy etc/logrotate.d/roboger to /etc/logrotate.d/roboger
 - that's it :)
 
-Installing roboger-push only
+Installing roboger-push only:
+
 - execute the following command: 
   curl -s https://raw.githubusercontent.com/alttch/roboger/master/bin/install-roboger-push | bash /dev/stdin YOUR_ROBOGER_ADDRESS
 - customize /usr/local/etc/roboger_push.ini if required
