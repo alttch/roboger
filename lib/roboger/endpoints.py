@@ -388,8 +388,8 @@ class HTTPPostEndpoint(GenericEndpoint):
 
 class HTTPJSONEndpoint(GenericEndpoint):
     
-    def __init__(self, addr, url, params = None, endpoint_id = None, active = 1,
-            skip_dups = 0, description = '', autosave = True):
+    def __init__(self, addr, url, params = None, endpoint_id = None,
+            active = 1, skip_dups = 0, description = '', autosave = True):
         self.url = url
         if params:
             try:
