@@ -16,6 +16,7 @@ import roboger.events
 
 import requests
 import logging
+import jsonpickle
 
 import filetype
 
@@ -127,9 +128,9 @@ def load():
         if row[2] == 2:
             e = EmailEndpoint(u, row[3], row[0], row[6], row[7])
         elif row[2] == 3:
-            e = HTTPJSONEndpoint(u, row[3], row[0], row[6], row[7])
+            e = HTTPPostEndpoint(u, row[3], row[5], row[0], row[6], row[7])
         elif row[2] == 4:
-            e = HTTPPostEndpoint(u, row[3], row[0], row[6], row[7])
+            e = HTTPJSONEndpoint(u, row[3], row[5], row[0], row[6], row[7])
         elif row[2] == 100:
             e = SlackEndpoint(u, row[3], row[4], row[0], row[6], row[7])
         elif row[2] == 101:
@@ -353,24 +354,28 @@ class EmailEndpoint(GenericEndpoint):
 class HTTPPostEndpoint(GenericEndpoint):
     
     url = None
+    params = None
 
-    def __init__(self, addr, url, endpoint_id = None, active = 1,
+    def __init__(self, addr, url, params = None, endpoint_id = None, active = 1,
             skip_dups = 0, description = '', autosave = True):
         self.url = url
-        super().__init__(addr, 3, endpoint_id, url, active = active,
-                skip_dups=skip_dups, description = description,
-                autosave = autosave)
+        self.params = params
+        super().__init__(addr, 3, endpoint_id, url, data3 = params,
+                active = active, skip_dups=skip_dups,
+                description = description, autosave = autosave)
 
 
     def serialize(self):
         d = super().serialize()
         d['url'] = self.url
+        d['params'] = self.params
         return d
 
 
     def set_data(self, data = None, data2 = None, data3 = None,
             dbconn = None):
         self.url = data
+        self.params = data3
         super().set_data(data, data2, data3, dbconn)
 
 
@@ -378,7 +383,7 @@ class HTTPPostEndpoint(GenericEndpoint):
         if not self.check_dup(event): return False
         if not self.url: return False
         data = event.serialize(for_endpoint = True)
-        if self.data3: data['data'] = self.data3
+        if self.params: data['params'] = self.params
         logging.info('sending event %u via endpoint %u' % \
                 (event.event_id, self.endpoint_id))
         try:
@@ -400,24 +405,40 @@ class HTTPPostEndpoint(GenericEndpoint):
 class HTTPJSONEndpoint(GenericEndpoint):
     
     url = None
+    params = None
 
-    def __init__(self, addr, url, endpoint_id = None, active = 1,
+    def __init__(self, addr, url, params = None, endpoint_id = None, active = 1,
             skip_dups = 0, description = '', autosave = True):
         self.url = url
-        super().__init__(addr, 4, endpoint_id, url, active = active,
-                skip_dups=skip_dups, description = description,
-                autosave = autosave)
+        if params:
+            try:
+                self.params = jsonpickle.decode(params)
+            except:
+                self.params = None
+        else:
+            self.params = None
+        super().__init__(addr, 4, endpoint_id, url, data3=params,
+                active = active, skip_dups=skip_dups, 
+                description = description, autosave = autosave)
 
 
     def serialize(self):
         d = super().serialize()
         d['url'] = self.url
+        d['params'] = self.params
         return d
 
 
     def set_data(self, data = None, data2 = None, data3 = None,
             dbconn = None):
         self.url = data
+        if data3:
+            try:
+                self.params = jsonpickle.decode(data3)
+            except:
+                self.params = None
+        else:
+            self.params = None
         super().set_data(data, data2, data3, dbconn)
 
 
@@ -425,7 +446,7 @@ class HTTPJSONEndpoint(GenericEndpoint):
         if not self.check_dup(event): return False
         if not self.url: return False
         data = event.serialize(for_endpoint = True)
-        if self.data3: data['data'] = self.data3
+        data['params'] = self.params
         logging.info('sending event %u via endpoint %u' % \
                 (event.event_id, self.endpoint_id))
         try:

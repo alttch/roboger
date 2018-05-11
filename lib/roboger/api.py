@@ -335,12 +335,12 @@ class MasterAPI(object):
                         autosave = False)
             elif endpoint_type == 3:
                 e = roboger.endpoints.HTTPPostEndpoint(addr,
-                        data.get('data'),
+                        data.get('data'), data.get('data3'),
                         description = data.get('description'),
                         autosave = False)
             elif endpoint_type == 4:
                 e = roboger.endpoints.HTTPJSONEndpoint(addr,
-                        data.get('data'),
+                        data.get('data'), data.get('data3'),
                         description = data.get('description'),
                         autosave = False)
             elif endpoint_type == 100:
