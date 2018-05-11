@@ -1,0 +1,51 @@
+Supported endpoints in standalone installation:
+
+    type = 2 - email endpoint. params: data = email address of the recipient
+
+    type = 3 - http/post endpoint.
+
+                parameters: data = http url to hook
+                            data3 - custom 'params' field.
+
+                the following variables are posted to specified http url:
+
+                    id - event id
+                    d - event creation date
+                    location - event location
+                    keywords - event keywords, comma separated
+                    sender - event sender
+                    level_id - event level id (10 - debug, 20 - info, 30 - warning, 40 - error, 50 - critical)
+                    level - event level name
+                    expires - event expiration (reserved)
+                    subject - event subject
+                    msg - event message
+                    media - event attachment, base64 encoded
+                    params - event custom params, if data3 is set
+
+
+    type = 4 - http/json endpoint
+                parameters: data = http url to hook
+                            data3 - custom 'params' field, must be in json format
+
+                the specified http url receives raw json with a keys equal to http/post, except:
+
+                    keywords are received as list(array)
+                    params are received as set. if data3 is not a valid json, params are set to null
+
+
+    type = 100 - slack endpoint
+                parameters: data - slack webhook
+                            data2 - may be set to 'rich' if you want to receive slack messages in rich format
+
+                event attachments are not supported yet for this endpoint type
+
+
+    type = 101 - telegram endpoint
+                parameters: data - encrypted chat id you receive from your custom bot when start it in Telegram client
+
+                to use telegram endpoint you must obtain own telegram bot token and put it to bot_token var in roboger.ini
+                see https://core.telegram.org/bots#6-botfather for more info
+
+                the chat ids for endpoints are encrypted with your bot token, so if you change it, you must
+                obtain and re-enter all the chat ids again
+
