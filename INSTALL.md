@@ -20,6 +20,7 @@ Installing Roboger server:
 
 Installing roboger-push only:
 
+- log in as root
 - execute the following command: 
   curl -s https://raw.githubusercontent.com/alttch/roboger/master/bin/install-roboger-push | bash /dev/stdin YOUR_ROBOGER_ADDRESS
 - customize /usr/local/etc/roboger_push.ini if required
