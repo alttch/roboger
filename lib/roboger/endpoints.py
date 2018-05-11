@@ -378,6 +378,7 @@ class HTTPPostEndpoint(GenericEndpoint):
         if not self.check_dup(event): return False
         if not self.url: return False
         data = event.serialize(for_endpoint = True)
+        if self.data3: data['data'] = self.data3
         logging.info('sending event %u via endpoint %u' % \
                 (event.event_id, self.endpoint_id))
         try:
@@ -424,6 +425,7 @@ class HTTPJSONEndpoint(GenericEndpoint):
         if not self.check_dup(event): return False
         if not self.url: return False
         data = event.serialize(for_endpoint = True)
+        if self.data3: data['data'] = self.data3
         logging.info('sending event %u via endpoint %u' % \
                 (event.event_id, self.endpoint_id))
         try:
