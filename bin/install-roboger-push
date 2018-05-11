@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 ADDR=$1
 CFG_FILE=/usr/local/etc/roboger_push.ini
