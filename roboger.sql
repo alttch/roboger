@@ -53,7 +53,7 @@ CREATE TABLE `endpoint` (
   `endpoint_type_id` int(11) NOT NULL DEFAULT '1',
   `data` varchar(256) NOT NULL,
   `data2` varchar(256) DEFAULT NULL,
-  `data3` varchar(256) DEFAULT NULL,
+  `data3` varchar(1024) DEFAULT NULL,
   `active` int(11) NOT NULL DEFAULT '1',
   `skip_dups` int(11) NOT NULL DEFAULT '0',
   `description` varchar(50) DEFAULT NULL,

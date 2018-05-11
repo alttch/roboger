@@ -2,7 +2,7 @@
 ;section name should contain only letters and numbers and be unique
 [roboger]
 ;address on the server
-addr=c3378d320dfcd8186b32f8af12c3b879e285b2b5cecf937b7f58565c265b2990
+addr=PUT_HERE_ROBOGER_ADDRESS
 ;push address
 push=http://roboger.com
 ;how many times the script should try to send a message
@@ -16,13 +16,13 @@ timeout=5
 ;default sender, use instead of user@hostname
 ;sender=sendername
 
-[local1]
-addr=de79411c0127b9443e3b15e6c7613e04c16216bdfb07e5ccd91cb9d8e74ab16a
+;[local1]
+;addr=PUT_HERE_LOCAL_ROBOGER_ADDRESS
 ;backups servers are used only if the script failed to push msg on primary
-type=backup
-push=http://192.168.1.99:719
-retries=1
-retry_delay=2
-timeout=5
+;type=backup
+;push=http://192.168.1.99:719
+;retries=1
+;retry_delay=2
+;timeout=5
 ;default sender, use instead of user@hostname
 ;sender=sendername
