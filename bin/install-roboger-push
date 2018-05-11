@@ -61,4 +61,5 @@ EOF
 echo "Fetching roboger-push"
 rm -f /usr/local/bin/roboger-push
 curl -s https://raw.githubusercontent.com/alttch/roboger/master/bin/roboger-push -o /usr/local/bin/roboger-push || exit 4
+chmod +x /usr/local/bin/roboger-push
 echo "All done!"
