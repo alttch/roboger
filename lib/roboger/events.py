@@ -490,6 +490,7 @@ class Event(object):
         self.addr = addr
         self.d = d if d else \
                 datetime.datetime.now()
+        self.dd = None
         self.scheduled = scheduled
         self.delivered = delivered
         self.location = location if location else ''
