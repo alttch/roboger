@@ -336,8 +336,8 @@ class EmailEndpoint(GenericEndpoint):
 
 class HTTPPostEndpoint(GenericEndpoint):
     
-    def __init__(self, addr, url, params = None, endpoint_id = None, active = 1,
-            skip_dups = 0, description = '', autosave = True):
+    def __init__(self, addr, url, params = None, endpoint_id = None,
+            active = 1, skip_dups = 0, description = '', autosave = True):
         self.url = url
         self.params = params
         super().__init__(addr, 3, endpoint_id, url, data3 = params,
@@ -364,6 +364,8 @@ class HTTPPostEndpoint(GenericEndpoint):
         if not self.url: return False
         data = event.serialize(for_endpoint = True)
         if self.params: data['params'] = self.params
+        if data['keywords'] and isinstance(data['keywords'], list):
+            data['keywords'] = ','.join(data['keywords'])
         if isinstance(data['d'], datetime.datetime):
             data['d'] = data['d'].strftime("%Y/%m/%d %H:%M:%S")
         logging.info('sending event %u via endpoint %u' % \
