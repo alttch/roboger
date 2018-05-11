@@ -29,8 +29,8 @@ Supported endpoints in standalone installation:
 
                 the specified http url receives raw json with a keys equal to http/post, except:
 
-                    keywords are received as list(array)
-                    params are received as set. if data3 is not a valid json, params are set to null
+                    keywords are sent as list(array)
+                    params are sent as-is. if data3 is not a valid json, params are set to null
 
 
     type = 100 - slack endpoint
