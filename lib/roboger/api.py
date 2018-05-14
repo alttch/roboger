@@ -235,7 +235,7 @@ class MasterAPI(object):
 
     @cherrypy.expose
     def ls_addr(self, data):
-        r = {}
+        r = []
         if 'addr_id' in data or 'addr' in data:
             addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
             if not addr: 
@@ -243,8 +243,8 @@ class MasterAPI(object):
             return addr.serialize()
         else:
             for i, addr in roboger.addr.addrs_by_id.copy().items():
-                if not addr._destroyed: r[i] = addr.serialize()
-        return r
+                if not addr._destroyed: r.append(addr.serialize())
+        return sorted(r, key=lambda k: k['id'])
 
     @cherrypy.expose
     def mk_addr(self, data):
@@ -283,23 +283,23 @@ class MasterAPI(object):
 
     @cherrypy.expose
     def ls_endpoint_types(self, data):
-        result = {}
+        r = []
         try:
             c = db.query('select id, name from endpoint_type order by id')
             while True:
                 row = c.fetchone()
                 if row is None: break
-                result[row[0]] = row[1]
+                r.append({'id': row[0], 'name': row[1] })
             c.close()
         except:
             roboger.core.log_traceback()
             api_internal_error()
-        return result
+        return sorted(r, key=lambda k: k['id'])
 
 
     @cherrypy.expose
     def ls_endpoints(self, data):
-        r = {}
+        r = []
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         if 'endpoint_id' in data:
             e = roboger.endpoints.get_endpoint(data['endpoint_id'])
@@ -313,11 +313,11 @@ class MasterAPI(object):
                     for i, e in roboger.endpoints.endpoints_by_addr_id[
                             addr.addr_id].copy().items():
                         if not e._destroyed:
-                            r[i] = e.serialize()
+                            r.append(e.serialize())
             except:
                 roboger.core.log_traceback()
                 api_internal_error()
-        return r
+        return sorted(r, key=lambda k: k['id'])
 
 
     @cherrypy.expose
@@ -469,7 +469,7 @@ class MasterAPI(object):
 
     @cherrypy.expose
     def ls_subscriptions(self, data):
-        r = {}
+        r = []
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         if not e or (check_ownership and e.addr != addr):
@@ -488,11 +488,11 @@ class MasterAPI(object):
                             roboger.events.subscriptions_by_endpoint_id[
                                     e.endpoint_id].copy().items():
                         if not s._destroyed:
-                            r[i] = s.serialize()
+                            r.append(s.serialize())
             except:
                 roboger.core.log_traceback()
                 api_internal_error()
-        return r
+        return sorted(r, key=lambda k: k['id'])
 
 
     @cherrypy.expose
@@ -647,7 +647,7 @@ class MasterAPI(object):
             ev['addr'] = u.a
             r.append(ev)
         c.close()
-        return r
+        return sorted(r, key=lambda k: k['id'])
 
 
 class PushAPI(object):
