@@ -300,6 +300,7 @@ class EmailEndpoint(GenericEndpoint):
         if not self.check_dup(event): return False
         if not self.active or event._destroyed: return True
         if not self.rcpt: return False
+        if not event.sender: return False
         t = event.msg if event.msg else ''
         if event.media:
             msg = MIMEMultipart()
