@@ -31,7 +31,7 @@ def usage(version_only = False):
 for production use roboger-control only to start/stop Roboger server
 """)
 
-product_build = 2018051401
+product_build = 2018051801
 
 roboger.core.init()
 roboger.core.set_build(product_build)
