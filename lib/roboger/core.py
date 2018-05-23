@@ -40,7 +40,6 @@ _stop_func = set()
 
 _sigterm_sent = False
 
-
 pid_file = None
 
 log_file = None
@@ -95,7 +94,7 @@ def init():
 
 def write_pid_file():
     try:
-        open(pid_file,'w').write(str(os.getpid()))
+        open(pid_file, 'w').write(str(os.getpid()))
     except:
         log_traceback()
 
@@ -122,7 +121,7 @@ def debug_off():
     logging.info('Debug mode OFF')
 
 
-def log_traceback(display = False, notifier = False, force = False):
+def log_traceback(display=False, notifier=False, force=False):
     if (show_traceback or force) and not display:
         pfx = '.' if notifier else ''
         logging.error(pfx + traceback.format_exc())
@@ -130,8 +129,7 @@ def log_traceback(display = False, notifier = False, force = False):
         print(traceback.format_exc())
 
 
-def format_cfg_fname(fname, cfg = None, ext = 'ini', path = None,
-        runtime = False):
+def format_cfg_fname(fname, cfg=None, ext='ini', path=None, runtime=False):
     if path: _path = path
     else:
         if runtime: _path = dir_runtime
@@ -140,18 +138,23 @@ def format_cfg_fname(fname, cfg = None, ext = 'ini', path = None,
         if cfg: sfx = '_' + cfg
         else: sfx = ''
         return '%s/%s%s.%s' % (_path, 'roboger', sfx, ext)
-    elif fname[0]!='.' and fname[0]!='/': return _path + '/' + fname
-    else: return fname
+    elif fname[0] != '.' and fname[0] != '/':
+        return _path + '/' + fname
+    else:
+        return fname
 
 
-def reset_log(initial = False):
+def reset_log(initial=False):
     global logger, log_file_handler
     if logger and not log_file: return
     logger = logging.getLogger()
-    try: log_file_handler.stream.close()
-    except: pass
+    try:
+        log_file_handler.stream.close()
+    except:
+        pass
     if initial:
-        for h in logger.handlers: logger.removeHandler(h)
+        for h in logger.handlers:
+            logger.removeHandler(h)
     else:
         logger.removeHandler(log_file_handler)
     if not development:
@@ -167,7 +170,7 @@ def reset_log(initial = False):
     logger.addHandler(log_file_handler)
 
 
-def load(fname = None, initial = False, init_log = True):
+def load(fname=None, initial=False, init_log=True):
     global log_file, pid_file, debug, development, show_traceback
     global timeout, smtp_host, smtp_port, keep_events
     fname_full = format_cfg_fname(fname)
@@ -188,14 +191,17 @@ def load(fname = None, initial = False, init_log = True):
                         (fname_full), end = '')
                 print('Another process is already running')
                 return None
-            except: log_traceback()
-            try: log_file = cfg.get('server', 'log_file')
-            except: log_file = None
+            except:
+                log_traceback()
+            try:
+                log_file = cfg.get('server', 'log_file')
+            except:
+                log_file = None
             if log_file and log_file[0] != '/':
                 log_file = dir_roboger + '/' + log_file
             if init_log: reset_log(initial)
             try:
-                development = (cfg.get('server','development') == 'yes')
+                development = (cfg.get('server', 'development') == 'yes')
                 if development:
                     show_traceback = True
             except:
@@ -208,28 +214,31 @@ def load(fname = None, initial = False, init_log = True):
             else:
                 try:
                     show_traceback = (cfg.get('server',
-                                        'show_traceback') == 'yes')
+                                              'show_traceback') == 'yes')
                 except:
                     show_traceback = False
             if not development and not debug:
                 try:
-                    debug = (cfg.get('server','debug') == 'yes')
+                    debug = (cfg.get('server', 'debug') == 'yes')
                     if debug: debug_on()
                 except:
                     pass
                 if not debug:
-                        logging.basicConfig(level=logging.INFO)
-                        if logger: logger.setLevel(logging.INFO)
+                    logging.basicConfig(level=logging.INFO)
+                    if logger: logger.setLevel(logging.INFO)
             logging.info('Loading server config')
             logging.debug('server.pid_file = %s' % pid_file)
-        try: timeout = float(cfg.get('server', 'timeout'))
-        except: pass
+        try:
+            timeout = float(cfg.get('server', 'timeout'))
+        except:
+            pass
         logging.debug('server.timeout = %s' % timeout)
         try:
             smtp_host, smtp_port = parse_host_port(
-                    cfg.get('server', 'smtp_host'))
+                cfg.get('server', 'smtp_host'))
             if not smtp_port: smtp_port = 25
-        except: pass
+        except:
+            pass
         logging.debug('server.smtp_host = %s:%u' % (smtp_host, smtp_port))
         try:
             keep_events = int(cfg.get('server', 'keep_events'))
@@ -257,7 +266,7 @@ def parse_host_port(hp):
 def shutdown():
     for f in _stop_func:
         try:
-            f() 
+            f()
         except:
             log_traceback()
 
@@ -277,13 +286,14 @@ def remove_stop_func(func):
     except:
         log_traceback()
 
-def format_json(obj, minimal = False):
+
+def format_json(obj, minimal=False):
     return json.dumps(json.loads(jsonpickle.encode(obj, unpicklable = False)),
             indent = 4, sort_keys = True) if not minimal else \
                     jsonpickle.encode(obj, unpicklable = False)
+
 
 def netacl_match(host, acl):
     for a in acl:
         if IPAddress(host) in a: return True
     return False
-

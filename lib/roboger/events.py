@@ -19,20 +19,14 @@ import roboger.addr
 from roboger import db
 
 level_names = {
-        10: 'DEBUG',
-        20: 'INFO',
-        30: 'WARNING',
-        40: 'ERROR',
-        50: 'CRITICAL'
-        }
+    10: 'DEBUG',
+    20: 'INFO',
+    30: 'WARNING',
+    40: 'ERROR',
+    50: 'CRITICAL'
+}
 
-level_codes = {
-        'd': 10,
-        'i': 20,
-        'w': 30,
-        'e': 40,
-        'c': 50
-        }
+level_codes = {'d': 10, 'i': 20, 'w': 30, 'e': 40, 'c': 50}
 
 q = Queue()
 
@@ -47,9 +41,17 @@ event_cleaner_active = False
 event_cleaner = None
 
 
-def push_event(a, level, sender = '', location = '', keywords = '',
-        subject = '', expires = '', msg = '', media = None, dbconn = None):
-    addr = roboger.addr.get_addr(a = a)
+def push_event(a,
+               level,
+               sender='',
+               location='',
+               keywords='',
+               subject='',
+               expires='',
+               msg='',
+               media=None,
+               dbconn=None):
+    addr = roboger.addr.get_addr(a=a)
     if not addr:
         logging.info('push: no such address %s' % a)
         return None
@@ -59,20 +61,20 @@ def push_event(a, level, sender = '', location = '', keywords = '',
         return addr.active
     logging.info('push: new event for address %s' % a)
     try:
-       e = Event(addr,
-               level_id = level,
-               location = location,
-               keywords = keywords,
-               sender = sender,
-               subject = subject,
-               msg = msg,
-               media = media,
-               expires = expires,
-               autosave = False
-               )
-       e.save(dbconn = dbconn)
-       queue_event(e, dbconn)
-       return True
+        e = Event(
+            addr,
+            level_id=level,
+            location=location,
+            keywords=keywords,
+            sender=sender,
+            subject=subject,
+            msg=msg,
+            media=media,
+            expires=expires,
+            autosave=False)
+        e.save(dbconn=dbconn)
+        queue_event(e, dbconn)
+        return True
     except:
         roboger.core.log_traceback()
         return False
@@ -91,7 +93,7 @@ def _t_queue_processor():
             dbconn = db.connect()
         if not eq or \
                 (roboger.core.keep_events and not queue_processor_active):
-                    break
+            break
         if eq.subscription._destroyed: continue
         logging.info('Sending queued event id: %s' % eq.event.event_id + \
                 ', endpoint id: %s' % eq.subscription.endpoint.endpoint_id + \
@@ -99,9 +101,9 @@ def _t_queue_processor():
                 ', addr id: %s, addr: %s' % (eq.event.addr.addr_id,
                                     eq.event.addr.a)
                                     )
-        t = threading.Thread(target = eq.send)
+        t = threading.Thread(target=eq.send)
         t.start()
-        eq.mark_delivered(dbconn = dbconn)
+        eq.mark_delivered(dbconn=dbconn)
     if dbconn:
         dbconn.close()
 
@@ -121,7 +123,9 @@ def _t_event_cleaner():
                     dbconn = db.connect()
                 db.query(
                     'delete from event where d<NOW() - INTERVAL %s SECOND',
-                    (roboger.core.keep_events,), True, dbconn = dbconn)
+                    (roboger.core.keep_events,),
+                    True,
+                    dbconn=dbconn)
             except:
                 roboger.core.log_traceback()
             c = 0
@@ -133,13 +137,13 @@ def stop():
     global event_cleaner_active
     if queue_processor_active and \
             queue_processor and queue_processor.isAlive():
-            queue_processor_active = False
-            q.put(None)
-            queue_processor.join()
+        queue_processor_active = False
+        q.put(None)
+        queue_processor.join()
     if event_cleaner_active and \
             event_cleaner and event_cleaner.isAlive():
-            event_cleaner_active = False
-            event_cleaner.join()
+        event_cleaner_active = False
+        event_cleaner.join()
     return
 
 
@@ -149,13 +153,13 @@ def start():
     if not ( queue_processor_active and \
             queue_processor and queue_processor.isAlive() ):
         queue_processor = threading.Thread(
-                target = _t_queue_processor, name = "_t_queue_processor")
+            target=_t_queue_processor, name="_t_queue_processor")
         queue_processor.start()
     if roboger.core.keep_events:
         if not ( event_cleaner_active and \
                 event_cleaner and event_cleaner.isAlive() ):
             event_cleaner = threading.Thread(
-                    target = _t_event_cleaner, name = "_t_event_cleaner")
+                target=_t_event_cleaner, name="_t_event_cleaner")
             event_cleaner.start()
 
 
@@ -168,7 +172,7 @@ def location_match(lmask, location):
         g2 = location.split('/')
         if len(g1) == len(g2):
             match = True
-            for i in range(0,len(g1)):
+            for i in range(0, len(g1)):
                 if g1[i] != '+' and g1[i] != g2[i]:
                     match = False
                     break
@@ -200,9 +204,9 @@ def level_match(l, lc, cond):
 
 def get_subscription(s_id):
     return subscriptions_by_id.get(s_id)
-        
 
-def queue_event(event, dbconn = None):
+
+def queue_event(event, dbconn=None):
     endp = []
     for i, s in subscriptions_by_addr_id[event.addr.addr_id].copy().items():
         if event.addr.active == 1 and s.active == 1 and \
@@ -214,8 +218,8 @@ def queue_event(event, dbconn = None):
                     event.sender in s.senders) and \
                 level_match(s.level_id, event.level_id, s.level_match):
             endp.append(s.endpoint.endpoint_id)
-            eq = EventQueueItem(event, s, initial = True, autosave = False)
-            eq.save(initial = True, dbconn = dbconn)
+            eq = EventQueueItem(event, s, initial=True, autosave=False)
+            eq.save(initial=True, dbconn=dbconn)
             event.scheduled += 1
             event.save(dbconn)
             q.put(eq)
@@ -230,8 +234,8 @@ def destroy_subscription(s, dbconn):
     try:
         del subscriptions_by_id[_s.subscription_id]
         del subscriptions_by_addr_id[_s.addr.addr_id][_s.subscription_id]
-        del subscriptions_by_endpoint_id[
-                _s.endpoint.endpoint_id][_s.subscription_id]
+        del subscriptions_by_endpoint_id[_s.endpoint.endpoint_id][
+            _s.subscription_id]
     except:
         roboger.core.log_traceback()
 
@@ -260,8 +264,8 @@ def load_subscriptions():
     while True:
         row = c.fetchone()
         if row is None: break
-        u = roboger.addr.get_addr(addr_id = row[1])
-        e = roboger.endpoints.get_endpoint(endpoint_id = row[2])
+        u = roboger.addr.get_addr(addr_id=row[1])
+        e = roboger.endpoints.get_endpoint(endpoint_id=row[2])
         if not u:
             logging.error('Addr %u not found but subscriptions exist!' % \
                     row[1])
@@ -290,16 +294,15 @@ def load_queued_events():
         if row is None: break
         u = roboger.addr.get_addr(row[2])
         if not u:
-            logging.error(
-                    'Addr %u not found but queued events exist!' % row[2])
+            logging.error('Addr %u not found but queued events exist!' % row[2])
             continue
         s = get_subscription(row[1])
         if not s:
             logging.error(
                 'Subscription %u not found but queued events exist!' % row[2])
             continue
-        e = Event(u, row[0], row[3], row[4], row[5], row[6], row[7],
-                row[8], row[9], row[10], row[11], row[12], row[13])
+        e = Event(u, row[0], row[3], row[4], row[5], row[6], row[7], row[8],
+                  row[9], row[10], row[11], row[12], row[13])
         eq = EventQueueItem(e, s)
         cqe += 1
         q.put(eq)
@@ -308,16 +311,20 @@ def load_queued_events():
 
 class EventQueueItem(object):
 
-    def __init__(self, event, subscription, status = 0,
-            dd = None, initial = False, autosave = True):
+    def __init__(self,
+                 event,
+                 subscription,
+                 status=0,
+                 dd=None,
+                 initial=False,
+                 autosave=True):
         self._destroyed = False
         self.event = event
         self.subscription = subscription
         self.status = status
         self.dd = dd if dd else \
                 datetime.datetime.now()
-        if initial and autosave: self.save(initial = initial)
-
+        if initial and autosave: self.save(initial=initial)
 
     def send(self):
         try:
@@ -325,7 +332,7 @@ class EventQueueItem(object):
         except:
             roboger.core.log_traceback()
 
-    def save(self, initial = False, dbconn = None):
+    def save(self, initial=False, dbconn=None):
         if self._destroyed or not roboger.core.keep_events: return True
         if initial:
             db.query('insert into event_queue ' + \
@@ -340,16 +347,14 @@ class EventQueueItem(object):
                         self.subscription.subscription_id), True, dbconn)
         return True
 
-
-    def mark_delivered(self, dbconn = None):
+    def mark_delivered(self, dbconn=None):
         self.dd = datetime.datetime.now()
         self.status = 1
-        self.save(dbconn = dbconn)
+        self.save(dbconn=dbconn)
         self.event.delivered += 1
-        self.event.save(dbconn = dbconn)
+        self.event.save(dbconn=dbconn)
 
-
-    def destroy(dbconn = None):
+    def destroy(dbconn=None):
         self._destroyed = True
         db.query('delete from event_queue where event_id=%s and ' + \
                 'subscription_id=%s',
@@ -359,9 +364,17 @@ class EventQueueItem(object):
 
 class EventSubscription(object):
 
-    def __init__(self, addr, endpoint, subscription_id = None, active = 1,
-            location = '', keywords = '', senders = '',
-            level_id = 20, level_match = 'ge', autosave = True):
+    def __init__(self,
+                 addr,
+                 endpoint,
+                 subscription_id=None,
+                 active=1,
+                 location='',
+                 keywords='',
+                 senders='',
+                 level_id=20,
+                 level_match='ge',
+                 autosave=True):
         self._destroyed = False
         self.addr = addr
         self.endpoint = endpoint
@@ -370,15 +383,15 @@ class EventSubscription(object):
         if isinstance(keywords, list):
             self.keywords = keywords
         elif isinstance(keywords, str):
-            self.keywords = list(filter(None,
-                [x.strip() for x in keywords.split(',')]))
+            self.keywords = list(
+                filter(None, [x.strip() for x in keywords.split(',')]))
         else:
             self.keywords = []
         if isinstance(senders, list):
             self.senders = senders
         elif isinstance(senders, str):
-            self.senders = list(filter(None,
-                [x.strip() for x in senders.split(',')]))
+            self.senders = list(
+                filter(None, [x.strip() for x in senders.split(',')]))
         else:
             self.senders = []
         self.level_id = level_id if level_id else 20
@@ -391,44 +404,38 @@ class EventSubscription(object):
                 roboger.core.log_traceback()
                 self._destroyed = True
 
-
-    def set_location(self, location = '', dbconn = None):
+    def set_location(self, location='', dbconn=None):
         self.location = location if location else ''
-        self.save(dbconn = dbconn)
+        self.save(dbconn=dbconn)
 
-
-    def set_keywords(self, keywords = '', dbconn = None):
+    def set_keywords(self, keywords='', dbconn=None):
         if not keywords:
             self.keywords = []
         elif isinstance(keywords, list):
             self.keywords = keywords
         elif isinstance(keywords, str):
-            self.keywords = list(filter(None,
-                [x.strip() for x in keywords.split(',')]))
+            self.keywords = list(
+                filter(None, [x.strip() for x in keywords.split(',')]))
         else:
             self.keywords = []
-        self.save(dbconn = dbconn)
+        self.save(dbconn=dbconn)
 
-
-    def set_senders(self, senders = '', dbconn = None):
+    def set_senders(self, senders='', dbconn=None):
         if isinstance(senders, list):
             self.senders = senders
         elif isinstance(senders, str):
-            self.senders = list(filter(None,
-                [x.strip() for x in senders.split(',')]))
+            self.senders = list(
+                filter(None, [x.strip() for x in senders.split(',')]))
         else:
             self.senders = []
-        self.save(dbconn = dbconn)
+        self.save(dbconn=dbconn)
 
-
-    def set_level(self, level_id = 20, level_match = 'ge',
-            dbconn = None):
+    def set_level(self, level_id=20, level_match='ge', dbconn=None):
         self.level_id = level_id if level_id else 20
         self.level_match = level_match if level_match else 'ge'
-        self.save(dbconn = dbconn)
+        self.save(dbconn=dbconn)
 
-
-    def serialize(self, for_endpoint = False):
+    def serialize(self, for_endpoint=False):
         u = {}
         u['id'] = self.subscription_id
         u['addr_id'] = self.addr.addr_id
@@ -442,13 +449,11 @@ class EventSubscription(object):
         if roboger.core.development: u['destroyed'] = self._destroyed
         return u
 
-
-    def set_active(self, active = 1, dbconn = None):
+    def set_active(self, active=1, dbconn=None):
         self.active = active
-        self.save(dbconn = dbconn)
+        self.save(dbconn=dbconn)
 
-
-    def save(self, dbconn = None):
+    def save(self, dbconn=None):
         if self._destroyed: return
         if self.subscription_id:
             db.query('update subscription set active = %s, ' + \
@@ -468,24 +473,34 @@ class EventSubscription(object):
                         ','.join(self.senders),
                         self.level_id, self.level_match) , True, dbconn)
 
-
-    def destroy(self, dbconn = None):
+    def destroy(self, dbconn=None):
         self._destroyed = True
         self.active = 0
         self.endpoint.remove_subscription(self)
         if self.subscription_id:
             db.query('delete from event_queue where subscription_id = %s',
-                    (self.subscription_id, ), True, dbconn)
+                     (self.subscription_id,), True, dbconn)
             db.query('delete from subscription where id = %s',
-                    (self.subscription_id, ), True, dbconn)
+                     (self.subscription_id,), True, dbconn)
 
 
 class Event(object):
 
-    def __init__(self, addr, event_id = None, d = None, scheduled = 0,
-            delivered = 0, location = '', keywords = '', sender = '',
-            level_id = 20, expires = 86400,
-            subject = '', msg = '', media = None, autosave = True):
+    def __init__(self,
+                 addr,
+                 event_id=None,
+                 d=None,
+                 scheduled=0,
+                 delivered=0,
+                 location='',
+                 keywords='',
+                 sender='',
+                 level_id=20,
+                 expires=86400,
+                 subject='',
+                 msg='',
+                 media=None,
+                 autosave=True):
         self._destroyed = False
         self.addr = addr
         self.d = d if d else \
@@ -501,8 +516,8 @@ class Event(object):
         elif isinstance(keywords, list):
             self.keywords = keywords
         elif isinstance(keywords, str):
-            self.keywords = list(filter(None,
-                [x.strip() for x in keywords.split(',')]))
+            self.keywords = list(
+                filter(None, [x.strip() for x in keywords.split(',')]))
         else:
             self.keywords = []
         self.sender = sender if sender else ''
@@ -510,7 +525,7 @@ class Event(object):
         if expires: self.expires = expires
         self.msg = msg
         self.media = media
-        self.formatted_subject =  ''
+        self.formatted_subject = ''
         level_name = get_event_level_name(self.level_id)
         if level_name:
             self.formatted_subject = level_name
@@ -527,7 +542,6 @@ class Event(object):
             except:
                 roboger.core.log_traceback()
                 self._destroyed = True
-
 
     def get_hash(self):
         h = hashlib.sha256()
@@ -546,8 +560,7 @@ class Event(object):
         if self.media: h.update(self.media)
         return h.hexdigest()
 
-
-    def serialize(self, for_endpoint = False):
+    def serialize(self, for_endpoint=False):
         u = {}
         u['id'] = self.event_id
         if not for_endpoint:
@@ -567,8 +580,7 @@ class Event(object):
         if roboger.core.development: u['destroyed'] = self._destroyed
         return u
 
-
-    def save(self, dbconn = None):
+    def save(self, dbconn=None):
         if self._destroyed: return
         if self.event_id:
             if self.scheduled == self.delivered and not self.dd:
@@ -590,11 +602,11 @@ class Event(object):
                         self.delivered, self.location, ','.join(self.keywords),
                         self.sender, self.level_id, self.expires, self.subject,
                         self.msg, self.media), True, dbconn)
-        else: self.event_id = str(uuid.uuid4()).encode()
+        else:
+            self.event_id = str(uuid.uuid4()).encode()
 
-
-    def destroy(self, dbconn = None):
+    def destroy(self, dbconn=None):
         self._destroyed = True
         if self.event_id and roboger.core.keep_events:
-            db.query('delete from event where id = %s',
-                    (self.event_id, ), True, dbconn)
+            db.query('delete from event where id = %s', (self.event_id,), True,
+                     dbconn)

@@ -13,13 +13,16 @@ import jsonpickle
 import configparser
 import requests
 
-def format_json(obj, minimal = False):
+
+def format_json(obj, minimal=False):
     return json.dumps(json.loads(jsonpickle.encode(obj,
             unpicklable = False)), indent = 4, sort_keys = True) \
                 if not minimal else jsonpickle.encode(obj, unpicklable = False)
 
+
 def print_json(obj):
     print(format_json(obj))
+
 
 def usage():
     print('Roboger version %s' % __version__)
@@ -124,6 +127,7 @@ Command arguments:
 
     """)
 
+
 dir_etc = os.path.dirname(os.path.realpath(__file__)) + '/../etc'
 
 timeout = 5
@@ -137,7 +141,7 @@ xparams = {}
 try:
     func = sys.argv[1]
     o, a = getopt.getopt(sys.argv[2:],
-            'T:U:K:a:i:p:d:g:j:o:e:s:n:k:x:l:m:c:b:D')
+                         'T:U:K:a:i:p:d:g:j:o:e:s:n:k:x:l:m:c:b:D')
 except:
     usage()
     sys.exit(99)
@@ -224,13 +228,14 @@ for i, v in o:
         except:
             xparams['level'] = v
 
-
 if not apiuri or not apikey:
     cfg = configparser.ConfigParser(inline_comment_prefixes=';')
     cfg.readfp(open(dir_etc + '/roboger.ini'))
     if not apikey:
-        try: apikey = cfg.get('api', 'masterkey')
-        except: pass
+        try:
+            apikey = cfg.get('api', 'masterkey')
+        except:
+            pass
     if not apiuri:
         try:
             l = cfg.get('api', 'listen')
@@ -242,21 +247,22 @@ if not apiuri or not apikey:
             except:
                 l = None
         if l:
-            try: host, port = l.split(':')
+            try:
+                host, port = l.split(':')
             except:
                 host = l
                 port = '80'
             if host == '0.0.0.0': host = '127.0.0.1'
             apiuri = '%s://%s:%s' % (proto, host, port)
     try:
-        development = (cfg.get('server','development') == 'yes')
+        development = (cfg.get('server', 'development') == 'yes')
         if development: debug = True
-    except: pass
+    except:
+        pass
 
 if not apiuri:
     print('no API URI specified')
     sys.exit(5)
-
 
 apiuri_r = apiuri + '/manage/' + func
 
@@ -292,4 +298,3 @@ else:
     print("API error %u" % (r.status_code))
     if debug: print(r.text)
     sys.exit(2)
-

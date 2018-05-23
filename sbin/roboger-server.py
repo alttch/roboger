@@ -16,7 +16,8 @@ import roboger.api
 
 import logging
 
-def usage(version_only = False):
+
+def usage(version_only=False):
     print('Roboger version %s build %s ' % \
             (
                 roboger.core.version,
@@ -24,12 +25,13 @@ def usage(version_only = False):
             )
         )
     if version_only: return
-    print ("""Usage: roboger-server.py [-f config_file ]
+    print("""Usage: roboger-server.py [-f config_file ]
 
  -f config_file     start with an alternative config file
 
 for production use roboger-control only to start/stop Roboger server
 """)
+
 
 product_build = 2018051801
 
@@ -47,13 +49,13 @@ except:
 for o, a in optlist:
     if o == '-f': _ini = a
     if o == '-V':
-        usage(version_only = True)
+        usage(version_only=True)
         sys.exit()
     if o == '-h':
         usage()
         sys.exit()
 
-cfg = roboger.core.load(fname = _ini, initial = True)
+cfg = roboger.core.load(fname=_ini, initial=True)
 if not cfg: sys.exit(2)
 
 roboger.core.write_pid_file()
@@ -79,4 +81,3 @@ roboger.events.start()
 roboger.api.start()
 
 roboger.core.block()
-

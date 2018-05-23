@@ -13,6 +13,7 @@ import roboger.endpoints
 
 from roboger import db
 
+
 def gen_random_hash():
     s = hashlib.sha256()
     s.update(os.urandom(1024))
@@ -26,8 +27,8 @@ addrs_by_id = {}
 addrs_by_a = {}
 
 
-def append_addr(u = None, dbconn = None):
-    _u = u if u else Addr(autosave = (dbconn is None))
+def append_addr(u=None, dbconn=None):
+    _u = u if u else Addr(autosave=(dbconn is None))
     if dbconn: _u.save(dbconn)
     addrs_by_id[_u.addr_id] = _u
     addrs_by_a[_u.a] = _u
@@ -44,7 +45,7 @@ def load():
     logging.debug('addr: %u address(es) loaded' % len(addrs_by_id))
 
 
-def get_addr(addr_id = None, a = None):
+def get_addr(addr_id=None, a=None):
     addr = None
     if addr_id: addr = addrs_by_id.get(addr_id)
     if not addr_id and a: addr = addrs_by_a.get(a)
@@ -52,14 +53,14 @@ def get_addr(addr_id = None, a = None):
     return None if addr._destroyed else addr
 
 
-def change_addr(addr_id = None, a = None, dbconn = None):
+def change_addr(addr_id=None, a=None, dbconn=None):
     addr = get_addr(addr_id, a)
     if not addr: return None
     try:
         del addrs_by_a[addr.a]
     except:
         roboger.core.log_traceback()
-    addrs_by_a[addr.set_a(autosave = False)] = addr
+    addrs_by_a[addr.set_a(autosave=False)] = addr
     addr.save(dbconn)
     return addr
 
@@ -79,7 +80,7 @@ def destroy_addr(addr_id):
 
 class Addr:
 
-    def __init__(self, addr_id = None, a = None, active = 1, autosave = True):
+    def __init__(self, addr_id=None, a=None, active=1, autosave=True):
         self._destroyed = False
         self.active = active
         self.set_a(a, False)
@@ -92,14 +93,11 @@ class Addr:
                 roboger.core.log_traceback()
                 self._destroyed = True
 
-
     def append_endpoint(self, e):
         self.endpoints.append(e)
 
-
     def remove_endpoint(self, e):
         self.endpoints.remove(e)
-
 
     def serialize(self):
         u = {}
@@ -109,18 +107,16 @@ class Addr:
         if roboger.core.development: u['destroyed'] = self._destroyed
         return u
 
-    def set_a(self, a = None, autosave = True):
+    def set_a(self, a=None, autosave=True):
         self.a = a if a else gen_random_hash()
         if autosave: self.save()
         return self.a
 
-
-    def set_active(self, active = 1, dbconn = None):
+    def set_active(self, active=1, dbconn=None):
         self.active = active
         self.save(dbconn)
 
-
-    def save(self, dbconn = None):
+    def save(self, dbconn=None):
         if self._destroyed: return
         if self.addr_id:
             db.query('update addr set a = %s, active = %s ' + \
@@ -130,12 +126,10 @@ class Addr:
             self.addr_id = db.query('insert into addr(a, active) values ' + \
                     ' (%s, %s)', (self.a, self.active), True, dbconn)
 
-
-    def destroy(self, dbconn = None):
+    def destroy(self, dbconn=None):
         self._destroyed = True
         if self.addr_id:
             for e in self.endpoints.copy():
                 roboger.endpoints.destroy_endpoints_by_addr(self, dbconn)
-            db.query('delete from addr where id = %s', (self.addr_id, ),
-                    True, dbconn)
-
+            db.query('delete from addr where id = %s', (self.addr_id,), True,
+                     dbconn)

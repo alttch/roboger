@@ -17,16 +17,25 @@ db_password = None
 
 db_name = None
 
+
 def update_config(cfg):
     global db, db_host, db_user, db_password, db_name
-    try: db_host = cfg.get('db', 'host')
-    except: db_host = '127.0.0.1'
-    try: db_user = cfg.get('db', 'user')
-    except: db_user = 'root'
-    try: db_password = cfg.get('db', 'password')
-    except: db_password = ''
-    try: db_name = cfg.get('db', 'database')
-    except: db_name = 'roboger'
+    try:
+        db_host = cfg.get('db', 'host')
+    except:
+        db_host = '127.0.0.1'
+    try:
+        db_user = cfg.get('db', 'user')
+    except:
+        db_user = 'root'
+    try:
+        db_password = cfg.get('db', 'password')
+    except:
+        db_password = ''
+    try:
+        db_name = cfg.get('db', 'database')
+    except:
+        db_name = 'roboger'
     db = connect()
     if db:
         logging.debug('database connected: %s@%s/%s' % \
@@ -40,15 +49,15 @@ def update_config(cfg):
 
 def connect():
     try:
-        db = MySQLdb.connect(db_host, db_user, db_password, db_name,
-                charset='utf8')
+        db = MySQLdb.connect(
+            db_host, db_user, db_password, db_name, charset='utf8')
         return db
     except:
         roboger.core.log_traceback()
         return None
 
 
-def check(dbconn = None):
+def check(dbconn=None):
     try:
         if dbconn:
             cursor = dbconn.cursor()
@@ -60,7 +69,8 @@ def check(dbconn = None):
         logging.debug('database check: server has gone away')
         return False
 
-def query(sql, args = (), do_commit = False, dbconn = None):
+
+def query(sql, args=(), do_commit=False, dbconn=None):
     global db
     # print(sql)
     try:
@@ -90,7 +100,7 @@ def query(sql, args = (), do_commit = False, dbconn = None):
     return cursor
 
 
-def commit(c = None, dbconn = None):
+def commit(c=None, dbconn=None):
     try:
         if dbconn: dbconn.commit()
         else: db.commit()
