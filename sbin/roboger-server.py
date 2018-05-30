@@ -5,7 +5,7 @@ __version__ = "1.0.0"
 
 import sys
 import os
-import getopt
+import argparse
 
 dir_lib = os.path.dirname(os.path.realpath(__file__)) + '/../lib'
 sys.path.append(dir_lib)
@@ -16,46 +16,31 @@ import roboger.api
 
 import logging
 
-
-def usage(version_only=False):
-    print('Roboger version %s build %s ' % \
-            (
-                roboger.core.version,
-                roboger.core.product_build
-            )
-        )
-    if version_only: return
-    print("""Usage: roboger-server.py [-f config_file ]
-
- -f config_file     start with an alternative config file
-
-for production use roboger-control only to start/stop Roboger server
-""")
-
-
 product_build = 2018051801
 
 roboger.core.init()
 roboger.core.set_build(product_build)
 
-_ini = None
+_me = 'Roboger server version %s build %s ' % (roboger.core.version,
+                                               roboger.core.product_build)
 
-try:
-    optlist, args = getopt.getopt(sys.argv[1:], 'f:hV')
-except:
-    usage()
-    sys.exit(99)
+ap = argparse.ArgumentParser(description=_me)
+ap.add_argument(
+    '-V',
+    '--version',
+    help='print version and exit',
+    action='store_true',
+    dest='_ver')
+ap.add_argument(
+    '-f', help='alternative config file', dest='_ini', metavar='CONFIGFILE')
 
-for o, a in optlist:
-    if o == '-f': _ini = a
-    if o == '-V':
-        usage(version_only=True)
-        sys.exit()
-    if o == '-h':
-        usage()
-        sys.exit()
+a = ap.parse_args()
 
-cfg = roboger.core.load(fname=_ini, initial=True)
+if a._ver:
+    print(_me)
+    sys.exit()
+
+cfg = roboger.core.load(fname=a._ini, initial=True)
 if not cfg: sys.exit(2)
 
 roboger.core.write_pid_file()
