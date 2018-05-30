@@ -357,6 +357,7 @@ class MasterAPI(object):
                 e = roboger.endpoints.SlackEndpoint(
                     addr,
                     data.get('data'),
+                    data.get('data2'),
                     description=data.get('description'),
                     autosave=False)
             elif endpoint_type == 101:
