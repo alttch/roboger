@@ -662,20 +662,24 @@ class MasterAPI(object):
         q += ' order by d desc'
         if limit:
             q += ' limit %u' % limit
-        c = roboger.db.query(q, qp, dbconn=cherrypy.thread_data.db)
-        r = []
-        while True:
-            row = c.fetchone()
-            if row is None: break
-            u = roboger.addr.get_addr(row[1])
-            if not u: continue
-            e = roboger.events.Event(u, row[0], row[2], row[3], row[4], row[5],
-                                     row[6], row[7], row[8], row[9], row[10],
-                                     row[11], row[12])
-            ev = e.serialize()
-            ev['addr'] = u.a
-            r.append(ev)
-        c.close()
+        try:
+            c = roboger.db.query(q, qp, dbconn=cherrypy.thread_data.db)
+            r = []
+            while True:
+                row = c.fetchone()
+                if row is None: break
+                u = roboger.addr.get_addr(row[1])
+                if not u: continue
+                e = roboger.events.Event(u, row[0], row[2], row[3], row[4],
+                                         row[5], row[6], row[7], row[8], row[9],
+                                         row[10], row[11], row[12])
+                ev = e.serialize()
+                ev['addr'] = u.a
+                r.append(ev)
+            c.close()
+        except:
+            roboger.core.log_traceback()
+            api_internal_error()
         return sorted(r, key=lambda k: k['id'])
 
 
