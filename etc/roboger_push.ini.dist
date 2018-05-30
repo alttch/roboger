@@ -15,6 +15,8 @@ timeout=5
 ;backup=local1
 ;default sender, use instead of user@hostname
 ;sender=sendername
+;default location if not specified
+;location=plant1
 
 ;[local1]
 ;addr=PUT_HERE_YOUR_LOCAL_ROBOGER_ADDRESS
@@ -22,7 +24,10 @@ timeout=5
 ;type=backup
 ;push=http://192.168.1.99:719
 ;retries=1
+;location=plant1
 ;retry_delay=2
 ;timeout=5
 ;default sender, use instead of user@hostname
 ;sender=sendername
+;default location if not specified
+;location=plant1

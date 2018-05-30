@@ -116,13 +116,18 @@ function sendPush() {
         local FROM=${_PROP}
         [ "x${FROM}" == "x" ] && local FROM=${DEFAULT_SENDER}
     fi
+    local _LOCATION=${LOCATION}
+    if [ "x${_LOCATION}" == "x" ]; then
+        getProperty ${SRV}.location
+        local _LOCATION=${_PROP}
+    fi
     [ "x${RETRIES}" == "x" ] && RETRIES=1
     [ "x${RETRY_DELAY}" == "x" ] && RETRY_DELAY=${DEFAULT_RETRY_DELAY}
     [ "x${T}" == "x" ] && T=_$DEFAULT_TIMEOUT
     if [ "x${ADDR}" != "x" ] && [ "x{$PUSH}" != "x" ]; then
         for ((i=1; i<=${RETRIES}; i+=1))
         do
-            local _data="{ \"msg\": \"${MSG}\", \"subject\": \"${SUBJECT}\", \"location\": \"${LOCATION}\", \"keywords\": \"${KEYWORDS}\", \"expires\": \"${EXPIRES}\", \"level\": \"${LEVEL}\", \"sender\" : \"${FROM}\", \"addr\":\"${ADDR}\", \"media\": \"${MEDIA}\" }"
+            local _data="{ \"msg\": \"${MSG}\", \"subject\": \"${SUBJECT}\", \"location\": \"${_LOCATION}\", \"keywords\": \"${KEYWORDS}\", \"expires\": \"${EXPIRES}\", \"level\": \"${LEVEL}\", \"sender\" : \"${FROM}\", \"addr\":\"${ADDR}\", \"media\": \"${MEDIA}\" }"
             local VERB=""
             if [ ${VERBOSE} == "2" ]; then
                 VERB="-v"
