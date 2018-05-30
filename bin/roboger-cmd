@@ -70,7 +70,7 @@ def _prepare_result_data(data):
 
 
 def pprint_df(data):
-    pd.options.display.max_colwidth = 150
+    pd.options.display.max_colwidth = 50
     df = pd.DataFrame(data=_prepare_result_data(data))
     cols = list(df)
     # move id column to the front if exist
