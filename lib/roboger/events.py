@@ -445,6 +445,7 @@ class EventSubscription(object):
         u['keywords'] = self.keywords
         u['senders'] = self.senders
         u['level_id'] = self.level_id
+        u['level'] = get_event_level_name(self.level_id)
         u['level_match'] = self.level_match
         if roboger.core.development: u['destroyed'] = self._destroyed
         return u

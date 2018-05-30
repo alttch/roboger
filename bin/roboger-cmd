@@ -15,6 +15,17 @@ import configparser
 import requests
 import re
 
+_pd_cols = {
+    'ls_subscriptions':
+    ['id', 'active', 'level', 'senders', 'location', 'keywords'],
+    'ls_events': [
+        'id', 'd', 'delivered', 'sender', 'subject', 'location', 'keywords',
+        'media'
+    ]
+}
+
+_level_match_sign = {'g': ' >', 'ge': '>=', 'l': ' <', 'le': '<=', 'e': '='}
+
 
 def format_json(obj, minimal=False):
     return json.dumps(json.loads(jsonpickle.encode(obj,
@@ -27,14 +38,15 @@ def print_json(obj):
 
 
 def _prepare_result_data(data):
-    lse_cols = [ 'id', 'active', 'skip_dups', 'type', 'description' ]
+    lse_cols = ['id', 'active', 'skip_dups', 'type', 'description']
     j = data.copy()
     for i in j:
         try:
             d = i['description']
             if d is not None and d != '':
                 i['description'] = '\'' + d + '\''
-        except: pass
+        except:
+            pass
         try:
             del i['data']
         except:
@@ -66,30 +78,44 @@ def _prepare_result_data(data):
                     info.append('%s : %r' % (k, v))
                     del i[k]
             i['parameters'] = ', '.join(sorted(info))
+        elif func == 'ls_subscriptions':
+            i['level'] = _level_match_sign[i['level_match']] + ' ' + i['level']
+            i['keywords'] = ','.join(i['keywords'])
+            i['senders'] = ','.join(i['senders'])
+        elif func == 'ls_events':
+            if i['media']: i['media'] = 'YES'
+            i['keywords'] = ','.join(i['keywords'])
     return j
 
 
 def pprint_df(data):
     pd.options.display.max_colwidth = 65
     df = pd.DataFrame(data=_prepare_result_data(data))
-    cols = list(df)
-    # move id column to the front if exist
-    try:
-        cols.insert(0, cols.pop(cols.index('id')))
-    except:
-        pass
-    # move description column to the end if exist
-    try:
-        cols.append(cols.pop(cols.index('description')))
-    except:
-        pass
+    if func in _pd_cols:
+        cols = _pd_cols[func]
+    else:
+        cols = list(df)
+        # move id column to the front if exist
+        try:
+            cols.insert(0, cols.pop(cols.index('id')))
+        except:
+            pass
+        # move description column to the end if exist
+        try:
+            cols.append(cols.pop(cols.index('description')))
+        except:
+            pass
     df = df.ix[:, cols]
     try:
+        # move id to the header
         df.set_index('id', inplace=True)
         out = df.to_string().split('\n')
+        # print header
         print('id' + out[0][2:])
-        print('-'*len(out[0]))
-        [ print(o) for o in out[2:] ]
+        # print separator
+        print('-' * len(out[0]))
+        # print data frame
+        [print(o) for o in out[2:]]
     except:
         print(df)
 
@@ -434,6 +460,13 @@ sp_copy_endpoint_subscriptions.add_argument(
     help=argparse.SUPPRESS,
     metavar='ADDRESS',
     dest='_address')
+
+# ls events
+sp_ls_events = sp.add_parser('ls_events', help='list events (if stored)')
+sp_ls_events.add_argument(
+    '_address', help='address or address id', metavar='ADDRESS')
+sp_ls_events.add_argument(
+    '-l', '--limit', help='limit output to N events', metavar='N', type=int)
 
 try:
     import argcomplete
