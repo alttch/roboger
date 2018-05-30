@@ -373,7 +373,11 @@ class MasterAPI(object):
             api_internal_error()
         if not e:
             api_invalid_data('No such endpoint type')
-        e.save(dbconn=cherrypy.thread_data.db)
+        try:
+            e.save(dbconn=cherrypy.thread_data.db)
+        except:
+            roboger.core.log_traceback()
+            api_internal_error()
         roboger.endpoints.append_endpoint(e)
         return e.serialize()
 
@@ -474,7 +478,11 @@ class MasterAPI(object):
             level_id=data.get('level_id'),
             level_match=_lm,
             autosave=False)
-        s.save(dbconn=cherrypy.thread_data.db)
+        try:
+            s.save(dbconn=cherrypy.thread_data.db)
+        except:
+            roboger.core.log_traceback()
+            api_internal_error()
         roboger.events.append_subscription(s)
         return s.serialize()
 
@@ -589,7 +597,11 @@ class MasterAPI(object):
             level_id=s.level_id,
             level_match=s.level_match,
             autosave=False)
-        s_new.save(dbconn=cherrypy.thread_data.db)
+        try:
+            s_new.save(dbconn=cherrypy.thread_data.db)
+        except:
+            roboger.core.log_traceback()
+            api_internal_error()
         roboger.events.append_subscription(s)
         return s_new.serialize()
 
@@ -620,7 +632,11 @@ class MasterAPI(object):
                 level_id=s.level_id,
                 level_match=s.level_match,
                 autosave=False)
-            s_new.save(dbconn=cherrypy.thread_data.db)
+            try:
+                s_new.save(dbconn=cherrypy.thread_data.db)
+            except:
+                roboger.core.log_traceback()
+                api_internal_error()
             roboger.events.append_subscription(s_new)
         return api_result()
 
