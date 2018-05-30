@@ -67,10 +67,11 @@ def pprint_df(data):
     # hack to remove index until pandas fix formatting
     out = df.to_string().split('\n')
     spr = 150
-    for i in range(1, len(out)):
+    for i in range(0, len(out)):
         ol = len(out[i])
-        out[i] = re.sub('^( +)?\d+', '', out[i])
-        out[i] = ' ' * (ol - len(out[i])) + out[i]
+        if i:
+            out[i] = re.sub('^( +)?\d+', '', out[i])
+            out[i] = ' ' * (ol - len(out[i])) + out[i]
         sp = len(out[i]) - len(out[i].lstrip())
         spr = min(spr, sp)
     print(out[0][spr:])
