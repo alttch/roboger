@@ -489,12 +489,19 @@ class MasterAPI(object):
     @cherrypy.expose
     def ls_subscriptions(self, data):
         r = []
-        e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
+        if 'subscription_id' in data:
+            s = roboger.events.get_subscription(data['subscription_id'])
+            if not s:
+                api_invalid_data('No such subscription or wrong address')
+            e = s.endpoint
+        else:
+            e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         if not e or (check_ownership and e.addr != addr):
             api_invalid_data('No such endpoint or wrong address')
         if 'subscription_id' in data:
             s = roboger.events.get_subscription(data['subscription_id'])
+            e = s.endpoint
             if not s or (check_ownership and \
                     s.addr.addr_id != data.get('addr_id')):
                 api_404('subscription or wrong address')
@@ -602,7 +609,7 @@ class MasterAPI(object):
         except:
             roboger.core.log_traceback()
             api_internal_error()
-        roboger.events.append_subscription(s)
+        roboger.events.append_subscription(s_new)
         return s_new.serialize()
 
     @cherrypy.expose
