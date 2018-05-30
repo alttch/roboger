@@ -95,6 +95,13 @@ def query(sql, args=(), do_commit=False, dbconn=None):
             cursor.execute(sql, args)
         except:
             return None
+    except:
+        cursor.close()
+        if dbconn:
+            dbconn.rollback()
+        else:
+            db.rollback()
+        raise
     if do_commit:
         return commit(cursor, dbconn)
     return cursor
