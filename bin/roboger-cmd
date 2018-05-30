@@ -27,8 +27,14 @@ def print_json(obj):
 
 
 def _prepare_result_data(data):
+    lse_cols = [ 'id', 'active', 'skip_dups', 'type', 'description' ]
     j = data.copy()
     for i in j:
+        try:
+            d = i['description']
+            if d is not None and d != '':
+                i['description'] = '\'' + d + '\''
+        except: pass
         try:
             del i['data']
         except:
@@ -51,33 +57,41 @@ def _prepare_result_data(data):
                 del i['endpoint_id']
             except:
                 pass
+        if func == 'ls_endpoints':
+            i['type'] += ' (%r)' % i['type_id']
+            del i['type_id']
+            info = []
+            for k, v in i.copy().items():
+                if k not in lse_cols:
+                    info.append('%s : %r' % (k, v))
+                    del i[k]
+            i['parameters'] = ', '.join(info)
     return j
 
 
 def pprint_df(data):
     pd.options.display.max_colwidth = 150
     df = pd.DataFrame(data=_prepare_result_data(data))
-    # move id column to the left if exist
+    cols = list(df)
+    # move id column to the front if exist
     try:
-        cols = list(df)
         cols.insert(0, cols.pop(cols.index('id')))
-        df = df.ix[:, cols]
     except:
         pass
-    # hack to remove index until pandas fix formatting
+    # move description column to the end if exist
+    try:
+        cols.append(cols.pop(cols.index('description')))
+    except:
+        pass
+    df = df.ix[:, cols]
+    try:
+        df.set_index('id', inplace=True)
+    except:
+        pass
     out = df.to_string().split('\n')
-    spr = 150
-    for i in range(0, len(out)):
-        ol = len(out[i])
-        if i:
-            out[i] = re.sub('^( +)?\d+', '', out[i])
-            out[i] = ' ' * (ol - len(out[i])) + out[i]
-        sp = len(out[i]) - len(out[i].lstrip())
-        spr = min(spr, sp)
-    print(out[0][spr:])
-    print('-' * (len(out[0]) - spr))
-    for i in range(1, len(out)):
-        print(out[i][spr:])
+    print('id' + out[0][2:])
+    print('-'*len(out[0]))
+    [ print(o) for o in out[2:] ]
 
 
 dir_etc = os.path.dirname(os.path.realpath(__file__)) + '/../etc'
