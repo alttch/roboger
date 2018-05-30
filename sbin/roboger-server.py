@@ -16,7 +16,7 @@ import roboger.api
 
 import logging
 
-product_build = 2018053001
+product_build = 2018053101
 
 roboger.core.init()
 roboger.core.set_build(product_build)
