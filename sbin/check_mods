@@ -19,6 +19,7 @@ mods = [
         'logging',
         'MySQLdb',
         'netaddr',
+        'pandas',
         'platform',
         'queue',
         'requests',
