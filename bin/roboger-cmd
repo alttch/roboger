@@ -65,7 +65,7 @@ def _prepare_result_data(data):
                 if k not in lse_cols:
                     info.append('%s : %r' % (k, v))
                     del i[k]
-            i['parameters'] = ', '.join(info)
+            i['parameters'] = ', '.join(sorted(info))
     return j
 
 
