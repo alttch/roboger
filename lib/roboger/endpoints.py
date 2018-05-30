@@ -577,7 +577,7 @@ class TelegramEndpoint(GenericEndpoint):
         if roboger.core.development:
             d['chat_id_plain'] = self._chat_id_plain
         else:
-            d['chat_id_plain'] = 'valid' if self._chat_id_plain else None
+            d['chat_id_plain'] = True if self._chat_id_plain else None
         return d
 
     def set_data(self, data=None, data2=None, data3=None, dbconn=None):
