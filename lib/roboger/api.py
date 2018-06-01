@@ -733,16 +733,22 @@ class PushAPI(object):
             d['level'] = roboger.events.level_codes[str(d['level'])[0].lower()]
         except:
             d['level'] = 20
-        if len(d['msg']) > 2048:
-            logging.debug('message too long (max is 2048 bytes)')
-            d['msg'] = d['msg'][:2048]
-        if _decode_a and d['media']:
-            try:
-                d['media'] = base64.b64decode(d['media'])
-            except:
+        try:
+            if len(d['msg']) > 2048:
+                logging.debug('message too long (max is 2048 bytes)')
+                d['msg'] = d['msg'][:2048]
+        except:
+            d['msg'] = ''
+        try:
+            if _decode_a and d['media']:
+                try:
+                    d['media'] = base64.b64decode(d['media'])
+                except:
+                    d['media'] = ''
+            if d['media'] and len(d['media']) > 16777215:
+                logging.debug('attached media too large, dropping')
                 d['media'] = ''
-        if d['media'] and len(d['media']) > 16777215:
-            logging.debug('attached media too large, dropping')
+        except:
             d['media'] = ''
         check_db()
         result = roboger.events.push_event(
