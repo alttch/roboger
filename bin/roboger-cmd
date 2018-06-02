@@ -18,6 +18,8 @@ import re
 _pd_cols = {
     'ls_subscriptions':
     ['id', 'active', 'level', 'senders', 'location', 'keywords'],
+    'ls_endpoints':
+    ['id', 'active', 'parameters', 'skip_dups', 'type', 'description'],
     'ls_events': [
         'id', 'd', 'delivered', 'sender', 'subject', 'location', 'keywords',
         'media'
@@ -38,7 +40,6 @@ def print_json(obj):
 
 
 def _prepare_result_data(data):
-    lse_cols = ['id', 'active', 'skip_dups', 'type', 'description']
     skip_cols = ['data', 'data2', 'data3', 'destroyed']
     j = data.copy()
     result = []
@@ -66,7 +67,7 @@ def _prepare_result_data(data):
             del i['type_id']
             info = []
             for k in sorted(i.copy().keys()):
-                if k not in lse_cols:
+                if k not in _pd_cols['ls_endpoints']:
                     info.append('%s : %r' % (k, i[k]))
                     del i[k]
             i['id'] = str(i['id'])
