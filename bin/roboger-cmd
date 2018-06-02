@@ -39,7 +39,9 @@ def print_json(obj):
 
 def _prepare_result_data(data):
     lse_cols = ['id', 'active', 'skip_dups', 'type', 'description']
+    skip_cols = ['data', 'data2', 'data3', 'destroyed']
     j = data.copy()
+    result = []
     for i in j:
         try:
             d = i['description']
@@ -47,22 +49,11 @@ def _prepare_result_data(data):
                 i['description'] = '\'' + d + '\''
         except:
             pass
-        try:
-            del i['data']
-        except:
-            pass
-        try:
-            del i['data2']
-        except:
-            pass
-        try:
-            del i['data3']
-        except:
-            pass
-        try:
-            del i['destroyed']
-        except:
-            pass
+        for sk in skip_cols:
+            try:
+                del i[sk]
+            except:
+                pass
         if func in ['ls_endpoints', 'ls_subscriptions']:
             try:
                 del i['addr_id']
@@ -73,11 +64,23 @@ def _prepare_result_data(data):
             i['type'] += ' (%r)' % i['type_id']
             del i['type_id']
             info = []
-            for k, v in i.copy().items():
+            for k in sorted(i.copy().keys()):
                 if k not in lse_cols:
-                    info.append('%s : %r' % (k, v))
+                    info.append('%s : %r' % (k, i[k]))
                     del i[k]
-            i['parameters'] = ', '.join(sorted(info))
+            # i['parameters'] = ', '.join(sorted(info))
+            i['id'] = str(i['id'])
+            i['active'] = str(i['active'])
+            if info:
+                i['parameters'] = info[0]
+                result.append(i)
+                for x in range(1, len(info)):
+                    ipar = {'parameters': info[x]}
+                    result.append(ipar)
+                result.append({})
+                continue
+            else:
+                i['parameters'] = ''
         elif func == 'ls_subscriptions':
             i['level'] = _level_match_sign[i['level_match']] + ' ' + i['level']
             i['keywords'] = ','.join(i['keywords'])
@@ -85,7 +88,8 @@ def _prepare_result_data(data):
         elif func == 'ls_events':
             if i['media']: i['media'] = 'YES'
             i['keywords'] = ','.join(i['keywords'])
-    return j
+        result.append(i)
+    return result
 
 
 def pprint_df(data):
@@ -95,28 +99,23 @@ def pprint_df(data):
         cols = _pd_cols[func]
     else:
         cols = list(df)
-        # move id column to the front if exist
-        try:
-            cols.insert(0, cols.pop(cols.index('id')))
-        except:
-            pass
         # move description column to the end if exist
         try:
             cols.append(cols.pop(cols.index('description')))
         except:
             pass
     df = df.ix[:, cols]
-    try:
+    if 1:
         # move id to the header
         df.set_index('id', inplace=True)
-        out = df.to_string().split('\n')
+        out = df.fillna(' ').to_string().split('\n')
         # print header
         print('id' + out[0][2:])
         # print separator
         print('-' * len(out[0]))
         # print data frame
-        [print(o) for o in out[2:]]
-    except:
+        [print(re.sub('^NaN', '   ', o)) for o in out[2:]]
+    else:
         print(df)
 
 
