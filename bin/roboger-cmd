@@ -105,7 +105,7 @@ def pprint_df(data):
         except:
             pass
     df = df.ix[:, cols]
-    if 1:
+    try:
         # move id to the header
         df.set_index('id', inplace=True)
         out = df.fillna(' ').to_string().split('\n')
@@ -115,7 +115,7 @@ def pprint_df(data):
         print('-' * len(out[0]))
         # print data frame
         [print(re.sub('^NaN', '   ', o)) for o in out[2:]]
-    else:
+    except:
         print(df)
 
 
