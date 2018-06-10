@@ -170,7 +170,8 @@ function sendPush() {
 
 function showHelp() {
 cat <<EOF
-Usage: roboger-push [-f config] [-s subject] [-l level] [-x sender] [-n location] [-k keywords] [-m message] [-v]
+Usage: roboger-push [-f config] [-s subject] [-l level] [-x sender]
+  [-n location] [-k keywords] [-m message] [-a file] [-v]
 
     -l  event level: debug, info(default), warning, error or critical
         you may use a single letter, i.e. 'e' for 'error'
@@ -180,6 +181,7 @@ Usage: roboger-push [-f config] [-s subject] [-l level] [-x sender] [-n location
     -n  event location
     -k  event keywords (comma separated)
     -m  event message (will be read from stdin if not specified)
+    -a  attach file to message
 
     -f  config file to use (default: ${DEFAULT_CONFIG_FILE})
     -v  log push progress to stdout
