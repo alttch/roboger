@@ -577,7 +577,7 @@ class Event(object):
         u['expires'] = self.expires
         u['subject'] = self.subject
         u['msg'] = self.msg
-        u['media'] = base64.b64encode(self.media) if self.media else ''
+        u['media'] = base64.b64encode(self.media).decode() if self.media else ''
         if roboger.core.development: u['destroyed'] = self._destroyed
         return u
 

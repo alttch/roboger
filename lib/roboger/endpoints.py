@@ -127,11 +127,14 @@ def load():
             continue
         e = None
         if row[2] == 2:
-            e = EmailEndpoint(u, row[3], row[0], row[6], row[7], row[8])
+            e = EmailEndpoint(
+                    u, row[3], row[0], row[6], row[7], row[8])
         elif row[2] == 3:
-            e = HTTPPostEndpoint(u, row[3], row[5], row[0], row[6], row[7], row[8])
+            e = HTTPPostEndpoint(
+                    u, row[3], row[5], row[0], row[6], row[7], row[8])
         elif row[2] == 4:
-            e = HTTPJSONEndpoint(u, row[3], row[5], row[0], row[6], row[7], row[8])
+            e = HTTPJSONEndpoint
+            (u, row[3], row[5], row[0], row[6], row[7], row[8])
         elif row[2] == 100:
             e = SlackEndpoint(u, row[3], row[4], row[0], row[6], row[7], row[8])
         elif row[2] == 101:
