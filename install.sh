@@ -32,4 +32,3 @@ echo "Checking mods"
 ./sbin/check_mods install || exit 1
 
 echo "Finished"
-
