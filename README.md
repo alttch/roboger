@@ -1,6 +1,6 @@
 under development
 
-License equal to EVA EULA: https://wiki.eva-ics.com/en/EULA
+License equal to EVA EULA: https://www.eva-ics.com/license
 
  - you may use/modify it for the presonal use only
  - you can't clone it or use in own public or commercial projects
