@@ -1,0 +1,10 @@
+__pycache__/
+Makefile
+TODO
+bak.sql
+dev
+dist
+etc/roboger.ini
+etc/roboger_push.ini
+lib/_test.py
+
