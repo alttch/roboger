@@ -604,7 +604,7 @@ class Event(object):
                         self.sender, self.level_id, self.expires, self.subject,
                         self.msg, self.media), True, dbconn)
         else:
-            self.event_id = str(uuid.uuid4()).encode()
+            self.event_id = str(uuid.uuid4())
 
     def destroy(self, dbconn=None):
         self._destroyed = True

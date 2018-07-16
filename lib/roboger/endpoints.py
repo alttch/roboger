@@ -312,7 +312,7 @@ class EmailEndpoint(GenericEndpoint):
             msg = MIMEMultipart()
         else:
             msg = MIMEText(t)
-        logging.info('sending event %u via endpoint %u' % \
+        logging.info('sending event %s via endpoint %u' % \
                 (event.event_id, self.endpoint_id))
         msg['Subject'] = event.formatted_subject
         msg['From'] = event.sender
@@ -334,7 +334,7 @@ class EmailEndpoint(GenericEndpoint):
             sm.close()
             return True
         except:
-            logging.warning('failed to send event %u via endpoint %u' % \
+            logging.warning('failed to send event %s via endpoint %u' % \
                     (event.event_id, self.endpoint_id))
             roboger.core.log_traceback()
             return False
@@ -384,7 +384,7 @@ class HTTPPostEndpoint(GenericEndpoint):
             data['keywords'] = ','.join(data['keywords'])
         if isinstance(data['d'], datetime.datetime):
             data['d'] = data['d'].strftime("%Y/%m/%d %H:%M:%S")
-        logging.info('sending event %u via endpoint %u' % \
+        logging.info('sending event %s via endpoint %u' % \
                 (event.event_id, self.endpoint_id))
         try:
             logging.info('HTTPPostEndpoint sending event to %s' % self.url)
@@ -395,7 +395,7 @@ class HTTPPostEndpoint(GenericEndpoint):
                 return False
             return True
         except:
-            logging.warning('failed to send event %u via endpoint %u' % \
+            logging.warning('failed to send event %s via endpoint %u' % \
                     (event.event_id, self.endpoint_id))
             roboger.core.log_traceback()
             return False
@@ -455,7 +455,7 @@ class HTTPJSONEndpoint(GenericEndpoint):
         data['params'] = self.params
         if isinstance(data['d'], datetime.datetime):
             data['d'] = data['d'].strftime("%Y/%m/%d %H:%M:%S")
-        logging.info('sending event %u via endpoint %u' % \
+        logging.info('sending event %s via endpoint %u' % \
                 (event.event_id, self.endpoint_id))
         try:
             logging.info('HTTPJSONEndpoint sending event to %s' % self.url)
@@ -466,7 +466,7 @@ class HTTPJSONEndpoint(GenericEndpoint):
                 return False
             return True
         except:
-            logging.warning('failed to send event %u via endpoint %u' % \
+            logging.warning('failed to send event %s via endpoint %u' % \
                     (event.event_id, self.endpoint_id))
             roboger.core.log_traceback()
             return False
@@ -538,7 +538,7 @@ class SlackEndpoint(GenericEndpoint):
             j = {'text': msg}
         if event.sender:
             j['username'] = event.sender
-        logging.info('sending event %u via endpoint %u' % \
+        logging.info('sending event %s via endpoint %u' % \
                 (event.event_id, self.endpoint_id))
         try:
             r = requests.post(
@@ -547,7 +547,7 @@ class SlackEndpoint(GenericEndpoint):
                 return False
             return True
         except:
-            logging.warning('failed to send event %u via endpoint %u' % \
+            logging.warning('failed to send event %s via endpoint %u' % \
                     (event.event_id, self.endpoint_id))
             roboger.core.log_traceback()
             return False
@@ -612,11 +612,11 @@ class TelegramEndpoint(GenericEndpoint):
             msg += '<b>' + em + event.formatted_subject + \
                     '</b>\n'
             msg += event.msg
-            logging.info('sending event %u via endpoint %u' % \
+            logging.info('sending event %s via endpoint %u' % \
                     (event.event_id, self.endpoint_id))
             if not telegram_bot.send_message(self._chat_id_plain, msg,
                                              (event.level_id <= 10)):
-                logging.warning('failed to send event %u via endpoint %u' % \
+                logging.warning('failed to send event %s via endpoint %u' % \
                     (event.event_id, self.endpoint_id))
                 return False
             if event.media:
