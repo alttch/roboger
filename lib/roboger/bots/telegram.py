@@ -15,7 +15,7 @@ class RTelegramBot(object):
     def __init__(self, token):
         self.token = token
         self.uri = 'https://api.telegram.org/bot%s' % self.token
-        self.timeout = 5
+        self.timeout = 10
         self.poll_interval = 2
         self.update_offset = 0
         self.update_thread = None
