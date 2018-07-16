@@ -34,7 +34,7 @@ sed "s/PUT_HERE_YOUR_ROBOGER_ADDRESS/${ADDR}/g" > /usr/local/etc/roboger_push.in
 ;address on the server
 addr=PUT_HERE_YOUR_ROBOGER_ADDRESS
 ;push address
-push=http://roboger.com
+push=https://roboger.com
 ;how many times the script should try to send a message
 retries=3
 ;delay between retries
