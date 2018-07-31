@@ -176,6 +176,8 @@ class GenericEndpoint(object):
         self.skip_dups = skip_dups
         self.subscriptions = []
         self.endpoint_id = endpoint_id
+        self.last_event_time = 0
+        self.last_event_hash = None
         if not endpoint_id:
             try:
                 if autosave: self.save()
