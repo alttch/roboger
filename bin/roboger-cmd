@@ -510,7 +510,7 @@ if func is None:
 
 if not apiuri or not apikey:
     cfg = configparser.ConfigParser(inline_comment_prefixes=';')
-    cfg.readfp(open(dir_etc + '/roboger.ini'))
+    cfg.read(dir_etc + '/roboger.ini')
     if not apikey:
         try:
             apikey = cfg.get('api', 'masterkey')
