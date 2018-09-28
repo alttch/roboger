@@ -124,7 +124,7 @@ def update_config(cfg):
         masterkey = cfg.get('api', 'masterkey')
         logging.debug('api.masterkey loaded')
     except:
-        print('masterkey not found in config. Can not continue')
+        logging.error('masterkey not found in config. Can not continue')
         return None
     try:
         _ha = cfg.get('api', 'master_allow')
@@ -734,9 +734,9 @@ class PushAPI(object):
         except:
             d['level'] = 20
         try:
-            if len(d['msg']) > 2048:
-                logging.debug('message too long (max is 2048 bytes)')
-                d['msg'] = d['msg'][:2048]
+            if len(d['msg']) > 4096:
+                logging.debug('message too long (max is 4096 bytes)')
+                d['msg'] = d['msg'][:4096]
         except:
             d['msg'] = ''
         try:
@@ -751,16 +751,21 @@ class PushAPI(object):
         except:
             d['media'] = ''
         check_db()
+        if d['addr'] is None:
+            raise cherrypy.HTTPError('403 Forbidden',
+                'Address not specified')
+        for x in ['sender','location','keywords','subject','media']:
+            if x in d and d[x] is None: d[x] = ''
         result = roboger.events.push_event(
-            d.get('addr'),
-            d.get('level'),
-            d.get('sender'),
-            d.get('location'),
-            d.get('keywords'),
-            d.get('subject'),
-            d.get('expires'),
-            d.get('msg'),
-            d.get('media'),
+            d.get('addr', ''),
+            d.get('level', 20),
+            d.get('sender', ''),
+            d.get('location', ''),
+            d.get('keywords', ''),
+            d.get('subject', ''),
+            d.get('expires', ''),
+            d.get('msg', ''),
+            d.get('media', ''),
             dbconn=cherrypy.thread_data.db)
         if result is None:
             api_404('address')

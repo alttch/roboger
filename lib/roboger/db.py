@@ -72,7 +72,6 @@ def check(dbconn=None):
 
 def query(sql, args=(), do_commit=False, dbconn=None):
     global db
-    # print(sql)
     try:
         if dbconn:
             cursor = dbconn.cursor()
