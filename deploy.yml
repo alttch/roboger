@@ -9,6 +9,7 @@ address_1:
       keywords: serverfail, firealarm
       level: warning
       level_match: ge
+      senders: robot1, root, admin
     subscription_2:
       level: critical
 
