@@ -1,7 +1,7 @@
 [db]
 ;database access
 ;
-; for mysql (engine=mysql)
+; for mysql (engine=mysql), requires MySQLdb python3 module (python3-mysqldb)
 ; host = localhost
 ; user = root
 ; password = dbpassword

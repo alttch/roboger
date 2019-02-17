@@ -17,7 +17,7 @@ mods = [
         'json',
         'jsonpickle',
         'logging',
-        'MySQLdb',
+        'sqlite3',
         'netaddr',
         'pandas',
         'platform',
