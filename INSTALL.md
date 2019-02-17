@@ -4,7 +4,7 @@ Installing Roboger server:
 - install realpath and pip3
 - python3 modules python3-cryptography and python3-mysqldb have problems
    installing via pip3, install them better manually
-- run sh install.sh to make required dirs and install missing python3 mods
+- run install.sh to make required dirs and install missing python3 mods
 - create mysql database 'roboger' (or set any other name you wish)
 - create mysql user for roboger db
 - run mysql roboger < roboger.sql
