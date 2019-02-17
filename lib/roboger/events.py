@@ -613,7 +613,10 @@ class Event(object):
             if db.db_engine == 'sqlite':
                 binary_w = ''
                 import sqlite3
-                media = sqlite3.Binary(self.media.encode())
+                if isinstance(self.media, str):
+                    media = sqlite3.Binary(self.media.encode())
+                else:
+                    media = sqlite3.Binary(self.media)
             else:
                 binary_w = '_binary'
                 media = self.media
