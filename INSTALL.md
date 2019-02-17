@@ -25,3 +25,11 @@ Installing roboger-push only:
   curl -s https://raw.githubusercontent.com/alttch/roboger/master/bin/install-roboger-push | bash /dev/stdin YOUR_ROBOGER_ADDRESS
 - customize /usr/local/etc/roboger_push.ini if required
 
+Supervisord support:
+
+- install supervisor-event-listeners (pip install supervisor-event-listeners)
+- copy etc/supervisor/conf.d/roboger.conf to /etc/supervisor/conf.d
+- put a string to etc/roboger.ini [server] section:
+
+    supervisord_program = roboger
+

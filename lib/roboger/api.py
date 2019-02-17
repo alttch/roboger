@@ -698,6 +698,11 @@ class PushAPI(object):
     }
 
     @cherrypy.expose
+    def status(self):
+        return { 'result': 'OK' }
+
+
+    @cherrypy.expose
     def push(self, r='', x='', n='', k='', l='', s='', e='', m='', a=''):
         _decode_a = False
         if r:
