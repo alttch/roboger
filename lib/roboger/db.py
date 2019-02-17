@@ -7,6 +7,8 @@ import MySQLdb
 import logging
 import roboger.core
 
+db_engine = None
+
 db = None
 
 db_host = None
@@ -19,7 +21,11 @@ db_name = None
 
 
 def update_config(cfg):
-    global db, db_host, db_user, db_password, db_name
+    global db_engine, db, db_host, db_user, db_password, db_name
+    try:
+        db_engine = cfg.get('db', 'engine')
+    except:
+        db_engine = 'mysql'
     try:
         db_host = cfg.get('db', 'host')
     except:
@@ -36,48 +42,75 @@ def update_config(cfg):
         db_name = cfg.get('db', 'database')
     except:
         db_name = 'roboger'
+    try:
+        if db_engine == 'sqlite' and db_name[0]!='/':
+            db_name = roboger.core.dir_roboger + '/' + db_name
+    except:
+        pass
     db = connect()
     if db:
         logging.debug('database connected: %s@%s/%s' % \
                 (db_user, db_host, db_name))
     else:
-        logging.error('Database connection error %s@%s/%s' % \
-                (db_user, db_host, db_name))
+        logging.error('Database connection error %s:%s@%s/%s' % \
+                (db_engine, db_user, db_host, db_name))
         return False
     return True
 
 
 def connect():
-    try:
-        db = MySQLdb.connect(
-            db_host, db_user, db_password, db_name, charset='utf8')
-        return db
-    except:
-        roboger.core.log_traceback()
+    if db_engine == 'sqlite':
+        import sqlite3
+        return True
+    elif db_engine == 'mysql':
+        try:
+            db = MySQLdb.connect(
+                db_host, db_user, db_password, db_name, charset='utf8')
+            return db
+        except:
+            roboger.core.log_traceback()
+            return None
+    else:
         return None
 
 
 def check(dbconn=None):
-    try:
-        if dbconn:
-            cursor = dbconn.cursor()
-        else:
-            cursor = db.cursor()
-        cursor.execute('select 1')
-        cursor.close()
-    except:
-        logging.debug('database check: server has gone away')
+    if db_engine == 'sqlite': return True
+    elif db_engine == 'mysql':
+        try:
+            if dbconn:
+                cursor = dbconn.cursor()
+            else:
+                cursor = db.cursor()
+            cursor.execute('select 1')
+            cursor.close()
+        except:
+            logging.debug('database check: server has gone away')
+            return False
+    else:
         return False
+
+
+def prepare_sql(sql):
+    if db_engine == 'sqlite':
+        return sql.replace('%s', '?')
+    else:
+        return sql
 
 
 def query(sql, args=(), do_commit=False, dbconn=None):
     global db
     try:
-        if dbconn:
+        if db_engine == 'sqlite':
+            import sqlite3
+            dbconn = sqlite3.connect(db_name)
             cursor = dbconn.cursor()
         else:
-            cursor = db.cursor()
-        cursor.execute(sql, args)
+            if dbconn:
+                cursor = dbconn.cursor()
+            else:
+                cursor = db.cursor()
+        cursor.execute(prepare_sql(sql), args)
     except (AttributeError, MySQLdb.OperationalError):
         roboger.core.log_traceback()
         if dbconn:
@@ -105,6 +138,13 @@ def query(sql, args=(), do_commit=False, dbconn=None):
         return commit(cursor, dbconn)
     return cursor
 
+def free(dbconn=None):
+    if db_engine != 'sqlite': return
+    try:
+        if dbconn: dbconn.close()
+    except:
+        roboger.core.log_traceback()
+
 
 def commit(c=None, dbconn=None):
     try:
@@ -114,7 +154,11 @@ def commit(c=None, dbconn=None):
             lrid = c.lastrowid
             c.close()
             return lrid
+        if db_engine == 'sqlite':
+            dbconn.close()
         return True
     except:
+        if db_engine == 'sqlite':
+            dbconn.close()
         roboger.core.log_traceback()
         return False

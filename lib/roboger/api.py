@@ -298,9 +298,11 @@ class MasterAPI(object):
                 if row is None: break
                 r.append({'id': row[0], 'name': row[1]})
             c.close()
+            db.free()
         except:
             roboger.core.log_traceback()
             api_internal_error()
+            db.free()
         return sorted(r, key=lambda k: k['id'])
 
     @cherrypy.expose
@@ -684,9 +686,11 @@ class MasterAPI(object):
                 ev['addr'] = u.a
                 r.append(ev)
             c.close()
+            db.free()
         except:
             roboger.core.log_traceback()
             api_internal_error()
+            db.free()
         return sorted(r, key=lambda k: k['id'])
 
 

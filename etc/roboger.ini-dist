@@ -1,9 +1,13 @@
 [db]
 ;database access
-host = localhost
-user = root
-password = dbpassword
-database = roboger
+;
+; for mysql (engine=mysql)
+; host = localhost
+; user = root
+; password = dbpassword
+
+engine = sqlite
+database = var/db/roboger.db
 
 [server]
 ;debug mode

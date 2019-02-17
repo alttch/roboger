@@ -1,4 +1,4 @@
-under development
+under development (don't use sqlite engine in production, mysql only)
 
 Installation
 ------------

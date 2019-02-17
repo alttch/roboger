@@ -42,6 +42,7 @@ def load():
         if row is None: break
         append_addr(Addr(row[0], row[1], row[2]))
     c.close()
+    db.free()
     logging.debug('addr: %u address(es) loaded' % len(addrs_by_id))
 
 

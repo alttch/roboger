@@ -121,11 +121,22 @@ def _t_event_cleaner():
             try:
                 if dbconn and not db.check(dbconn):
                     dbconn = db.connect()
-                db.query(
-                    'delete from event where d<NOW() - INTERVAL %s SECOND',
-                    (roboger.core.keep_events,),
-                    True,
-                    dbconn=dbconn)
+                # move this logic out
+                if db.db_engine == 'sqlite':
+                    q = 'delete from event where d < ' + \
+                            'datetime(current_timestamp, "-%s second")' % \
+                            roboger.core.keep_events
+                elif db.db_engine == 'mysql':
+                    q = 'delete from event where d<NOW() ' + \
+                            ' - INTERVAL %s SECOND' % roboger.core.keep_events
+                else:
+                    q = None
+                if q:
+                    db.query(
+                        q,
+                        (),
+                        True,
+                        dbconn=dbconn)
             except:
                 roboger.core.log_traceback()
             c = 0
@@ -280,6 +291,7 @@ def load_subscriptions():
     logging.debug('endpoint subscriptions: %u subscription(s) loaded' % \
             len(subscriptions_by_id))
     c.close()
+    db.free()
     return True
 
 
@@ -307,6 +319,8 @@ def load_queued_events():
         cqe += 1
         q.put(eq)
     logging.debug('events: %u queued event(s) loaded' % cqe)
+    c.close()
+    db.free()
 
 
 class EventQueueItem(object):

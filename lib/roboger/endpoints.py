@@ -116,6 +116,7 @@ def load():
         if row is None: break
         endpoint_types[row[0]] = row[1]
     c.close()
+    db.free()
     c = db.query('select id, addr_id, endpoint_type_id, ' + \
             'data, data2, data3, active, skip_dups, description from endpoint')
     while True:
@@ -141,6 +142,7 @@ def load():
             e = TelegramEndpoint(u, row[3], row[0], row[6], row[7], row[8])
         append_endpoint(e)
     c.close()
+    db.free()
     logging.debug('endpoint: %u endpoint(s) loaded' % len(endpoints_by_id))
     return True
 
