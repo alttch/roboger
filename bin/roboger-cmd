@@ -26,6 +26,8 @@ _pd_cols = {
     ]
 }
 
+arg_sections = ['addr', 'endpoint', 'subscription', 'event' ]
+
 _level_match_sign = {'g': ' >', 'ge': '>=', 'l': ' <', 'le': '<=', 'e': '='}
 
 
@@ -39,7 +41,7 @@ def print_json(obj):
     print(format_json(obj))
 
 
-def _prepare_result_data(data):
+def _prepare_result_data(data, func):
     skip_cols = ['data', 'data2', 'data3', 'destroyed']
     j = data.copy()
     result = []
@@ -92,9 +94,9 @@ def _prepare_result_data(data):
     return result
 
 
-def pprint_df(data):
+def pprint_df(data, func):
     pd.options.display.max_colwidth = 65
-    df = pd.DataFrame(data=_prepare_result_data(data))
+    df = pd.DataFrame(data=_prepare_result_data(data, func))
     if func in _pd_cols:
         cols = _pd_cols[func]
     else:
@@ -138,13 +140,13 @@ ap.add_argument('-U','--api-uri',
 ap.add_argument(
     '-V',
     '--version',
-    help='print version and exit',
+    help='Print version and exit',
     action='store_true',
     dest='_ver')
 ap.add_argument(
     '-K',
     '--api-key',
-    help='master key, if no key specified, local master key will be used',
+    help='Master key, if no key specified, local master key will be used',
     dest='_key',
     metavar='KEY')
 ap.add_argument(
@@ -158,95 +160,108 @@ ap.add_argument(
 ap.add_argument(
     '-J',
     '--json',
-    help='print result as JSON',
+    help='Print result as JSON',
     action='store_true',
     dest='_json',
     default=False)
 ap.add_argument(
     '-D',
     '--debug',
-    help='enable debug messages',
+    help='Enable debug messages',
     action='store_true',
     dest='_debug',
     default=False)
 
 sp = ap.add_subparsers(
-    dest='_func', metavar='command', help='API function to execute')
+    dest='_type', metavar='command', help='Command to execute')
 
 sp_test = sp.add_parser('test', help='test API')
 
 # address commands
-sp_ls_addr = sp.add_parser('ls_addr', help='list address(es)')
-sp_ls_addr.add_argument(
-    '_address', help='address or address id', nargs='?', metavar='ADDRESS')
+ap_addr = sp.add_parser('addr', help='Address management')
+sp_addr = ap_addr.add_subparsers(
+    dest='_func', metavar='func', help='Address commands')
 
-sp_mk_addr = sp.add_parser('mk_addr', help='create new address')
+sp_addr_list = sp_addr.add_parser('list', help='List address(es)')
+sp_addr_list.add_argument(
+    '_address', help='Address or address id', nargs='?', metavar='ADDRESS')
 
-sp_ch_addr = sp.add_parser('ch_addr', help='change existing address')
-sp_ch_addr.add_argument(
-    '_address', help='address or address id', metavar='ADDRESS')
+sp_addr_creage = sp_addr.add_parser('create', help='Create new address')
 
-sp_set_addr_active = sp.add_parser(
-    'set_addr_active', help='set address active or inactive')
-sp_set_addr_active.add_argument(
-    '_address', help='address or address id', metavar='ADDRESS')
-sp_set_addr_active.add_argument(
-    '-d',
-    '--deactivate',
-    help='deactivate address',
-    dest='active',
-    action='store_false')
+sp_addr_change = sp_addr.add_parser('change', help='Change existing address')
+sp_addr_change.add_argument(
+    '_address', help='Address or address id', metavar='ADDRESS')
 
-sp_rm_addr = sp.add_parser('rm_addr', help='delete address')
-sp_rm_addr.add_argument(
-    '_address', help='address or address id', metavar='ADDRESS')
+sp_addr_enable = sp_addr.add_parser('enable', help='Enable address')
+sp_addr_enable.add_argument(
+    '_address', help='Address or address id', metavar='ADDRESS')
+
+sp_addr_disable = sp_addr.add_parser('disable', help='Disable address')
+sp_addr_disable.add_argument(
+    '_address', help='Address or address id', metavar='ADDRESS')
+
+sp_addr_delete = sp_addr.add_parser('delete', help='Delete address')
+sp_addr_delete.add_argument(
+    '_address', help='Address or address id', metavar='ADDRESS')
 
 # endpoint commands
-sp_ls_endpoint_types = sp.add_parser(
-    'ls_endpoint_types', help='list ids of endpoint types')
+ap_endpoint = sp.add_parser('endpoint', help='Endpoint management')
+sp_endpoint = ap_endpoint.add_subparsers(
+    dest='_func', metavar='func', help='Endpoint commands')
 
-sp_ls_endpoints = sp.add_parser('ls_endpoints', help='list endpoints')
-sp_ls_endpoints.add_argument(
-    'endpoint_id', help='endpoint id', metavar='ID', type=int, nargs='?')
-sp_ls_endpoints.add_argument(
-    '-a', '--address',
-    help='address or address id',
-    metavar='ADDRESS', dest='_address')
+sp_ls_endpoint_types = sp_endpoint.add_parser(
+    'types', help='List IDs of endpoint types')
 
-sp_mk_endpoint = sp.add_parser('mk_endpoint', help='create new endpoint')
+sp_ls_endpoints = sp_endpoint.add_parser('list', help='List endpoints')
+sp_ls_endpoints.add_argument(
+    'endpoint_id', help='Endpoint id', metavar='ID', type=int, nargs='?')
+sp_ls_endpoints.add_argument(
+    '-a',
+    '--address',
+    help='Address or address id',
+    metavar='ADDRESS',
+    dest='_address')
+
+sp_mk_endpoint = sp_endpoint.add_parser('create', help='Create new endpoint')
 sp_mk_endpoint.add_argument(
-    '_address', help='address or address ID', metavar='ADDRESS')
-sp_mk_endpoint.add_argument('et', help='endpoint type id', type=int)
+    '_address', help='Address or address ID', metavar='ADDRESS')
 sp_mk_endpoint.add_argument(
-    'data', help='endpoint data (email, url, webhook, chat id etc.)')
+    'et', help='Endpoint type id', metavar='TYPE_ID', type=int)
+sp_mk_endpoint.add_argument(
+    'data', help='Endpoint data (email, url, webhook, chat id etc.)')
 sp_mk_endpoint.add_argument(
     '--data2',
-    help='endpoint data 2 ("rich" for slack endpoint to send rich format)')
+    help='Endpoint data 2 ("rich" for slack endpoint to send rich format)')
 sp_mk_endpoint.add_argument(
-    '--data3', help='endpoint data 3 (params for http endpoints)')
-sp_mk_endpoint.add_argument('-o', '--description', help='endpoint description')
+    '--data3', help='Endpoint data 3 (params for http endpoints)')
+sp_mk_endpoint.add_argument('-o', '--description', help='Endpoint description')
 
-sp_set_endpoint_active = sp.add_parser(
-    'set_endpoint_active', help='set endpoint active or inactive')
-sp_set_endpoint_active.add_argument(
-    'endpoint_id', help='endpoint id', metavar='ID', type=int)
-sp_set_endpoint_active.add_argument(
+sp_endpoint_enable = sp_endpoint.add_parser(
+    'enable', help='Enable endpoint')
+sp_endpoint_enable.add_argument(
+    'endpoint_id', help='Endpoint id', metavar='ID', type=int)
+sp_endpoint_enable.add_argument(
     '-a',
     '--address',
     help=argparse.SUPPRESS,
     metavar='ADDRESS',
     dest='_address')
-sp_set_endpoint_active.add_argument(
-    '-d',
-    '--deactivate',
-    help='deactivate endpoint',
-    dest='active',
-    action='store_false')
 
-sp_set_endpoint_data = sp.add_parser(
-    'set_endpoint_data', help='set endpoint data params')
+sp_endpoint_disable = sp_endpoint.add_parser(
+    'disable', help='Disable endpoint')
+sp_endpoint_disable.add_argument(
+    'endpoint_id', help='Endpoint id', metavar='ID', type=int)
+sp_endpoint_disable.add_argument(
+    '-a',
+    '--address',
+    help=argparse.SUPPRESS,
+    metavar='ADDRESS',
+    dest='_address')
+
+sp_set_endpoint_data = sp_endpoint.add_parser(
+    'data', help='Set endpoint data params')
 sp_set_endpoint_data.add_argument(
-    'endpoint_id', help='endpoint id', metavar='ID', type=int)
+    'endpoint_id', help='Endpoint id', metavar='ID', type=int)
 sp_set_endpoint_data.add_argument(
     '-a',
     '--address',
@@ -254,17 +269,17 @@ sp_set_endpoint_data.add_argument(
     metavar='ADDRESS',
     dest='_address')
 sp_set_endpoint_data.add_argument(
-    'data', help='endpoint data (email, url, webhook, chat id etc.)')
+    'data', help='Endpoint data (email, url, webhook, chat id etc.)')
 sp_set_endpoint_data.add_argument(
     '--data2',
-    help='endpoint data 2 ("rich" for slack endpoint to send rich format)')
+    help='Endpoint data 2 ("rich" for slack endpoint to send rich format)')
 sp_set_endpoint_data.add_argument(
-    '--data3', help='endpoint data 3 (params for http endpoints)')
+    '--data3', help='Endpoint data 3 (params for http endpoints)')
 
-sp_set_endpoint_description = sp.add_parser(
-    'set_endpoint_description', help='set endpoint description')
+sp_set_endpoint_description = sp_endpoint.add_parser(
+    'description', help='Set endpoint description')
 sp_set_endpoint_description.add_argument(
-    'endpoint_id', help='endpoint id', metavar='ID', type=int)
+    'endpoint_id', help='Endpoint id', metavar='ID', type=int)
 sp_set_endpoint_description.add_argument(
     '-a',
     '--address',
@@ -272,14 +287,14 @@ sp_set_endpoint_description.add_argument(
     metavar='ADDRESS',
     dest='_address')
 sp_set_endpoint_description.add_argument(
-    '-o', '--description', help='endpoint description')
+    'description', help='Endpoint description', nargs='?')
 
-sp_set_endpoint_skip_dups = sp.add_parser(
-    'set_endpoint_skip_dups', help='set endpoint skip_dups')
+sp_set_endpoint_skip_dups = sp_endpoint.add_parser(
+    'dups', help='Set endpoint skip_dups')
 sp_set_endpoint_skip_dups.add_argument(
-    'endpoint_id', help='endpoint id', metavar='ID', type=int)
+    'endpoint_id', help='Endpoint id', metavar='ID', type=int)
 sp_set_endpoint_skip_dups.add_argument(
-    'data', help='skip dups time (in sec)', metavar='DELAY', type=int)
+    'data', help='Skip dups time (in sec)', metavar='DELAY', type=int)
 sp_set_endpoint_skip_dups.add_argument(
     '-a',
     '--address',
@@ -287,9 +302,9 @@ sp_set_endpoint_skip_dups.add_argument(
     metavar='ADDRESS',
     dest='_address')
 
-sp_rm_endpoint = sp.add_parser('rm_endpoint', help='delete endpoint')
+sp_rm_endpoint = sp_endpoint.add_parser('delete', help='Delete endpoint')
 sp_rm_endpoint.add_argument(
-    'endpoint_id', help='endpoint id', metavar='ID', type=int)
+    'endpoint_id', help='Endpoint id', metavar='ID', type=int)
 sp_rm_endpoint.add_argument(
     '-a',
     '--address',
@@ -298,8 +313,12 @@ sp_rm_endpoint.add_argument(
     dest='_address')
 
 # subscription commands
-sp_ls_subscriptions = sp.add_parser(
-    'ls_subscriptions', help='list subscriptions')
+ap_subscription = sp.add_parser('subscription', help='Subscription management')
+sp_subscription = ap_subscription.add_subparsers(
+    dest='_func', metavar='func', help='Subscription commands')
+
+sp_ls_subscriptions = sp_subscription.add_parser(
+    'list', help='List subscriptions')
 sp_ls_subscriptions.add_argument(
     'subscription_id',
     help='subscription id',
@@ -313,54 +332,61 @@ sp_ls_subscriptions.add_argument(
     metavar='ADDRESS',
     dest='_address')
 sp_ls_subscriptions.add_argument(
-    '-e', '--endpoint_id', help='endpoint id', type=int, metavar='ENDPOINT_ID')
+    'endpoint_id', help='Endpoint id', type=int, metavar='ENDPOINT_ID')
 
-sp_mk_subscription = sp.add_parser(
-    'mk_subscription', help='create new subscription')
+sp_mk_subscription = sp_subscription.add_parser(
+    'create', help='Create new subscription')
 sp_mk_subscription.add_argument(
-    'endpoint_id', help='endpoint id', metavar='ENDPOINT_ID', type=int)
+    'endpoint_id', help='Endpoint id', metavar='ENDPOINT_ID', type=int)
 sp_mk_subscription.add_argument(
     '-a',
     '--address',
     help=argparse.SUPPRESS,
     metavar='ADDRESS',
     dest='_address')
-sp_mk_subscription.add_argument('-n', '--location', help='event location')
+sp_mk_subscription.add_argument('-n', '--location', help='Event location')
 sp_mk_subscription.add_argument(
-    '-k', '--keywords', help='keywords, comma separated')
+    '-k', '--keywords', help='Keywords, comma separated')
 sp_mk_subscription.add_argument(
-    '-x', '--senders', help='senders, comma separated')
+    '-x', '--senders', help='Senders, comma separated')
 sp_mk_subscription.add_argument(
-    '-l', '--level', help='subscription level', dest='_level')
+    '-l', '--level', help='Subscription level', dest='_level')
 sp_mk_subscription.add_argument(
     '-m',
     '--level-match',
-    help='subscription level match',
+    help=
+    'Subscription level match ' + \
+            '(ge for >=, le for <=, l for <, g for >, e for =)',
     choices=['ge', 'le', 'l', 'g', 'e'])
 
-sp_set_subscription_active = sp.add_parser(
-    'set_subscription_active', help='set subscription active or inactive')
-sp_set_subscription_active.add_argument(
-    'subscription_id', help='subscription id', metavar='ID', type=int)
-sp_set_subscription_active.add_argument(
+sp_subscription_enable = sp_subscription.add_parser(
+    'enable', help='Enable subscription')
+sp_subscription_enable.add_argument(
+    'subscription_id', help='Subscription id', metavar='ID', type=int)
+sp_subscription_enable.add_argument(
     '-a',
     '--address',
     help=argparse.SUPPRESS,
     metavar='ADDRESS',
     dest='_address')
-sp_set_subscription_active.add_argument(
-    '-d',
-    '--deactivate',
-    help='deactivate subscription',
-    dest='active',
-    action='store_false')
 
-sp_set_subscription_location = sp.add_parser(
-    'set_subscription_location', help='set subscription location')
+sp_subscription_disable = sp_subscription.add_parser(
+    'disable', help='Disable subscription')
+sp_subscription_disable.add_argument(
+    'subscription_id', help='Subscription id', metavar='ID', type=int)
+sp_subscription_disable.add_argument(
+    '-a',
+    '--address',
+    help=argparse.SUPPRESS,
+    metavar='ADDRESS',
+    dest='_address')
+
+sp_set_subscription_location = sp_subscription.add_parser(
+    'location', help='Set subscription location')
 sp_set_subscription_location.add_argument(
-    'subscription_id', help='subscription id', metavar='ID', type=int)
+    'subscription_id', help='Subscription id', metavar='ID', type=int)
 sp_set_subscription_location.add_argument(
-    'location', help='event location', nargs='?')
+    'location', help='Event location', nargs='?')
 sp_set_subscription_location.add_argument(
     '-a',
     '--address',
@@ -368,12 +394,12 @@ sp_set_subscription_location.add_argument(
     metavar='ADDRESS',
     dest='_address')
 
-sp_set_subscription_keywords = sp.add_parser(
-    'set_subscription_keywords', help='set subscription keywords')
+sp_set_subscription_keywords = sp_subscription.add_parser(
+    'keywords', help='Set subscription keywords')
 sp_set_subscription_keywords.add_argument(
-    'subscription_id', help='subscription id', metavar='ID', type=int)
+    'subscription_id', help='Subscription id', metavar='ID', type=int)
 sp_set_subscription_keywords.add_argument(
-    'keywords', help='keywords, comma separated', nargs='?')
+    'keywords', help='Keywords, comma separated', nargs='?')
 sp_set_subscription_keywords.add_argument(
     '-a',
     '--address',
@@ -381,12 +407,12 @@ sp_set_subscription_keywords.add_argument(
     metavar='ADDRESS',
     dest='_address')
 
-sp_set_subscription_senders = sp.add_parser(
-    'set_subscription_senders', help='set subscription senders')
+sp_set_subscription_senders = sp_subscription.add_parser(
+    'senders', help='set subscription senders')
 sp_set_subscription_senders.add_argument(
-    'subscription_id', help='subscription id', metavar='ID', type=int)
+    'subscription_id', help='Subscription id', metavar='ID', type=int)
 sp_set_subscription_senders.add_argument(
-    'senders', help='senders, comma separated', nargs='?')
+    'senders', help='Senders, comma separated', nargs='?')
 sp_set_subscription_senders.add_argument(
     '-a',
     '--address',
@@ -394,16 +420,17 @@ sp_set_subscription_senders.add_argument(
     metavar='ADDRESS',
     dest='_address')
 
-sp_set_subscription_level = sp.add_parser(
-    'set_subscription_level', help='set subscription level')
+sp_set_subscription_level = sp_subscription.add_parser(
+    'level', help='Set subscription level')
 sp_set_subscription_level.add_argument(
-    'subscription_id', help='subscription id', metavar='ID', type=int)
+    'subscription_id', help='Subscription id', metavar='ID', type=int)
 sp_set_subscription_level.add_argument(
-    '_level', help='subscription level', nargs='?', metavar='level')
+    '_level', help='Subscription level', nargs='?', metavar='level')
 sp_set_subscription_level.add_argument(
     '-m',
     '--level-match',
-    help='subscription level match',
+    help=
+    'Subscription level match (ge for >=, le for <=, l for <, g for >, e for =)',
     choices=['ge', 'le', 'l', 'g', 'e'])
 sp_set_subscription_level.add_argument(
     '-a',
@@ -412,10 +439,10 @@ sp_set_subscription_level.add_argument(
     metavar='ADDRESS',
     dest='_address')
 
-sp_rm_subscription = sp.add_parser(
-    'rm_subscription', help='delete subscription')
+sp_rm_subscription = sp_subscription.add_parser(
+    'delete', help='delete subscription')
 sp_rm_subscription.add_argument(
-    'subscription_id', help='subscription id', metavar='ID', type=int)
+    'subscription_id', help='Subscription id', metavar='ID', type=int)
 sp_rm_subscription.add_argument(
     '-a',
     '--address',
@@ -424,8 +451,8 @@ sp_rm_subscription.add_argument(
     dest='_address')
 
 # subscription copy functions
-sp_copy_subscription = sp.add_parser(
-    'copy_subscription', help='copy subsciption to a new one')
+sp_copy_subscription = sp_subscription.add_parser(
+    'duplicate', help='Copy subsciption to a new one')
 sp_copy_subscription.add_argument(
     'subscription_id', help='subscription id', metavar='ID', type=int)
 sp_copy_subscription.add_argument(
@@ -435,10 +462,10 @@ sp_copy_subscription.add_argument(
     metavar='ADDRESS',
     dest='_address')
 
-sp_copy_endpoint_subscriptions = sp.add_parser(
-    'copy_endpoint_subscriptions',
+sp_copy_endpoint_subscriptions = sp_endpoint.add_parser(
+    'copysub',
     help=
-    'delete target endpoint subscriptions and copy' + \
+    'Delete target endpoint subscriptions and copy' + \
         ' source endpoint subscriptions to it'
 )
 sp_copy_endpoint_subscriptions.add_argument(
@@ -459,11 +486,15 @@ sp_copy_endpoint_subscriptions.add_argument(
     dest='_address')
 
 # ls events
-sp_ls_events = sp.add_parser('ls_events', help='list events (if stored)')
+ap_event = sp.add_parser('event', help='Event management')
+sp_event = ap_event.add_subparsers(
+    dest='_func', metavar='func', help='Event commands')
+
+sp_ls_events = sp_event.add_parser('list', help='List events (if stored)')
 sp_ls_events.add_argument(
-    '_address', help='address or address id', metavar='ADDRESS')
+    '_address', help='Address or address id', metavar='ADDRESS')
 sp_ls_events.add_argument(
-    '-l', '--limit', help='limit output to N events', metavar='N', type=int)
+    '-n', '--limit', help='limit output to N events', metavar='N', type=int)
 
 try:
     import argcomplete
@@ -482,7 +513,11 @@ apikey = a._key
 
 debug = a._debug
 
-func = a._func
+itype = a._type
+if hasattr(a, '_func'):
+    func = a._func
+else:
+    func = None
 
 timeout = a._timeout
 
@@ -502,7 +537,12 @@ if hasattr(a, '_level') and a._level is not None:
     except:
         xparams['level'] = a._level
 
-if func is None:
+if itype in arg_sections and not func:
+    ap.parse_args([itype, '--help'])
+
+api_func = itype + ('_' + func if func else '')
+
+if not api_func:
     ap.print_usage()
     sys.exit(2)
 
@@ -546,6 +586,7 @@ if not apikey:
     print('no API masterkey specified')
     sys.exit(6)
 
+
 def api_call(func, params):
     apiuri_r = apiuri + '/manage/' + func
     if debug:
@@ -564,7 +605,8 @@ def api_call(func, params):
         sys.exit(1)
     return r
 
-r = api_call(func, xparams)
+
+r = api_call(api_func, xparams)
 
 if debug:
     print("API response code: %s" % r.status_code)
@@ -588,7 +630,7 @@ if r.status_code == 200:
         elif isinstance(j, list):
             if j:
                 import pandas as pd
-                pprint_df(j)
+                pprint_df(j, api_func)
             else:
                 print('no data')
         else:
