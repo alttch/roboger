@@ -209,15 +209,13 @@ sp_ls_endpoints = sp.add_parser('ls_endpoints', help='list endpoints')
 sp_ls_endpoints.add_argument(
     'endpoint_id', help='endpoint id', metavar='ID', type=int, nargs='?')
 sp_ls_endpoints.add_argument(
-    '-a',
-    '--address',
-    help=argparse.SUPPRESS,
-    metavar='ADDRESS',
-    dest='_address')
+    '-a', '--address',
+    help='address or address id',
+    metavar='ADDRESS', dest='_address')
 
 sp_mk_endpoint = sp.add_parser('mk_endpoint', help='create new endpoint')
 sp_mk_endpoint.add_argument(
-    '_address', help=argparse.SUPPRESS, metavar='ADDRESS')
+    '_address', help='address or address ID', metavar='ADDRESS')
 sp_mk_endpoint.add_argument('et', help='endpoint type id', type=int)
 sp_mk_endpoint.add_argument(
     'data', help='endpoint data (email, url, webhook, chat id etc.)')

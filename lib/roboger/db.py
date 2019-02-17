@@ -49,8 +49,11 @@ def update_config(cfg):
         pass
     db = connect()
     if db:
-        logging.debug('database connected: %s@%s/%s' % \
-                (db_user, db_host, db_name))
+        if db_engine == 'sqlite':
+            logging.debug('database connected: sqlite:%s' % db_name)
+        else:
+            logging.debug('database connected: %s:%s@%s/%s' % \
+                    (db_engine, db_user, db_host, db_name))
     else:
         logging.error('Database connection error %s:%s@%s/%s' % \
                 (db_engine, db_user, db_host, db_name))

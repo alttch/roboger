@@ -219,6 +219,8 @@ def get_subscription(s_id):
 
 def queue_event(event, dbconn=None):
     endp = []
+    if event.addr.addr_id not in subscriptions_by_addr_id:
+        return
     for i, s in subscriptions_by_addr_id[event.addr.addr_id].copy().items():
         if event.addr.active == 1 and s.active == 1 and \
                 s.endpoint.active == 1 and \
@@ -607,16 +609,24 @@ class Event(object):
                         self.dd, self.event_id),
                         True, dbconn)
         elif roboger.core.keep_events:
+            # move logic out
+            if db.db_engine == 'sqlite':
+                binary_w = ''
+                import sqlite3
+                media = sqlite3.Binary(self.media.encode())
+            else:
+                binary_w = '_binary'
+                media = self.media
             self.event_id = db.query('insert into event ' + \
                     '(addr_id, d, dd, scheduled, delivered, location,' + \
                     ' keywords, sender, ' + \
                     'level_id, expires, subject, msg, media) values ' + \
                     '(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,' + \
-                    ' _binary %s)',
+                    ' ' + binary_w + ' %s)',
                     (self.addr.addr_id, self.d, self.dd, self.scheduled,
                         self.delivered, self.location, ','.join(self.keywords),
                         self.sender, self.level_id, self.expires, self.subject,
-                        self.msg, self.media), True, dbconn)
+                        self.msg, media), True, dbconn)
         else:
             self.event_id = str(uuid.uuid4())
 
