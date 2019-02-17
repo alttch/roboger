@@ -28,7 +28,8 @@ mods = [
         'threading',
         'time',
         'traceback',
-        'uuid'
+        'uuid',
+        'yaml'
     ]
 
 if len(sys.argv)>1 and sys.argv[1] == 'install': install = True
