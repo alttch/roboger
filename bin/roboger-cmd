@@ -542,26 +542,29 @@ if not apiuri:
     print('no API URI specified')
     sys.exit(5)
 
-apiuri_r = apiuri + '/manage/' + func
-
-if debug:
-    print("API request: %s" % apiuri_r)
-    print("API max timeout: %u sec" % timeout)
-    print("API requsts params:")
-    print_json(xparams)
-    print()
-
-xparams['k'] = apikey
-
 if not apikey:
     print('no API masterkey specified')
     sys.exit(6)
 
-try:
-    r = requests.post(apiuri_r, json=xparams, timeout=timeout)
-except:
-    print('API error: can not connect (%s)' % apiuri)
-    sys.exit(1)
+def api_call(func, params):
+    apiuri_r = apiuri + '/manage/' + func
+    if debug:
+
+        print("API request: %s" % apiuri_r)
+        print("API max timeout: %u sec" % timeout)
+        print("API requsts params:")
+        print_json(params)
+        print()
+    xp = params.copy()
+    xp['k'] = apikey
+    try:
+        r = requests.post(apiuri_r, json=xp, timeout=timeout)
+    except:
+        print('API error: can not connect (%s)' % apiuri)
+        sys.exit(1)
+    return r
+
+r = api_call(func, xparams)
 
 if debug:
     print("API response code: %s" % r.status_code)
