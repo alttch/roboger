@@ -22,7 +22,7 @@ timeout=5
 ;addr=PUT_HERE_YOUR_LOCAL_ROBOGER_ADDRESS
 ;backups servers are used only if the script failed to push msg on primary
 ;type=backup
-;push=http://192.168.1.99:719
+;push=http://192.168.1.99:7719
 ;retries=1
 ;location=plant1
 ;retry_delay=2

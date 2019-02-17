@@ -193,10 +193,11 @@ def load(fname=None, initial=False, init_log=True):
                 return None
             except:
                 log_traceback()
-            try:
-                log_file = cfg.get('server', 'log_file')
-            except:
-                log_file = None
+            if not os.environ.get('ROBOGER_CORE_LOG_STDOUT'):
+                try:
+                    log_file = cfg.get('server', 'log_file')
+                except:
+                    log_file = None
             if log_file and log_file[0] != '/':
                 log_file = dir_roboger + '/' + log_file
             if init_log: reset_log(initial)

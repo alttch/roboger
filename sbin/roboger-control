@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 PYTHON=python3
 
@@ -14,6 +14,28 @@ ROBOGER=${ROBOGER_DIR}/sbin/roboger-server.py
 ROBOGER_ARGS=
 SAFE_RUN_PIDFILE=${ROBOGER_DIR}/var/roboger_safe.pid
 SAFE_RUN=${ROBOGER_DIR}/sbin/safe-run.sh
+ROBOGER_SUPERVISORD=`grep ^supervisord_program etc/roboger.ini|cut -d= -f2|cut -d '#' -f1|cut -d';' -f1|awk '{ print $1 }'`
+
+if [ ${ROBOGER_SUPERVISORD} ]; then
+    case $1 in
+        start)
+            supervisorctl start ${ROBOGER_SUPERVISORD}
+            exit $?
+        ;;
+        stop)
+            supervisorctl stop ${ROBOGER_SUPERVISORD}
+            exit $?
+        ;;
+        status)
+            supervisorctl status ${ROBOGER_SUPERVISORD}
+            exit $?
+        ;;
+        restart)
+            supervisorctl restart ${ROBOGER_SUPERVISORD}
+            exit $?
+        ;;
+    esac
+fi
 
 case $1 in
 start)
@@ -21,10 +43,11 @@ start)
     ${SAFE_RUN} ${SAFE_RUN_PIDFILE} ${PYTHON} ${ROBOGER} ${ROBOGER_ARGS} > /dev/null &
     ;;
 launch)
-    ${PYTHON} ${ROBOGER} ${ROBOGER_ARGS}
+    env ROBOGER_CORE_LOG_STDOUT=1 ${PYTHON} ${ROBOGER} ${ROBOGER_ARGS}
     ;;
 stop)
-    [ -f ${PIDFILE} ] || exit 1
+    ps xa|grep -v grep|grep ${ROBOGER} > /dev/null 2>&1
+    [ $? == 0 ] || exit 1
     echo -n 'Stopping ROBOGER server '
     PID_SAFE_RUN=
     PID_ROBOGER=
@@ -48,6 +71,11 @@ stop)
             fi
         done
         rm -f ${PIDFILE}
+    fi
+    ps xa|grep -v grep|grep ${ROBOGER}|awk '{ print $1 }'|xargs kill > /dev/null 2>&1
+    if [ $? == 0 ]; then
+        sleep 10
+        ps xa|grep -v grep|grep ${ROBOGER}|awk '{ print $1 }'|xargs kill -9 > /dev/null 2>&1
     fi
     echo ' stopped'
     ;;

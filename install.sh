@@ -15,7 +15,7 @@ if [ $? != 0 ]; then
     exit 1
 fi
 
-if [ ! -x ./sbin/check_mods ]; then
+if [ ! -x ./sbin/check-mods ]; then
     echo "please run in roboger dir!"
     exit 1
 fi
@@ -29,6 +29,6 @@ mkdir -p ./var || exit 1
 mkdir -p ./log || exit 1
 
 echo "Checking mods"
-./sbin/check_mods install || exit 1
+./sbin/check-mods install || exit 1
 
 echo "Finished"

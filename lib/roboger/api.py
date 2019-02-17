@@ -17,7 +17,7 @@ from roboger.core import format_json
 from roboger import db
 
 host = None
-default_port = 719
+default_port = 7719
 ssl_host = None
 ssl_port = None
 ssl_module = 'builtin'
