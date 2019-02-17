@@ -35,7 +35,7 @@ Launching with supervisord
 (if working with supervisord, log rotation is not required because roboger
 prints everything to stdout)
 
-* install supervisor-event-listeners (pip install supervisor-event-listeners)
+* install superlance httpok (pip install superlance)
 * copy etc/supervisor/conf.d/roboger.conf to /etc/supervisor/conf.d
 * put a string to etc/roboger.ini [server] section:
 
