@@ -34,6 +34,11 @@ telegram_poll_interval = 1
 telegram_bot = None
 
 endpoint_types = {}
+endpoint_codes = {}
+
+
+def get_endpoint_code(name):
+    return endpoint_codes.get(name)
 
 
 def update_config(cfg):
@@ -115,6 +120,7 @@ def load():
         row = c.fetchone()
         if row is None: break
         endpoint_types[row[0]] = row[1]
+        endpoint_codes[row[1]] = row[0]
     c.close()
     db.free()
     c = db.query('select id, addr_id, endpoint_type_id, ' + \

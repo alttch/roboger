@@ -26,7 +26,7 @@ _pd_cols = {
     ]
 }
 
-arg_sections = ['addr', 'endpoint', 'subscription', 'event' ]
+arg_sections = ['addr', 'endpoint', 'subscription', 'event']
 
 _level_match_sign = {'g': ' >', 'ge': '>=', 'l': ' <', 'le': '<=', 'e': '='}
 
@@ -121,6 +121,116 @@ def pprint_df(data, func):
         print(df)
 
 
+deploy_a = []
+deploy_errors = False
+
+
+def deploy_subscription(addr_id, endpoint_id, k, data):
+    global deploy_errors
+    xparams = data.copy() if data else {}
+    xparams['addr_id'] = addr_id
+    xparams['endpoint_id'] = endpoint_id
+    try:
+        result = jsonpickle.decode(
+            api_call('subscription_create', xparams).text)
+        print('        + subscription {}'.format(k))
+    except:
+        print('        ! subscription {} not created: server error'.format(k))
+        deploy_errors = True
+
+
+def deploy_endpoint(addr_id, k, data):
+    global deploy_errors
+    if not 'type' in data:
+        print(' [!] endpoint {} not created: type not specified'.format(k))
+        return
+    xparams = {
+        'type': data['type'],
+        'description': data.get('description'),
+        'addr_id': addr_id,
+        'skip_dups': data.get('skip_dups')
+    }
+    _data = data.get('data')
+    _data2 = data.get('data2')
+    _data3 = data.get('data3')
+    if isinstance(_data, dict) or isinstance(_data, list):
+        _data = jsonpickle.encode(_data)
+    if isinstance(_data2, dict) or isinstance(_data2, list):
+        _data2 = jsonpickle.encode(_data2)
+    if isinstance(_data3, dict) or isinstance(_data3, list):
+        _data3 = jsonpickle.encode(_data3)
+    xparams['data'] = _data
+    xparams['data2'] = _data2
+    xparams['data3'] = _data3
+    try:
+        result = jsonpickle.decode(api_call('endpoint_create', xparams).text)
+        print('    + endpoint {}'.format(k))
+        for z, v in data.items():
+            if z.startswith('subscription_'):
+                deploy_subscription(addr_id, result['id'], z, v)
+    except:
+        print('    ! endpoint {} not created: server error'.format(k))
+        deploy_errors = True
+
+
+def deploy_address(k, data):
+    global deploy_errors
+    try:
+        result = jsonpickle.decode(api_call('addr_create', {}).text)
+        print('+ address {}'.format(k))
+        deploy_a.append(result)
+        for z, v in data.items():
+            if z.startswith('endpoint_'):
+                deploy_endpoint(result['id'], z, v)
+            else:
+                print('directive unknown: ' + d)
+    except:
+        print('! address {} not created: server error'.format(k))
+        deploy_errors = True
+
+
+def deploy_config(params):
+    import yaml
+    data = yaml.load(open(params['file']).read())
+    for k, v in data.items():
+        if k.startswith('address_'):
+            deploy_address(k, v)
+        else:
+            print('directive unknown: ' + d)
+    print()
+    if deploy_errors:
+        print('DEPLOYMENT FINISHED WITH ERRORS')
+    else:
+        print('Deployment completed successfully!')
+    print()
+    for result in deploy_a:
+        print('ADDRESS for {}: {} (ID: {})'.format(k, result['a'],
+                                                   result['id']))
+    return not deploy_errors
+
+
+def api_call(func, params):
+    apiuri_r = apiuri + '/manage/' + func
+    if debug:
+
+        print("API request: %s" % apiuri_r)
+        print("API max timeout: %u sec" % timeout)
+        print("API requsts params:")
+        print_json(params)
+        print()
+    xp = params.copy()
+    xp['k'] = apikey
+    try:
+        r = requests.post(apiuri_r, json=xp, timeout=timeout)
+    except:
+        print('API error: can not connect (%s)' % apiuri)
+        sys.exit(1)
+    if debug: print(r.text)
+    return r
+
+
+local_funcs = {'deploy': deploy_config}
+
 dir_etc = os.path.dirname(os.path.realpath(__file__)) + '/../etc'
 
 default_timeout = 5
@@ -175,6 +285,10 @@ ap.add_argument(
 sp = ap.add_subparsers(
     dest='_type', metavar='command', help='Command to execute')
 
+sp_deploy = sp.add_parser('deploy', help='Deploy local YML')
+sp_deploy.add_argument(
+    'file', metavar='FILE', help='YAML file with deployment configuration')
+
 sp_test = sp.add_parser('test', help='test API')
 
 # address commands
@@ -225,8 +339,7 @@ sp_ls_endpoints.add_argument(
 sp_mk_endpoint = sp_endpoint.add_parser('create', help='Create new endpoint')
 sp_mk_endpoint.add_argument(
     '_address', help='Address or address ID', metavar='ADDRESS')
-sp_mk_endpoint.add_argument(
-    'et', help='Endpoint type id', metavar='TYPE_ID', type=int)
+sp_mk_endpoint.add_argument('type', help='Endpoint type', metavar='TYPE')
 sp_mk_endpoint.add_argument(
     'data', help='Endpoint data (email, url, webhook, chat id etc.)')
 sp_mk_endpoint.add_argument(
@@ -235,9 +348,13 @@ sp_mk_endpoint.add_argument(
 sp_mk_endpoint.add_argument(
     '--data3', help='Endpoint data 3 (params for http endpoints)')
 sp_mk_endpoint.add_argument('-o', '--description', help='Endpoint description')
+sp_mk_endpoint.add_argument(
+    '-d',
+    '--skip-dups',
+    metavar='SEC',
+    help='Skip duplicate events for SEC seconds')
 
-sp_endpoint_enable = sp_endpoint.add_parser(
-    'enable', help='Enable endpoint')
+sp_endpoint_enable = sp_endpoint.add_parser('enable', help='Enable endpoint')
 sp_endpoint_enable.add_argument(
     'endpoint_id', help='Endpoint id', metavar='ID', type=int)
 sp_endpoint_enable.add_argument(
@@ -247,8 +364,7 @@ sp_endpoint_enable.add_argument(
     metavar='ADDRESS',
     dest='_address')
 
-sp_endpoint_disable = sp_endpoint.add_parser(
-    'disable', help='Disable endpoint')
+sp_endpoint_disable = sp_endpoint.add_parser('disable', help='Disable endpoint')
 sp_endpoint_disable.add_argument(
     'endpoint_id', help='Endpoint id', metavar='ID', type=int)
 sp_endpoint_disable.add_argument(
@@ -290,11 +406,14 @@ sp_set_endpoint_description.add_argument(
     'description', help='Endpoint description', nargs='?')
 
 sp_set_endpoint_skip_dups = sp_endpoint.add_parser(
-    'dups', help='Set endpoint skip_dups')
+    'skipdups', help='Set endpoint skip_dups')
 sp_set_endpoint_skip_dups.add_argument(
     'endpoint_id', help='Endpoint id', metavar='ID', type=int)
 sp_set_endpoint_skip_dups.add_argument(
-    'data', help='Skip dups time (in sec)', metavar='DELAY', type=int)
+    'skip_time',
+    help='Skip duplicate events for SEC seconds',
+    metavar='SEC',
+    type=int)
 sp_set_endpoint_skip_dups.add_argument(
     '-a',
     '--address',
@@ -320,6 +439,8 @@ sp_subscription = ap_subscription.add_subparsers(
 sp_ls_subscriptions = sp_subscription.add_parser(
     'list', help='List subscriptions')
 sp_ls_subscriptions.add_argument(
+    'endpoint_id', help='Endpoint id', type=int, metavar='ENDPOINT_ID')
+sp_ls_subscriptions.add_argument(
     'subscription_id',
     help='subscription id',
     metavar='ID',
@@ -331,8 +452,6 @@ sp_ls_subscriptions.add_argument(
     help=argparse.SUPPRESS,
     metavar='ADDRESS',
     dest='_address')
-sp_ls_subscriptions.add_argument(
-    'endpoint_id', help='Endpoint id', type=int, metavar='ENDPOINT_ID')
 
 sp_mk_subscription = sp_subscription.add_parser(
     'create', help='Create new subscription')
@@ -430,7 +549,8 @@ sp_set_subscription_level.add_argument(
     '-m',
     '--level-match',
     help=
-    'Subscription level match (ge for >=, le for <=, l for <, g for >, e for =)',
+    'Subscription level match ' + \
+            '(ge for >=, le for <=, l for <, g for >, e for =)',
     choices=['ge', 'le', 'l', 'g', 'e'])
 sp_set_subscription_level.add_argument(
     '-a',
@@ -540,7 +660,7 @@ if hasattr(a, '_level') and a._level is not None:
 if itype in arg_sections and not func:
     ap.parse_args([itype, '--help'])
 
-api_func = itype + ('_' + func if func else '')
+api_func = (itype if itype else '') + ('_' + func if func else '')
 
 if not api_func:
     ap.print_usage()
@@ -586,27 +706,12 @@ if not apikey:
     print('no API masterkey specified')
     sys.exit(6)
 
-
-def api_call(func, params):
-    apiuri_r = apiuri + '/manage/' + func
-    if debug:
-
-        print("API request: %s" % apiuri_r)
-        print("API max timeout: %u sec" % timeout)
-        print("API requsts params:")
-        print_json(params)
-        print()
-    xp = params.copy()
-    xp['k'] = apikey
-    try:
-        r = requests.post(apiuri_r, json=xp, timeout=timeout)
-    except:
-        print('API error: can not connect (%s)' % apiuri)
-        sys.exit(1)
-    return r
-
-
-r = api_call(api_func, xparams)
+if api_func in local_funcs:
+    f = local_funcs.get(api_func)
+    if f(xparams): sys.exit(0)
+    sys.exit(1)
+else:
+    r = api_call(api_func, xparams)
 
 if debug:
     print("API response code: %s" % r.status_code)
