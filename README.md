@@ -42,7 +42,7 @@ Firstly - setup Roboger server, create address, endpoints and subscriptions.
 
 Then use Roboger API to send event notifications:
 
-    POST http://your-roboger-host/push < JSON
+    POST http://your-roboger-host:7719/push < JSON
     {
         'addr': 'towhere',
         'sender': 'from (e.g. from robot1)',
@@ -57,7 +57,7 @@ Then use Roboger API to send event notifications:
 
 Or, for old machines (you can't send binary data with GET):
 
-    GET http://your-roboger-host/?r=&s=&l=&k=&s=&m=&l=
+    GET http://your-roboger-host:7719/push?r=&s=&l=&k=&s=&m=&l=
 
 Or with **roboger-push** console client in old good crontab or any other
 software/scripts:
