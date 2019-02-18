@@ -137,13 +137,13 @@ Endpoint types
 
 * **email** sends email notifications. Config: *rcpt=mail_address* (requires
   SMTP server on localhost or point to the right one in ./etc/roboger.ini)
-* **http/post** sends HTTP/POST request. Config: * *url=url*, *params=request
+* **http/post** sends HTTP/POST request. Config: *url=url*, *params=request
   variables (JSON string)*
-* **http/json** sends HTTP/POST request with JSON body. Params: *url=url*,
-  *params=request variables (JSON string)*
-* **slack** sends notification in Slack. Params: *url=slack_webhook_url*,
+* **http/json** sends HTTP/POST request with JSON body. Config: *url=url*,
+  *params=request_variables (JSON string)*
+* **slack** sends notification in Slack. Config: *url=slack_webhook_url*,
   *fmt=rich* (for rich text notifications)
-* **telegram** sends notifications in Telegram. Params: *chat_id=your_chat_id*
+* **telegram** sends notifications in Telegram. Config: *chat_id=your_chat_id*
 
 How it works with Telegram
 --------------------------
