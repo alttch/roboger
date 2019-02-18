@@ -3,7 +3,6 @@ __copyright__ = "Copyright (C) 2018 Altertech Group"
 __license__ = "See https://www.roboger.com/"
 __version__ = "1.0.0"
 
-import MySQLdb
 import logging
 import roboger.core
 
@@ -66,6 +65,7 @@ def connect():
         import sqlite3
         return True
     elif db_engine == 'mysql':
+        import MySQLdb
         try:
             db = MySQLdb.connect(
                 db_host, db_user, db_password, db_name, charset='utf8')
