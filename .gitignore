@@ -8,3 +8,5 @@ etc/roboger.ini
 etc/roboger_push.ini
 lib/_test.py
 data
+var
+log
