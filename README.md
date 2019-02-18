@@ -64,7 +64,7 @@ software/scripts:
 
     echo Everything's down!!! | roboger-push
 
-**roboger-push** app is written in pure bash, so it will run almost anywhere,
+**roboger-push** app is written in pure bash, so it will run almost everywhere,
 addresses are defined in /usr/local/etc/roboger_push.ini.
 
 Note: if you want to send media attachments with roboger-push, you should have
