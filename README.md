@@ -109,6 +109,12 @@ Installing roboger-push only
   curl -s https://raw.githubusercontent.com/alttch/roboger/master/bin/install-roboger-push | bash /dev/stdin YOUR_ROBOGER_ADDRESS
 * customize /usr/local/etc/roboger_push.ini if required
 
+Docker image
+------------
+
+* Pre-built image available at https://hub.docker.com/r/altertech/roboger
+* Use provided sample *docker-compose.yml* to set initial params
+
 Launching with supervisord
 --------------------------
 
