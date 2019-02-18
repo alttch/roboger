@@ -183,7 +183,7 @@ def deploy_address(k, data):
             if z.startswith('endpoint_'):
                 deploy_endpoint(result['id'], z, v)
             else:
-                print('directive unknown: ' + d)
+                print('directive unknown: ' + z)
     except:
         print('! address {} not created: server error'.format(k))
         deploy_errors = True
@@ -196,7 +196,7 @@ def deploy_config(params):
         if k.startswith('address_'):
             deploy_address(k, v)
         else:
-            print('directive unknown: ' + d)
+            print('directive unknown: ' + k)
     print()
     if deploy_errors:
         print('DEPLOYMENT FINISHED WITH ERRORS')
