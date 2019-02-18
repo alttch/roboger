@@ -106,6 +106,7 @@ def query(sql, args=(), do_commit=False, dbconn=None):
         import sqlite3
         oe = sqlite3.OperationalError
     elif db_engine == 'mysql':
+        import MySQLdb
         oe = MySQLdb.OperationalError
     global db
     try:
