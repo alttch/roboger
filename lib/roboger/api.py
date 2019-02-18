@@ -31,6 +31,45 @@ check_ownership = False
 masterkey = None
 master_allow = None
 
+# throws exception
+def dict_from_str(s):
+    if not isinstance(s, str): return s
+    result = {}
+    if not s: return result
+    vals = s.split(',')
+    for v in vals:
+        name, value = v.split('=')
+        if value.find('||') != -1:
+            _value = value.split('||')
+            value = []
+            for _v in _value:
+                if _v.find('|') != -1:
+                    value.append(arr_from_str(_v))
+                else:
+                    value.append([_v])
+        else:
+            value = arr_from_str(value)
+        if isinstance(value, str):
+            try:
+                value = float(value)
+                if value == int(value): value = int(value)
+            except:
+                pass
+        result[name] = value
+    return result
+
+def arr_from_str(s):
+    if not isinstance(s, str) or s.find('|') == -1: return s
+    result = []
+    vals = s.split('|')
+    for v in vals:
+        try:
+            _v = float(v)
+            if _v == int(_v): _v = int(_v)
+        except:
+            _v = v
+        result.append(_v)
+    return result
 
 def api_forbidden():
     raise cherrypy.HTTPError('403 Forbidden', 'Invalid API key')
@@ -347,38 +386,72 @@ class MasterAPI(object):
             endpoint_type = roboger.endpoints.get_endpoint_code(
                 data.get('type'))
         if not endpoint_type: api_invalid_data('Specify endpoint type')
+        cfg = data.get('config')
+        if isinstance(cfg, dict):
+            config = cfg
+        elif isinstance(cfg, str):
+            config = dict_from_str(cfg)
+        else:
+            config = {}
         try:
+            # email
             if endpoint_type == 2:
+                email = config.get('rcpt')
+                if not email: email = data.get('data')
                 e = roboger.endpoints.EmailEndpoint(
                     addr,
-                    data.get('data'),
+                    email,
                     description=data.get('description'),
                     autosave=False)
+            # http/post
             elif endpoint_type == 3:
+                url = config.get('url')
+                if not url: url = data.get('data')
+                params = config.get('params')
+                if not params: params = data.get('data3')
+                if isinstance(params, dict):
+                    params = jsonpickle.encode(params)
                 e = roboger.endpoints.HTTPPostEndpoint(
                     addr,
-                    data.get('data'),
-                    data.get('data3'),
+                    url,
+                    params,
                     description=data.get('description'),
                     autosave=False)
+            # http/json
             elif endpoint_type == 4:
+                url = config.get('url')
+                if not url: url = data.get('data')
+                params = config.get('params')
+                if not params: params = data.get('data3')
+                if isinstance(params, dict):
+                    params = jsonpickle.encode(params)
                 e = roboger.endpoints.HTTPJSONEndpoint(
                     addr,
-                    data.get('data'),
-                    data.get('data3'),
+                    url,
+                    params,
                     description=data.get('description'),
                     autosave=False)
+            # slack
             elif endpoint_type == 100:
+                url = config.get('url')
+                if not url:
+                    url = config.get('webhook')
+                if not url: url = data.get('data')
+                fmt = config.get('fmt')
+                if not fmt: fmt = data.get('data2')
                 e = roboger.endpoints.SlackEndpoint(
                     addr,
-                    data.get('data'),
-                    data.get('data2'),
+                    url,
+                    fmt,
                     description=data.get('description'),
                     autosave=False)
+            # telegram
             elif endpoint_type == 101:
+                chat_id = config.get('chat_id')
+                if not chat_id: chat_id = data.get('data')
                 e = roboger.endpoints.TelegramEndpoint(
                     addr,
-                    data.get('data'),
+                    chat_id,
                     description=data.get('description'),
                     autosave=False)
             else:
@@ -414,6 +487,26 @@ class MasterAPI(object):
                 data['data'],
                 data.get('data2'),
                 data.get('data3'),
+                dbconn=cherrypy.thread_data.db)
+        except:
+            roboger.core.log_traceback()
+            api_internal_error()
+        return e.serialize()
+
+    @cherrypy.expose
+    def endpoint_config(self, data):
+        addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
+        e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
+        if not e or (check_ownership and e.addr != addr):
+            api_404('endpoint or wrong address')
+        config = data.get('config')
+        if not config:
+            api_invalid_data('invalid config params')
+        if isinstance(config, str):
+            config = dict_from_str(config)
+        try:
+            e.set_config(
+                config,
                 dbconn=cherrypy.thread_data.db)
         except:
             roboger.core.log_traceback()

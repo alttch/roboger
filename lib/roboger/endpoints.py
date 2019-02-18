@@ -308,6 +308,9 @@ class EmailEndpoint(GenericEndpoint):
         d['rcpt'] = self.rcpt
         return d
 
+    def set_config(self, config, dbconn=None):
+        self.set_data(config.get('rcpt', ''), dbconn=dbconn)
+
     def set_data(self, data=None, data2=None, data3=None, dbconn=None):
         self.rcpt = data
         super().set_data(data, data2, data3, dbconn)
@@ -380,6 +383,12 @@ class HTTPPostEndpoint(GenericEndpoint):
         d['params'] = self.params
         return d
 
+    def set_config(self, config, dbconn=None):
+        params = config.get('params', '')
+        if isinstance(params, dict):
+            params = jsonpickle.encode(params)
+        self.set_data(config.get('url', ''), data3=params, dbconn=dbconn)
+
     def set_data(self, data=None, data2=None, data3=None, dbconn=None):
         self.url = data
         self.params = data3
@@ -446,6 +455,12 @@ class HTTPJSONEndpoint(GenericEndpoint):
         d['url'] = self.url
         d['params'] = self.params
         return d
+
+    def set_config(self, config, dbconn=None):
+        params = config.get('params', '')
+        if isinstance(params, dict):
+            params = jsonpickle.encode(params)
+        self.set_data(config.get('url', ''), data3=params, dbconn=dbconn)
 
     def set_data(self, data=None, data2=None, data3=None, dbconn=None):
         self.url = data
@@ -516,9 +531,15 @@ class SlackEndpoint(GenericEndpoint):
 
     def serialize(self):
         d = super().serialize()
-        d['webhook'] = self.webhook
+        d['url'] = self.webhook
         d['rich_fmt'] = self.rich_fmt
         return d
+
+    def set_config(self, config, dbconn=None):
+        url = config.get('url')
+        if not url:
+            url = config.get('webhook')
+        self.set_data(url, config.get('fmt'), dbconn=dbconn)
 
     def set_data(self, data=None, data2=None, data3=None, dbconn=None):
         self.webhook = data
@@ -592,6 +613,9 @@ class TelegramEndpoint(GenericEndpoint):
         else:
             d['chat_id_plain'] = True if self._chat_id_plain else None
         return d
+
+    def set_config(self, config, dbconn=None):
+        self.set_data(config.get('chat_id'), dbconn=dbconn)
 
     def set_data(self, data=None, data2=None, data3=None, dbconn=None):
         self._set_chat_id(data)

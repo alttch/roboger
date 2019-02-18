@@ -162,6 +162,7 @@ def deploy_endpoint(addr_id, k, data):
     xparams['data'] = _data
     xparams['data2'] = _data2
     xparams['data3'] = _data3
+    xparams['config'] = data.get('config')
     try:
         result = jsonpickle.decode(api_call('endpoint_create', xparams).text)
         print('    + endpoint {}'.format(k))
@@ -341,7 +342,9 @@ sp_mk_endpoint.add_argument(
     '_address', help='Address or address ID', metavar='ADDRESS')
 sp_mk_endpoint.add_argument('type', help='Endpoint type', metavar='TYPE')
 sp_mk_endpoint.add_argument(
-    'data', help='Endpoint data (email, url, webhook, chat id etc.)')
+    '-c', '--config', help='Endpoint config (rcpt, url, webhook, chat id etc.)')
+sp_mk_endpoint.add_argument(
+    '--data', help='Endpoint data (email, url, webhook, chat id etc.)')
 sp_mk_endpoint.add_argument(
     '--data2',
     help='Endpoint data 2 ("rich" for slack endpoint to send rich format)')
@@ -373,6 +376,19 @@ sp_endpoint_disable.add_argument(
     help=argparse.SUPPRESS,
     metavar='ADDRESS',
     dest='_address')
+
+sp_set_endpoint_config = sp_endpoint.add_parser(
+    'config', help='Set endpoint config')
+sp_set_endpoint_config.add_argument(
+    'endpoint_id', help='Endpoint id', metavar='ID', type=int)
+sp_set_endpoint_config.add_argument(
+    '-a',
+    '--address',
+    help=argparse.SUPPRESS,
+    metavar='ADDRESS',
+    dest='_address')
+sp_set_endpoint_config.add_argument(
+    'config', help='Endpoint config (email, url, webhook, chat id etc.)')
 
 sp_set_endpoint_data = sp_endpoint.add_parser(
     'data', help='Set endpoint data params')

@@ -2,7 +2,8 @@ address_1:
 
   endpoint_1:
     type: email
-    data: me@my.domain
+    config:
+      rcpt: me@my.domain
     description: test mail
     subscription_1:
       location: office
@@ -15,7 +16,14 @@ address_1:
 
   endpoint_2:
     type: http/json
-    data: http://pbx.server/v1/call
-    data3: { "params": [ "xxxx", "yyyy", "zzzzz" ], "phone": "+000199939" }
+    config:
+        url: http://pbx.server/v1/call
+        params: { "params": [ "xxxx", "yyyy", "zzzzz" ], "phone": "+000199939" }
     skip_dups: 600
     subscription_1:
+
+  endpoint_3:
+    type: slack
+    config:
+      url: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
+      fmt: rich
