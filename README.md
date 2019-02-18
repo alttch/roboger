@@ -150,8 +150,8 @@ How it works with Telegram
   (https://core.telegram.org/bots#6-botfather)
 * Put bot token to etc/roboger.ini and restart roboger server
 * Find your bot in Telegram and write something to chat
-* Bot will instantly report you your Chat ID. Use it for *data=chat_id* param
-  when creating subscriptions.
+* Bot will instantly report you your Chat ID. Use it for *chat_id=chat_id*
+  config when creating endpoint.
 
 Note: roboger Chat ID is differnet from integer Telegram Chat ID. Actually it's
 encrypted with your bot token to avoid people brute forcing chat IDs of shared
