@@ -75,7 +75,6 @@ we just warn you about that)
 Limitations
 -----------
 
-* don't use sqlite engine in production, mysql is tested, sqlite not yet )
 * until launch of https://roboger.com/, stability is very limited, management
   API can be changed at any time. Use at your own risk
 
