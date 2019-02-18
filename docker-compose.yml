@@ -1,0 +1,12 @@
+version: '3'
+services:
+  roboger:
+    environment:
+      - smtp_host=CHANGETHIS.domain.com:25
+      - masterkey=demo123
+    image: altertech/roboger
+    volumes:
+        - ./data/config:/config
+        - ./data/db:/db
+    ports:
+      - "7719:7719"
