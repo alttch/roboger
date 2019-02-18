@@ -41,7 +41,7 @@ if [ ! -f var/db/roboger.db ]; then
         echo "sqlite3 command not found. create database manually"
     fi
 else
-    echo "Database var/db/roboger.db already exists"
+    echo "Database ./var/db/roboger.db already exists"
 fi
 
 echo
