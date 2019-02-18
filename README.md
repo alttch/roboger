@@ -38,7 +38,8 @@ be set up with a couple of commands.
 How to use
 ----------
 
-Firstly - setup Roboger server, create address, endpoints and subscriptions.
+Firstly - setup Roboger server, create address, endpoints and subscriptions
+with **./bin/roboger-cmd**
 
 Then use Roboger API to send event notifications:
 
