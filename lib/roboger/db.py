@@ -24,7 +24,7 @@ def update_config(cfg):
     try:
         db_engine = cfg.get('db', 'engine')
     except:
-        db_engine = 'mysql'
+        db_engine = 'sqlite'
     try:
         db_host = cfg.get('db', 'host')
     except:
