@@ -34,7 +34,7 @@ echo "Checking mods"
 if [ ! -f var/db/roboger.db ]; then
     which sqlite3 > /dev/null 2>&1
     if [ $? -eq 0 ]; then
-        echo "Creating database var/db/roboger.db"
+        echo "Creating database ./var/db/roboger.db"
         sqlite3 ./var/db/roboger.db < roboger-sqlite.sql
         chmod 600 ./var/db/roboger.db
     else
