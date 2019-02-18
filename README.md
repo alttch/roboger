@@ -1,4 +1,69 @@
-under development (don't use sqlite engine in production, mysql only)
+What's Roboger?
+---------------
+
+* Do you like old good "echo alarm | sendmail me@mydomain" trick in crontab?
+* Does your software or servers sends you mail/sms alerts when something is
+  wrong?
+* Tired getting emails from robots?
+
+Then Roboger is definitely for you!
+
+Actually nowdays majority emails are sent from robots and people don't need to
+reply. We also like sendmail/sms alarms, we also get a lot of them. And we
+built roboger - new generation messenger designed especially for robots.
+
+What it can do?
+---------------
+
+* It can get notifications and forward them to specified endpoints
+* It supports endpoint types: email, http/post, http/json, Slack, Telegram and
+  Mobile Roboger App (only via https://roboger.com/)
+* This software actually allows you to run own Roboger server, in case you
+  don't want to use https://roboger.com/, want to have backup alternative or
+  want to use custom http web hooks.
+
+How to use
+----------
+
+Firstly - setup Roboger server, create address, endpoints and subscriptions.
+
+Then use Roboger API to send event notifications:
+
+    POST http://your-roboger-host/push < JSON
+    {
+        'addr': 'towhere',
+        'sender': 'from (e.g. from robot1)',
+        'location': 'where something is happened',
+        'keywords': 'comma,separated,eg,serverfail,alarm,achtung',
+        'subject': 'what we are talking about',
+        'msg': 'message body',
+        'level': 'alarm level (debug, info, warning, error or critical)',
+        'media': 'base64-encoded binary eg. photo from surveillance camera')
+    }
+    (all fields except address are optional, default level is "info")
+
+Or, for old machines (you can't send binary data with GET):
+
+    GET http://your-roboger-host/?r=&s=&l=&k=&s=&m=&l=
+
+Or with **roboger-push** console client in old good crontab or any other
+software/scripts:
+
+    echo Everything's down!!! | roboger-push
+
+**roboger-push** app is written in pure bash, so it will run almost anywhere,
+addresses are defined in /usr/local/etc/roboger_push.ini.
+
+Note: if you want to send media attachments with roboger-push, you should have
+local *openssl* CLI installed (it's actually installed everywhere by default,
+we just warn you about that)
+
+Limitations
+-----------
+
+* don't use sqlite engine in production, mysql is tested, sqlite not yet )
+* until launch of https://roboger.com/, stability is very limited. Use at your
+  own risk
 
 Installation
 ------------
@@ -40,4 +105,37 @@ prints everything to stdout)
 * put a string to etc/roboger.ini [server] section:
 
     supervisord_program = roboger
+
+Endpoint types
+--------------
+
+* **email** sends email notifications. Params: *data=mail address*
+* **http/post** sends HTTP/POST request. Params: *data=url*, *data3=request
+  variables (JSON)*
+* **http/json** sends HTTP/POST request with JSON body. Params: *data=url*,
+  *data3=request variables (JSON)*
+* **slack** sends notification in Slack. Params: *data=slack_webhook_url*,
+  *data2=rich* (for rich text notifications)
+* **telegram** sends notifications in Telegram. Params: *data=chat_id*
+
+How it works with Telegram
+--------------------------
+
+* Firstly you need to register own bot and obtain bot token
+  (https://core.telegram.org/bots#6-botfather)
+* Put bot token to etc/roboger.ini and restart roboger server
+* Find your bot in Telegram and write something to chat
+* Bot will instantly report you your Chat ID. Use it for *data=chat_id* param
+  when creating subscriptions.
+
+Note: roboger Chat ID is differnet from integer Telegram Chat ID. Actually it's
+encrypted with your bot token to avoid people brute forcing chat IDs of shared
+bots.
+
+Configuration deployment
+------------------------
+
+**roboger-cmd** does the job, but if you want to deploy in batch, use
+*roboger-cmd deploy file.yml* command. Look *sample-deploy.yml* for deployment
+example.
 
