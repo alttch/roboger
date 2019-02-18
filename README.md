@@ -9,8 +9,9 @@ What is Roboger?
 Then Roboger is definitely for you!
 
 Actually nowdays majority emails are sent from robots and people don't need to
-reply. Actually people use emails much less, prefering messengers and alternative
-apps. And we made Roboger - new generation messenger designed especially for robots.
+reply. Actually people use emails much less, prefering messengers and
+alternative apps. And we made Roboger - new generation messenger designed
+especially for robots.
 
 ![How Roboger works](roboger-scheme.png?raw=true "How Roboger works")
 
