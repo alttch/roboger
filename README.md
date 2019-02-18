@@ -17,10 +17,23 @@ What can Roboger do?
 
 * It can get notifications and forward them to specified endpoints
 * It supports endpoint types: email, http/post, http/json, Slack, Telegram and
-  Mobile Roboger App (only via https://roboger.com/)
+  Roboger Smartphone App (only via https://roboger.com/)
 * This software actually allows you to run own Roboger server, in case you
   don't want to use https://roboger.com/, want to have backup alternative or
   want to use custom http web hooks.
+
+Real life example
+-----------------
+
+You get information messages from your server to Slack, warnings to Slack and
+Telegram, errors to messengers and by mail and on critical events you want
+additionally hook API of your PBX to call you on mobile.
+
+In past you would need to write a code, call APIs, manage event routing and
+finish in a script hell without any idea what and where notify you.
+
+Now you can use Roboger, where everything is already coded, organized and can
+be set up with a couple of commands.
 
 How to use
 ----------
