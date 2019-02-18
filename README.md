@@ -47,7 +47,7 @@ Then use Roboger API to send event notifications:
         'addr': 'towhere',
         'sender': 'from (e.g. from robot1)',
         'location': 'where something is happened',
-        'keywords': 'comma,separated,eg,serverfail,alarm,achtung',
+        'keywords': 'comma, separated, eg, serverfail, alarm, achtung',
         'subject': 'what we are talking about',
         'msg': 'message body',
         'level': 'alarm level (debug, info, warning, error or critical)',
