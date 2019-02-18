@@ -136,9 +136,9 @@ Endpoint types
 * **email** sends email notifications. Config: *rcpt=mail_address* (requires
   SMTP server on localhost or point to the right one in ./etc/roboger.ini)
 * **http/post** sends HTTP/POST request. Config: * *url=url*, *params=request
-  variables (JSON)*
+  variables (JSON string)*
 * **http/json** sends HTTP/POST request with JSON body. Params: *url=url*,
-  *params=request variables (JSON)*
+  *params=request variables (JSON string)*
 * **slack** sends notification in Slack. Params: *url=slack_webhook_url*,
   *fmt=rich* (for rich text notifications)
 * **telegram** sends notifications in Telegram. Params: *chat_id=your_chat_id*
@@ -151,7 +151,7 @@ How it works with Telegram
 * Put bot token to etc/roboger.ini and restart roboger server
 * Find your bot in Telegram and write something to chat
 * Bot will instantly report you your Chat ID. Use it for *chat_id=chat_id*
-  config when creating endpoint.
+  config param when creating endpoint.
 
 Note: roboger Chat ID is differnet from integer Telegram Chat ID. Actually it's
 encrypted with your bot token to avoid people brute forcing chat IDs of shared
