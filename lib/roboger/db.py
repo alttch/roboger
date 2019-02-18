@@ -102,10 +102,13 @@ def prepare_sql(sql):
 
 
 def query(sql, args=(), do_commit=False, dbconn=None):
+    if db_engine == 'sqlite':
+        import sqlite3
+        oe = sqlite3.OperationalError
+    elif db_engine == 'mysql':
+        oe = MySQLdb.OperationalError
     global db
     try:
-        if db_engine == 'sqlite':
-            import sqlite3
             dbconn = sqlite3.connect(db_name)
             cursor = dbconn.cursor()
         else:
@@ -114,7 +117,7 @@ def query(sql, args=(), do_commit=False, dbconn=None):
             else:
                 cursor = db.cursor()
         cursor.execute(prepare_sql(sql), args)
-    except (AttributeError, MySQLdb.OperationalError):
+    except (AttributeError, oe):
         roboger.core.log_traceback()
         if dbconn:
             dbconn = connect()
