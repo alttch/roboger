@@ -12,8 +12,8 @@ Actually nowdays majority emails are sent from robots and people don't need to
 reply. We also like sendmail/sms alarms, we also get a lot of them. And we
 built roboger - new generation messenger designed especially for robots.
 
-What it can do?
----------------
+What can Roboger do?
+--------------------
 
 * It can get notifications and forward them to specified endpoints
 * It supports endpoint types: email, http/post, http/json, Slack, Telegram and
