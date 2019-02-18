@@ -124,8 +124,9 @@ prints everything to stdout)
 Endpoint types
 --------------
 
-* **email** sends email notifications. Params: *data=mail address*
-* **http/post** sends HTTP/POST request. Params: *data=url*, *data3=request
+* **email** sends email notifications. Params: *data=mail address* (requires
+  SMTP server on localhost)
+**http/post** sends HTTP/POST request. Params: * *data=url*, *data3=request
   variables (JSON)*
 * **http/json** sends HTTP/POST request with JSON body. Params: *data=url*,
   *data3=request variables (JSON)*
