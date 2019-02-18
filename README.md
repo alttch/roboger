@@ -97,7 +97,8 @@ Installation
 * test it: *./bin/roboger-cmd test*
 * append '/opt/roboger/sbin/roboger-control start' to /etc/rc.local or any other
   startup place (or use *supervisord*, see below)
-* copy etc/logrotate.d/roboger to /etc/logrotate.d/roboger
+* copy *./etc/logrotate.d/roboger* to */etc/logrotate.d/roboger* (not required
+  if you run roboger with supervisord)
 * that's it :)
 
 Installing roboger-push only
