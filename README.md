@@ -10,7 +10,7 @@ Then Roboger is definitely for you!
 
 Actually nowdays majority emails are sent from robots and people don't need to
 reply. We also like sendmail/sms alarms, we also get a lot of them. And we
-built roboger - new generation messenger designed especially for robots.
+built Roboger - new generation messenger designed especially for robots.
 
 What can Roboger do?
 --------------------
