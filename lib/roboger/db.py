@@ -109,6 +109,7 @@ def query(sql, args=(), do_commit=False, dbconn=None):
         oe = MySQLdb.OperationalError
     global db
     try:
+        if db_engine == 'sqlite':
             dbconn = sqlite3.connect(db_name)
             cursor = dbconn.cursor()
         else:
