@@ -1,5 +1,5 @@
-What's Roboger?
----------------
+What iss Roboger?
+-----------------
 
 * Do you like old good "echo alarm | sendmail me@mydomain" trick in crontab?
 * Does your software or servers sends you mail/sms alerts when something is
