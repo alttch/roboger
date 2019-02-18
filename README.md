@@ -12,6 +12,8 @@ Actually nowdays majority emails are sent from robots and people don't need to
 reply. We also like sendmail/sms alarms, we also get a lot of them. And we
 built Roboger - new generation messenger designed especially for robots.
 
+![How Roboger works](roboger-scheme.png?raw=true "How Roboger works")
+
 What can Roboger do?
 --------------------
 
