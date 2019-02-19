@@ -22,7 +22,7 @@ log_file = log/roboger.log
 [api]
 ;API host/port to listen to
 listen = 0.0.0.0:7719
-;ssl_listen = 0.0.0.0:720
+;ssl_listen = 0.0.0.0:7720
 ;ssl_module = builtin
 ;ssl_cert = test.crt
 ;ssl_key = test.key
