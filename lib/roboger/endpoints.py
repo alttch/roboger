@@ -37,17 +37,7 @@ telegram_bot = None
 endpoint_types = {}
 endpoint_codes = {}
 
-endpoints_lock = threading.Lock()
-
-
-def lock():
-    if not endpoints_lock.acquire(timeout=roboger.core.timeout):
-        raise Exception('Locking is broken')
-    return True
-
-
-def unlock():
-    endpoints_lock.release()
+endpoints_lock = threading.RLock()
 
 
 def get_endpoint_code(name):
@@ -90,55 +80,47 @@ def stop():
         telegram_bot.stop()
 
 
-def get_endpoint(endpoint_id, set_lock=True):
-    if set_lock: lock()
-    endpoint = endpoints_by_id.get(endpoint_id)
-    if set_lock: unlock()
-    if not endpoint: return None
-    return None if endpoint._destroyed else endpoint
+def get_endpoint(endpoint_id):
+    with endpoints_lock:
+        endpoint = endpoints_by_id.get(endpoint_id)
+    return endpoint if endpoint and not endpoint._destroyed else None
 
 
 def append_endpoint(e):
-    lock()
-    try:
-        endpoints_by_id[e.endpoint_id] = e
-        if e.addr.addr_id not in endpoints_by_addr_id:
-            endpoints_by_addr_id[e.addr.addr_id] = {}
-        endpoints_by_addr_id[e.addr.addr_id][e.endpoint_id] = e
-        e.addr.append_endpoint(e)
-    except:
-        roboger.core.log_traceback()
-    unlock()
+    with endpoints_lock:
+        try:
+            endpoints_by_id[e.endpoint_id] = e
+            if e.addr.addr_id not in endpoints_by_addr_id:
+                endpoints_by_addr_id[e.addr.addr_id] = {}
+            endpoints_by_addr_id[e.addr.addr_id][e.endpoint_id] = e
+            e.addr.append_endpoint(e)
+        except:
+            roboger.core.log_traceback()
 
 
-def destroy_endpoint(e, dbconn=None, set_lock=True):
-    if isinstance(e, int):
-        _e = get_endpoint(e, set_lock=False)
-    else:
-        _e = e
-    _e.destroy(dbconn)
-    if set_lock: lock()
-    try:
-        del endpoints_by_id[_e.endpoint_id]
-        del endpoints_by_addr_id[_e.addr.addr_id][_e.endpoint_id]
-    except:
-        roboger.core.log_traceback()
-    if set_lock: unlock()
+def destroy_endpoint(e, dbconn=None):
+    with endpoints_lock:
+        if isinstance(e, int):
+            _e = get_endpoint(e)
+        else:
+            _e = e
+        _e.destroy(dbconn)
+        try:
+            del endpoints_by_id[_e.endpoint_id]
+            del endpoints_by_addr_id[_e.addr.addr_id][_e.endpoint_id]
+        except:
+            roboger.core.log_traceback()
 
 
-def destroy_endpoints_by_addr(u, dbconn=None, set_lock=True):
-    if u.addr_id not in endpoints_by_addr_id: return
-    if set_lock: lock()
-    try:
-        for e in endpoints_by_addr_id[u.addr_id].copy():
-            destroy_endpoint(e, dbconn, set_lock=False)
-    except:
-        roboger.core.log_traceback()
-    try:
-        del endpoints_by_addr_id[u.addr_id]
-    except:
-        roboger.core.log_traceback()
-    if set_lock: unlock()
+def destroy_endpoints_by_addr(u, dbconn=None):
+    with endpoints_lock:
+        if u.addr_id not in endpoints_by_addr_id: return
+        try:
+            for e in endpoints_by_addr_id[u.addr_id].copy():
+                destroy_endpoint(e, dbconn, set_lock=False)
+            del endpoints_by_addr_id[u.addr_id]
+        except:
+            roboger.core.log_traceback()
 
 
 def load():
@@ -209,7 +191,7 @@ class GenericEndpoint(object):
         self.description = description if description else ''
         self.skip_dups = skip_dups
         self.subscriptions = []
-        self._lck = threading.Lock()
+        self.lock = threading.RLock()
         self.endpoint_id = endpoint_id
         self.last_event_time = 0
         self.last_event_hash = None
@@ -220,18 +202,9 @@ class GenericEndpoint(object):
                 roboger.core.log_traceback()
                 self._destroyed = True
 
-    def lock(self):
-        if not self._lck.acquire(timeout=roboger.core.timeout):
-            raise Exception('Locking is broken')
-        return True
-
-    def unlock(self):
-        self._lck.release()
-
     def append_subscription(self, s):
-        self.lock()
-        self.subscriptions.append(s)
-        self.unlock()
+        with self.lock:
+            self.subscriptions.append(s)
 
     def check_dup(self, event):
         if self.skip_dups <= 0: return True
@@ -247,9 +220,8 @@ class GenericEndpoint(object):
         return True
 
     def remove_subscription(self, s):
-        self.lock()
-        self.subscriptions.remove(s)
-        self.unlock()
+        with self.lock:
+            self.subscriptions.remove(s)
 
     def serialize(self):
         u = {}

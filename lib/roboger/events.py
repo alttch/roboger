@@ -34,23 +34,13 @@ subscriptions_by_id = {}
 subscriptions_by_addr_id = {}
 subscriptions_by_endpoint_id = {}
 
-subscriptions_lock = threading.Lock()
+subscriptions_lock = threading.RLock()
 
 queue_processor_active = False
 queue_processor = None
 
 event_cleaner_active = False
 event_cleaner = None
-
-
-def lock():
-    if not subscriptions_lock.acquire(timeout=roboger.core.timeout):
-        raise Exception('Locking is broken')
-    return True
-
-
-def unlock():
-    subscriptions_lock.release()
 
 
 def push_event(a,
@@ -222,11 +212,9 @@ def level_match(l, lc, cond):
 
 
 def get_subscription(s_id):
-    lock()
-    s = subscriptions_by_id.get(s_id)
-    unlock()
-    if not s: return None
-    return None if s._destroyed else s
+    with subscriptions_lock:
+        s = subscriptions_by_id.get(s_id)
+    return s if s and not s._destroyed else None
 
 
 def queue_event(event, dbconn=None):
@@ -256,15 +244,14 @@ def destroy_subscription(s, dbconn):
     else:
         _s = s
     _s.destroy(dbconn)
-    lock()
-    try:
-        del subscriptions_by_id[_s.subscription_id]
-        del subscriptions_by_addr_id[_s.addr.addr_id][_s.subscription_id]
-        del subscriptions_by_endpoint_id[_s.endpoint.endpoint_id][
-            _s.subscription_id]
-    except:
-        roboger.core.log_traceback()
-    unlock()
+    with subscriptions_lock:
+        try:
+            del subscriptions_by_id[_s.subscription_id]
+            del subscriptions_by_addr_id[_s.addr.addr_id][_s.subscription_id]
+            del subscriptions_by_endpoint_id[_s.endpoint.endpoint_id][
+                _s.subscription_id]
+        except:
+            roboger.core.log_traceback()
 
 
 def get_event_level_name(level_id):
@@ -275,18 +262,17 @@ def append_subscription(s):
     e = s.endpoint
     u = s.addr
     e.append_subscription(s)
-    lock()
-    try:
-        subscriptions_by_id[s.subscription_id] = s
-        if u.addr_id not in subscriptions_by_addr_id:
-            subscriptions_by_addr_id[u.addr_id] = {}
-        if e.endpoint_id not in subscriptions_by_endpoint_id:
-            subscriptions_by_endpoint_id[e.endpoint_id] = {}
-        subscriptions_by_addr_id[u.addr_id][s.subscription_id] = s
-        subscriptions_by_endpoint_id[e.endpoint_id][s.subscription_id] = s
-    except:
-        roboger.core.log_traceback()
-    unlock()
+    with subscriptions_lock:
+        try:
+            subscriptions_by_id[s.subscription_id] = s
+            if u.addr_id not in subscriptions_by_addr_id:
+                subscriptions_by_addr_id[u.addr_id] = {}
+            if e.endpoint_id not in subscriptions_by_endpoint_id:
+                subscriptions_by_endpoint_id[e.endpoint_id] = {}
+            subscriptions_by_addr_id[u.addr_id][s.subscription_id] = s
+            subscriptions_by_endpoint_id[e.endpoint_id][s.subscription_id] = s
+        except:
+            roboger.core.log_traceback()
 
 
 def load_subscriptions():
