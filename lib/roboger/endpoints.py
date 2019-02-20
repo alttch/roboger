@@ -117,7 +117,7 @@ def destroy_endpoints_by_addr(u, dbconn=None):
         if u.addr_id not in endpoints_by_addr_id: return
         try:
             for e in endpoints_by_addr_id[u.addr_id].copy():
-                destroy_endpoint(e, dbconn, set_lock=False)
+                destroy_endpoint(e, dbconn)
             del endpoints_by_addr_id[u.addr_id]
         except:
             roboger.core.log_traceback()
