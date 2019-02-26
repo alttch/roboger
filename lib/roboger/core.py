@@ -177,7 +177,7 @@ def load(fname=None, initial=False, init_log=True):
                     if debug: debug_on()
                 except:
                     pass
-                if not debug:
+                if not config.debug:
                     logging.basicConfig(level=logging.INFO)
                     if __core_data.logger:
                         __core_data.logger.setLevel(logging.INFO)
