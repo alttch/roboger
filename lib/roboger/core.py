@@ -13,7 +13,6 @@ import logging
 import time
 import threading
 import json
-import jsonpickle
 import sqlalchemy
 import requests
 import urllib3
@@ -144,8 +143,9 @@ def load(fname=None, initial=False, init_log=True):
             try:
                 pid = int(open(__core_data.pid_file).readline().strip())
                 p = psutil.Process(pid)
-                print('Can not start Roboger with config %s. ' %
-                        (fname_full), end = '')
+                print(
+                    'Can not start Roboger with config %s. ' % (fname_full),
+                    end='')
                 print('Another process is already running')
                 return None
             except:
@@ -241,9 +241,8 @@ def block():
 
 
 def format_json(obj, minimal=False):
-    return json.dumps(json.loads(jsonpickle.encode(obj, unpicklable = False)),
-            indent = 4, sort_keys = True) if not minimal else \
-                    jsonpickle.encode(obj, unpicklable = False)
+    return json.dumps(
+        obj, indent=4, sort_keys=True) if not minimal else json.dumps(obj)
 
 
 def netacl_match(host, acl):

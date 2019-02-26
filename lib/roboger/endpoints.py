@@ -15,7 +15,7 @@ import roboger.events
 
 import requests
 import logging
-import jsonpickle
+import json
 import datetime
 import threading
 
@@ -412,13 +412,20 @@ class HTTPPostEndpoint(GenericEndpoint):
                  description='',
                  autosave=True):
         self.url = url
-        self.params = params
+        if params:
+            if isinstance(params, dict):
+                self.params = params
+            else:
+                try:
+                    self.params = json.loads(params)
+                except:
+                    self.params = None
         super().__init__(
             addr,
             3,
             endpoint_id,
             url,
-            data3=params,
+            data3=json.dumps(params),
             active=active,
             skip_dups=skip_dups,
             description=description,
@@ -432,13 +439,17 @@ class HTTPPostEndpoint(GenericEndpoint):
 
     def set_config(self, config):
         params = config.get('params', '')
-        if isinstance(params, dict):
-            params = jsonpickle.encode(params)
         self.set_data(config.get('url', ''), data3=params)
 
     def set_data(self, data=None, data2=None, data3=None):
         self.url = data
-        self.params = data3
+        if data3:
+            try:
+                self.params = json.loads(data3)
+            except:
+                self.params = None
+        else:
+            self.params = None
         super().set_data(data, data2, data3)
 
     def send(self, event):
@@ -481,18 +492,19 @@ class HTTPJSONEndpoint(GenericEndpoint):
                  autosave=True):
         self.url = url
         if params:
-            try:
-                self.params = jsonpickle.decode(params)
-            except:
-                self.params = None
-        else:
-            self.params = None
+            if isinstance(params, dict):
+                self.params = params
+            else:
+                try:
+                    self.params = json.loads(params)
+                except:
+                    self.params = None
         super().__init__(
             addr,
             4,
             endpoint_id,
             url,
-            data3=params,
+            data3=json.dumps(params),
             active=active,
             skip_dups=skip_dups,
             description=description,
@@ -506,15 +518,13 @@ class HTTPJSONEndpoint(GenericEndpoint):
 
     def set_config(self, config):
         params = config.get('params', '')
-        if isinstance(params, dict):
-            params = jsonpickle.encode(params)
         self.set_data(config.get('url', ''), data3=params)
 
     def set_data(self, data=None, data2=None, data3=None):
         self.url = data
         if data3:
             try:
-                self.params = jsonpickle.decode(data3)
+                self.params = json.loads(data3)
             except:
                 self.params = None
         else:

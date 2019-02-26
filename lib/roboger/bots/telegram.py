@@ -1,5 +1,5 @@
 import requests
-import jsonpickle
+import json
 import threading
 import time
 import roboger.core
@@ -55,7 +55,7 @@ class RTelegramBot(BackgroundWorker):
                     json=args,
                     timeout=self.timeout)
             if r.status_code == 200:
-                result = jsonpickle.decode(r.text)
+                result = r.json()
                 if result.get('ok'): return result
             if not retry: return None
             time.sleep(self.poll_interval)

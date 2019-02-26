@@ -27,3 +27,12 @@ address_1:
     config:
       url: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
       fmt: rich
+
+  endpoint_4:
+    type: http/post
+    config:
+        url: http://pbx.server/v1/call
+        params: { "params": [ "xxxx", "yyyy", "zzzzz" ], "phone": "+000199939" }
+    skip_dups: 600
+    subscription_1:
+

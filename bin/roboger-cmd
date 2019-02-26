@@ -10,7 +10,6 @@ import os
 import sys
 import argparse
 import json
-import jsonpickle
 import configparser
 import requests
 import re
@@ -36,9 +35,8 @@ current_deploy = SimpleNamespace(a=[], error=False)
 
 
 def format_json(obj, minimal=False):
-    return json.dumps(json.loads(jsonpickle.encode(obj,
-            unpicklable = False)), indent = 4, sort_keys = True) \
-                if not minimal else jsonpickle.encode(obj, unpicklable = False)
+    return json.dumps(obj, indent = 4, sort_keys = True) \
+                if not minimal else json.dumps(obj)
 
 
 def print_json(obj):
@@ -130,7 +128,7 @@ def deploy_subscription(addr_id, endpoint_id, k, data):
     xparams['addr_id'] = addr_id
     xparams['endpoint_id'] = endpoint_id
     try:
-        result = jsonpickle.decode(
+        result = json.loads(
             api_call('subscription_create', xparams).text)
         print('        + subscription {}'.format(k))
     except:
@@ -152,17 +150,17 @@ def deploy_endpoint(addr_id, k, data):
     _data2 = data.get('data2')
     _data3 = data.get('data3')
     if isinstance(_data, dict) or isinstance(_data, list):
-        _data = jsonpickle.encode(_data)
+        _data = json.dumps(_data)
     if isinstance(_data2, dict) or isinstance(_data2, list):
-        _data2 = jsonpickle.encode(_data2)
+        _data2 = json.dumps(_data2)
     if isinstance(_data3, dict) or isinstance(_data3, list):
-        _data3 = jsonpickle.encode(_data3)
+        _data3 = json.dumps(_data3)
     xparams['data'] = _data
     xparams['data2'] = _data2
     xparams['data3'] = _data3
     xparams['config'] = data.get('config')
     try:
-        result = jsonpickle.decode(api_call('endpoint_create', xparams).text)
+        result = json.loads(api_call('endpoint_create', xparams).text)
         print('    + endpoint {}'.format(k))
         for z, v in data.items():
             if z.startswith('subscription_'):
@@ -174,7 +172,7 @@ def deploy_endpoint(addr_id, k, data):
 
 def deploy_address(k, data):
     try:
-        result = jsonpickle.decode(api_call('addr_create', {}).text)
+        result = json.loads(api_call('addr_create', {}).text)
         print('+ address {}'.format(k))
         current_deploy.a.append(result)
         for z, v in data.items():
@@ -734,7 +732,7 @@ if debug:
     print("API response code: %s" % r.status_code)
 if r.status_code == 200:
     try:
-        j = jsonpickle.decode(r.text)
+        j = r.json()
     except:
         print('API error: invalid json response')
         sys.exit(3)

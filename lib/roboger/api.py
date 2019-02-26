@@ -4,12 +4,12 @@ __license__ = "Apache License 2.0"
 __version__ = "1.0.1"
 
 import cherrypy
-import jsonpickle
 import roboger.core
 import roboger.events
 import roboger.endpoints
 import logging
 import base64
+import json
 
 from types import SimpleNamespace
 
@@ -231,7 +231,7 @@ class MasterAPI(object):
                 k = cherrypy.serving.request.params.get('k')
             if 'data' in cherrypy.serving.request.params:
                 try:
-                    cherrypy.serving.request.params['data'] = jsonpickle.decode(
+                    cherrypy.serving.request.params['data'] = json.loads(
                         cherrypy.serving.request.params['data'])
                 except:
                     api_invalid_json_data()
@@ -239,7 +239,7 @@ class MasterAPI(object):
                 try:
                     if 'data' in cherrypy.serving.request.params:
                         try:
-                            d = jsonpickle.decode(
+                            d = json.loads(
                                 cherrypy.serving.request.params['data'])
                         except:
                             api_invalid_json_data()
@@ -247,7 +247,7 @@ class MasterAPI(object):
                         cl = cherrypy.request.headers['Content-Length']
                         rawbody = cherrypy.request.body.read(int(cl))
                         try:
-                            d = jsonpickle.decode(rawbody.decode())
+                            d = json.loads(rawbody.decode())
                         except:
                             api_invalid_json_data()
                     if not k: k = d.get('k')
@@ -390,8 +390,6 @@ class MasterAPI(object):
                 if not url: url = data.get('data')
                 params = config.get('params')
                 if not params: params = data.get('data3')
-                if isinstance(params, dict):
-                    params = jsonpickle.encode(params)
                 e = roboger.endpoints.HTTPPostEndpoint(
                     addr,
                     url,
@@ -404,8 +402,6 @@ class MasterAPI(object):
                 if not url: url = data.get('data')
                 params = config.get('params')
                 if not params: params = data.get('data3')
-                if isinstance(params, dict):
-                    params = jsonpickle.encode(params)
                 e = roboger.endpoints.HTTPJSONEndpoint(
                     addr,
                     url,
@@ -835,7 +831,7 @@ class PushAPI(object):
                 api_invalid_json_data()
             try:
                 rawbody = cherrypy.request.body.read(int(cl))
-                d = jsonpickle.decode(rawbody.decode())
+                d = json.loads(rawbody.decode())
                 _decode_a = True
             except:
                 roboger.core.log_traceback()
