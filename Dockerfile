@@ -8,7 +8,6 @@ RUN apt-get -y clean
 RUN pip install superlance
 RUN mkdir /opt/roboger
 COPY bin/ /opt/roboger/bin/
-COPY etc/roboger.ini-dist /opt/roboger/
 COPY lib/ /opt/roboger/lib/
 COPY sbin/ /opt/roboger/sbin/
 COPY LICENSE /opt/roboger/
@@ -16,6 +15,7 @@ COPY roboger-sqlite.sql /opt/roboger
 COPY install.sh /opt/roboger/
 COPY etc/supervisor/conf.d/roboger.conf /etc/supervisor/conf.d/
 COPY README.md /opt/roboger/
+COPY etc/roboger.ini-dist /opt/roboger/
 # install
 RUN cd /opt/roboger && /opt/roboger/install.sh
 RUN cp /opt/roboger/var/db/roboger.db /opt/roboger/roboger.init.db
