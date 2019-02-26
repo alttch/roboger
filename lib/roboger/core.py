@@ -1,7 +1,7 @@
 __author__ = "Altertech Group, http://www.altertech.com/"
 __copyright__ = "Copyright (C) 2018-2019 Altertech Group"
 __license__ = "Apache License 2.0"
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 import os
 import platform
@@ -11,8 +11,10 @@ import configparser
 import sys
 import logging
 import time
+import threading
 import json
 import jsonpickle
+import sqlalchemy
 import requests
 import urllib3
 from netaddr import IPNetwork, IPAddress
@@ -110,11 +112,13 @@ def reset_log(initial=False):
     else:
         __core_data.logger.removeHandler(__core_data.log_file_handler)
     if not config.development:
-        formatter = logging.Formatter('%(asctime)s ' + system_name + \
-            '  %(levelname)s ' + 'roboger' + ' %(threadName)s: %(message)s')
+        formatter = logging.Formatter('%(asctime)s ' + system_name +
+                                      '  %(levelname)s ' + 'roboger' +
+                                      ' %(threadName)s: %(message)s')
     else:
-        formatter = logging.Formatter('%(asctime)s ' + system_name + \
-            ' %(levelname)s f:%(filename)s mod:%(module)s fn:%(funcName)s ' + \
+        formatter = logging.Formatter(
+            '%(asctime)s ' + system_name +
+            ' %(levelname)s f:%(filename)s mod:%(module)s fn:%(funcName)s ' +
             'l:%(lineno)d th:%(threadName)s :: %(message)s')
     if __core_data.log_file:
         __core_data.log_file_handler = logging.FileHandler(__core_data.log_file)
@@ -131,16 +135,21 @@ def load(fname=None, initial=False, init_log=True):
         cfg.read(fname_full)
         if initial:
             try:
+                config.database = cfg.get('server', 'database')
+            except:
+                print('database is not defined in roboger.ini [server] section')
+                return None
+            try:
                 __core_data.pid_file = cfg.get('server', '__core_data.pid_file')
                 if __core_data.pid_file and __core_data.pid_file[0] != '/':
-                    __core_data.pid_file = dir_roboger + '/' + \
-                            __core_data.pid_file
+                    __core_data.pid_file = (
+                        dir_roboger + '/' + _core_data.pid_file)
             except:
                 pass
             try:
                 pid = int(open(__core_data.pid_file).readline().strip())
                 p = psutil.Process(pid)
-                print('Can not start Roboger with config %s. ' % \
+                print('Can not start Roboger with config %s. ' %
                         (fname_full), end = '')
                 print('Another process is already running')
                 return None
@@ -209,6 +218,11 @@ def load(fname=None, initial=False, init_log=True):
     return False
 
 
+def start():
+    __core_data.db = sqlalchemy.create_engine(config.database)
+    write_pid_file()
+
+
 def parse_host_port(hp):
     if hp.find(':') == -1: return (hp, None)
     try:
@@ -235,6 +249,22 @@ def netacl_match(host, acl):
     for a in acl:
         if IPAddress(host) in a: return True
     return False
+
+
+def db():
+    with db_lock:
+        t = threading.local()
+        conn = getattr(t, 'dbconn', None)
+        if conn:
+            return conn
+        else:
+            conn = __core_data.db.connect()
+            t.dbconn = conn
+            return conn
+
+
+def db_type():
+    return __core_data.db.name
 
 
 def is_development():
@@ -265,14 +295,18 @@ product = SimpleNamespace(build=None, version=__version__)
 
 dir_roboger = os.environ['ROBOGER_DIR'] if 'ROBOGER_DIR' in os.environ \
                             else dir_roboger_default
+os.chdir(dir_roboger)
 
 dir_var = dir_roboger + '/var'
 dir_etc = dir_roboger + '/etc'
 
+db_lock = threading.RLock()
+
 __core_data = SimpleNamespace(
-    term_sent=False, pid_file=None, log_file=None, logger=None)
+    term_sent=False, pid_file=None, log_file=None, logger=None, db=None)
 
 config = SimpleNamespace(
+    database=None,
     keep_events=0,
     debug=False,
     development=False,

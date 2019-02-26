@@ -4,7 +4,7 @@
 __author__ = "Altertech Group, http://www.altertech.com/"
 __copyright__ = "Copyright (C) 2018 Altertech Group"
 __license__ = "See https://www.roboger.com/"
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 import os
 import sys
@@ -61,13 +61,13 @@ def _prepare_result_data(data, func):
                 del i[sk]
             except:
                 pass
-        if func in ['ls_endpoints', 'ls_subscriptions']:
+        if func in ['endpoint_list', 'subscription_list']:
             try:
                 del i['addr_id']
                 del i['endpoint_id']
             except:
                 pass
-        if func == 'ls_endpoints':
+        if func == 'endpoint_list':
             if result: result.append({})
             i['type'] += ' (%r)' % i['type_id']
             del i['type_id']
@@ -87,11 +87,11 @@ def _prepare_result_data(data, func):
                 continue
             else:
                 i['parameters'] = ''
-        elif func == 'ls_subscriptions':
+        elif func == 'subscription_list':
             i['level'] = _level_match_sign[i['level_match']] + ' ' + i['level']
             i['keywords'] = ','.join(i['keywords'])
             i['senders'] = ','.join(i['senders'])
-        elif func == 'ls_events':
+        elif func == 'event_list':
             if i['media']: i['media'] = 'YES'
             i['keywords'] = ','.join(i['keywords'])
         result.append(i)
@@ -625,7 +625,11 @@ sp_event = ap_event.add_subparsers(
 
 sp_ls_events = sp_event.add_parser('list', help='List events (if stored)')
 sp_ls_events.add_argument(
-    '_address', help='Address or address id', metavar='ADDRESS')
+    '-a',
+    '--address',
+    dest='_address',
+    help='Address or address id',
+    metavar='ADDRESS')
 sp_ls_events.add_argument(
     '-n', '--limit', help='limit output to N events', metavar='N', type=int)
 

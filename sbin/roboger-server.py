@@ -1,7 +1,7 @@
 __author__ = "Altertech Group, http://www.altertech.com/"
 __copyright__ = "Copyright (C) 2018-2019 Altertech Group"
 __license__ = "Apache License 2.0"
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 import sys
 import os
@@ -16,7 +16,7 @@ import roboger.api
 
 import logging
 
-product_build = 2019022602
+product_build = 2019022603
 
 roboger.core.init()
 roboger.core.set_build(product_build)
@@ -38,31 +38,22 @@ a = ap.parse_args()
 
 if a._ver:
     print(_me)
-    sys.exit()
+    exit()
 
 cfg = roboger.core.load(fname=a._ini, initial=True)
-if not cfg: sys.exit(2)
+if not cfg: exit(2)
 
-roboger.core.write_pid_file()
+if not roboger.api.update_config(cfg): exit(4)
+if not roboger.endpoints.update_config(cfg): exit(5)
 
-if not roboger.db.update_config(cfg): sys.exit(3)
-
-if not roboger.api.update_config(cfg): sys.exit(4)
-
-if not roboger.endpoints.update_config(cfg): sys.exit(5)
+roboger.core.start()
 
 roboger.addr.load()
-
 roboger.endpoints.load()
-
 roboger.events.load_subscriptions()
-
 roboger.events.load_queued_events()
 
 roboger.endpoints.start()
-
 roboger.events.start()
-
 roboger.api.start()
-
 roboger.core.block()

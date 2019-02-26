@@ -23,6 +23,7 @@ mods = [
         'platform',
         'queue',
         'requests',
+        'sqlalchemy',
         'signal',
         'smtplib',
         'threading',

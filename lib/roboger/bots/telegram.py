@@ -134,12 +134,13 @@ class RTelegramBot(BackgroundWorker):
         if not text: return
         text = text.split('@')[0]
         if text == '/start':
-            self.send_message(chat_id, 'Hello, I\'m Roboger Telegram Bot' + \
-                    ' ( https://www.roboger.com/ )')
-            self.send_message(chat_id,
-                    'I\'m at your service. Put your chat ID ' +
-                    'into endpoint parameters and we will start. ' + \
-                            'Your chat ID is:')
+            self.send_message(
+                chat_id, 'Hello, I\'m Roboger Telegram Bot' +
+                ' ( https://www.roboger.com/ )')
+            self.send_message(
+                chat_id, 'I\'m at your service. Put your chat ID ' +
+                'into endpoint parameters and we will start. ' +
+                'Your chat ID is:')
             chat_id_e = self.ce.encrypt(str(chat_id).encode())
             self.send_message(chat_id, '<b>%s</b>' % chat_id_e.decode())
         else:

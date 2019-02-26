@@ -1,15 +1,8 @@
-[db]
-;database access
-;
-; for mysql (engine=mysql), requires MySQLdb python3 module (python3-mysqldb)
-; host = localhost
-; user = root
-; password = dbpassword
-
-engine = sqlite
-database = var/db/roboger.db
-
 [server]
+;database access
+database = sqlite:///var/db/roboger.db
+; for mysql requires MySQLdb python3 module (python3-mysqldb)
+;database = mysql+pymysql://username:password@localhost/roboger
 ;debug mode
 debug = no
 ;smtp host for email endpoints

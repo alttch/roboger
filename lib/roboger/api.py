@@ -1,7 +1,7 @@
 __author__ = "Altertech Group, http://www.altertech.com/"
 __copyright__ = "Copyright (C) 2018-2019 Altertech Group"
 __license__ = "Apache License 2.0"
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 import cherrypy
 import jsonpickle
@@ -16,7 +16,9 @@ from types import SimpleNamespace
 from netaddr import IPNetwork
 
 from roboger.core import format_json
-from roboger import db
+from roboger.core import db
+from sqlalchemy import text as sql
+
 
 # throws exception
 def dict_from_str(s):
@@ -80,14 +82,6 @@ def api_invalid_data(msg=''):
 def api_internal_error():
     raise cherrypy.HTTPError('500 API Error',
                              'Internal API Error. See logs for details')
-
-
-def check_db():
-    try:
-        if not roboger.db.check(cherrypy.thread_data.db):
-            cherrypy.thread_data.db = roboger.db.connect()
-    except:
-        cherrypy.thread_data.db = roboger.db.connect()
 
 
 def http_real_ip():
@@ -167,8 +161,8 @@ def update_config(cfg):
         logging.error('invalid master host acl!')
         roboger.core.log_traceback()
         return None
-    logging.debug('api.master_allow = %s' % \
-            ', '.join([ str(h) for h in config.master_allow ]))
+    logging.debug('api.master_allow = %s' % ', '.join(
+        [str(h) for h in config.master_allow]))
     try:
         config.check_ownership = (cfg.get('api',
                                           'config.check_ownership') == 'yes')
@@ -183,8 +177,7 @@ def start():
     cherrypy.tree.mount(PushAPI(), '/')
     cherrypy.tree.mount(MasterAPI(), '/manage')
     cherrypy.server.unsubscribe()
-    logging.info('HTTP API listening at at %s:%s' % \
-            (config.host, config.port))
+    logging.info('HTTP API listening at at %s:%s' % (config.host, config.port))
     server1 = cherrypy._cpserver.Server()
     server1.socket_port = config.port
     server1._socket_host = config.host
@@ -192,8 +185,8 @@ def start():
     server1.subscribe()
     if config.ssl_host and config.ssl_module and \
             config.ssl_cert and config.ssl_key:
-        logging.info('HTTP API SSL listening at %s:%s' % \
-                (config.ssl_host, config.ssl_port))
+        logging.info('HTTP API SSL listening at %s:%s' % (config.ssl_host,
+                                                          config.ssl_port))
         server_ssl = cherrypy._cpserver.Server()
         server_ssl.socket_port = config.ssl_port
         server_ssl._socket_host = config.ssl_host
@@ -229,39 +222,39 @@ class MasterAPI(object):
 
     def __init__(self):
         cherrypy.tools.auth = cherrypy.Tool(
-            'before_handler', self.cp_check_perm, priority=60)
+            'before_handler', self.cp_pre, priority=60)
 
-    def cp_check_perm(self):
+    def cp_pre(self):
         if roboger.core.netacl_match(http_real_ip(), config.master_allow):
-            if 'k' in cherrypy.serving.request.params:
+            k = cherrypy.request.headers.get('X-Auth-Key')
+            if not k:
                 k = cherrypy.serving.request.params.get('k')
-                if 'data' in cherrypy.serving.request.params:
-                    try:
-                        cherrypy.serving.request.params['data'] = \
-                    jsonpickle.decode(cherrypy.serving.request.params['data'])
-                    except:
-                        api_invalid_json_data()
+            if 'data' in cherrypy.serving.request.params:
+                try:
+                    cherrypy.serving.request.params['data'] = jsonpickle.decode(
+                        cherrypy.serving.request.params['data'])
+                except:
+                    api_invalid_json_data()
             else:
                 try:
                     if 'data' in cherrypy.serving.request.params:
                         try:
-                            d = \
-                    jsonpickle.decode(cherrypy.serving.request.params['data'])
+                            d = jsonpickle.decode(
+                                cherrypy.serving.request.params['data'])
                         except:
                             api_invalid_json_data()
                     else:
-                        cl = cl = cherrypy.request.headers['Content-Length']
+                        cl = cherrypy.request.headers['Content-Length']
                         rawbody = cherrypy.request.body.read(int(cl))
                         try:
                             d = jsonpickle.decode(rawbody.decode())
                         except:
                             api_invalid_json_data()
-                    k = d.get('k')
+                    if not k: k = d.get('k')
                     cherrypy.serving.request.params['data'] = d
                 except:
                     api_forbidden()
             if k == config.masterkey:
-                check_db()
                 return
         api_forbidden()
 
@@ -287,15 +280,12 @@ class MasterAPI(object):
 
     @cherrypy.expose
     def addr_create(self, data):
-        addr = roboger.addr.append_addr(dbconn=cherrypy.thread_data.db)
+        addr = roboger.addr.append_addr()
         return addr.serialize()
 
     @cherrypy.expose
     def addr_change(self, data):
-        addr = roboger.addr.change_addr(
-            data.get('addr_id'),
-            data.get('addr'),
-            dbconn=cherrypy.thread_data.db)
+        addr = roboger.addr.change_addr(data.get('addr_id'), data.get('addr'))
         if not addr:
             api_404('address')
         return addr.serialize()
@@ -309,7 +299,7 @@ class MasterAPI(object):
             _active = int(data['active'])
         except:
             _active = 1
-        addr.set_active(_active, dbconn=cherrypy.thread_data.db)
+        addr.set_active(_active)
         return addr.serialize()
 
     @cherrypy.expose
@@ -327,25 +317,23 @@ class MasterAPI(object):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         if not addr:
             api_404('address')
-        addr.destroy(dbconn=cherrypy.thread_data.db)
+        addr.destroy()
         return api_result()
 
     @cherrypy.expose
     def endpoint_types(self, data):
-        r = []
+        result = []
         try:
-            c = db.query('select id, name from endpoint_type order by id')
+            c = db().execute(
+                sql('select id, name from endpoint_type order by id'))
             while True:
-                row = c.fetchone()
-                if row is None: break
-                r.append({'id': row[0], 'name': row[1]})
-            c.close()
-            db.free()
+                r = c.fetchone()
+                if r is None: break
+                result.append({'id': r.id, 'name': r.name})
         except:
             roboger.core.log_traceback()
             api_internal_error()
-            db.free()
-        return sorted(r, key=lambda k: k['id'])
+        return sorted(result, key=lambda k: k['id'])
 
     @cherrypy.expose
     def endpoint_list(self, data):
@@ -455,14 +443,14 @@ class MasterAPI(object):
         skip_dups = data.get('skip_dups')
         if skip_dups:
             try:
-                e.set_skip_dups(skip_dups, dbconn=cherrypy.thread_data.db)
+                e.set_skip_dups(skip_dups)
             except:
                 roboger.core.log_traceback()
                 api_internal_error()
         if not e:
             api_invalid_data('No such endpoint type')
         try:
-            e.save(dbconn=cherrypy.thread_data.db)
+            e.save()
         except:
             roboger.core.log_traceback()
             api_internal_error()
@@ -476,11 +464,7 @@ class MasterAPI(object):
         if not e or (config.check_ownership and e.addr != addr):
             api_404('endpoint or wrong address')
         try:
-            e.set_data(
-                data['data'],
-                data.get('data2'),
-                data.get('data3'),
-                dbconn=cherrypy.thread_data.db)
+            e.set_data(data['data'], data.get('data2'), data.get('data3'))
         except:
             roboger.core.log_traceback()
             api_internal_error()
@@ -492,13 +476,13 @@ class MasterAPI(object):
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
         if not e or (config.check_ownership and e.addr != addr):
             api_404('endpoint or wrong address')
-        config = data.get('config')
-        if not config:
+        cfg = data.get('config')
+        if not cfg:
             api_invalid_data('invalid config params')
-        if isinstance(config, str):
-            config = dict_from_str(config)
+        if isinstance(cfg, str):
+            cfg = dict_from_str(cfg)
         try:
-            e.set_config(config, dbconn=cherrypy.thread_data.db)
+            e.set_config(cfg)
         except:
             roboger.core.log_traceback()
             api_internal_error()
@@ -511,8 +495,7 @@ class MasterAPI(object):
         if not e or (config.check_ownership and e.addr != addr):
             api_404('endpoint or wrong address')
         try:
-            e.set_skip_dups(
-                data.get('skip_time'), dbconn=cherrypy.thread_data.db)
+            e.set_skip_dups(data.get('skip_time'))
         except:
             roboger.core.log_traceback()
             api_internal_error()
@@ -525,8 +508,7 @@ class MasterAPI(object):
         if not e or (config.check_ownership and e.addr != addr):
             api_404('endpoint or wrong address')
         try:
-            e.set_description(
-                data.get('description'), dbconn=cherrypy.thread_data.db)
+            e.set_description(data.get('description'))
         except:
             roboger.core.log_traceback()
             api_internal_error()
@@ -552,7 +534,7 @@ class MasterAPI(object):
             _active = int(data['active'])
         except:
             _active = 1
-        e.set_active(_active, dbconn=cherrypy.thread_data.db)
+        e.set_active(_active)
         return e.serialize()
 
     @cherrypy.expose
@@ -561,7 +543,7 @@ class MasterAPI(object):
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
         if not e or (config.check_ownership and e.addr != addr):
             api_404('endpoint or wrong address')
-        roboger.endpoints.destroy_endpoint(e, dbconn=cherrypy.thread_data.db)
+        roboger.endpoints.destroy_endpoint(e)
         return api_result()
 
     @cherrypy.expose
@@ -581,9 +563,8 @@ class MasterAPI(object):
             api_invalid_data('Invalid level match')
         if 'level_id' not in data:
             try:
-                data['level_id'] = \
-                        roboger.events.level_codes[
-                                str(data['level'])[0].lower()]
+                data['level_id'] = roboger.events.level_codes[str(
+                    data['level'])[0].lower()]
             except:
                 data['level_id'] = 20
         s = roboger.events.EventSubscription(
@@ -596,7 +577,7 @@ class MasterAPI(object):
             level_match=_lm,
             autosave=False)
         try:
-            s.save(dbconn=cherrypy.thread_data.db)
+            s.save()
         except:
             roboger.core.log_traceback()
             api_internal_error()
@@ -625,11 +606,9 @@ class MasterAPI(object):
             return s.serialize()
         else:
             try:
-                if e.endpoint_id in \
-                        roboger.events.subscriptions_by_endpoint_id:
-                    for i, s in \
-                            roboger.events.subscriptions_by_endpoint_id[
-                                    e.endpoint_id].copy().items():
+                if e.endpoint_id in roboger.events.subscriptions_by_endpoint_id:
+                    for i, s in roboger.events.subscriptions_by_endpoint_id[
+                            e.endpoint_id].copy().items():
                         if not s._destroyed:
                             r.append(s.serialize())
             except:
@@ -657,7 +636,7 @@ class MasterAPI(object):
             _active = int(data['active'])
         except:
             _active = 1
-        s.set_active(_active, dbconn=cherrypy.thread_data.db)
+        s.set_active(_active)
         return s.serialize()
 
     @cherrypy.expose
@@ -666,7 +645,7 @@ class MasterAPI(object):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         if not s or (config.check_ownership and s.addr != addr):
             api_404('subscription or wrong address')
-        s.set_location(data.get('location'), dbconn=cherrypy.thread_data.db)
+        s.set_location(data.get('location'))
         return s.serialize()
 
     @cherrypy.expose
@@ -675,7 +654,7 @@ class MasterAPI(object):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         if not s or (config.check_ownership and s.addr != addr):
             api_404('subscription or wrong address')
-        s.set_keywords(data.get('keywords'), dbconn=cherrypy.thread_data.db)
+        s.set_keywords(data.get('keywords'))
         return s.serialize()
 
     @cherrypy.expose
@@ -684,7 +663,7 @@ class MasterAPI(object):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         if not s or (config.check_ownership and s.addr != addr):
             api_404('subscription or wrong address')
-        s.set_senders(data.get('senders'), dbconn=cherrypy.thread_data.db)
+        s.set_senders(data.get('senders'))
         return s.serialize()
 
     @cherrypy.expose
@@ -698,12 +677,11 @@ class MasterAPI(object):
             api_invalid_data('Invalid level match')
         if 'level_id' not in data:
             try:
-                data['level_id'] = \
-                        roboger.events.level_codes[
-                                str(data['level'])[0].lower()]
+                data['level_id'] = roboger.events.level_codes[str(
+                    data['level'])[0].lower()]
             except:
                 data['level_id'] = 20
-        s.set_level(data.get('level_id'), _lm, dbconn=cherrypy.thread_data.db)
+        s.set_level(data.get('level_id'), _lm)
         return s.serialize()
 
     @cherrypy.expose
@@ -712,7 +690,7 @@ class MasterAPI(object):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         if not s or (config.check_ownership and s.addr != addr):
             api_404('subscription or wrong address')
-        roboger.events.destroy_subscription(s, dbconn=cherrypy.thread_data.db)
+        roboger.events.destroy_subscription(s)
         return api_result()
 
     @cherrypy.expose
@@ -732,7 +710,7 @@ class MasterAPI(object):
             level_match=s.level_match,
             autosave=False)
         try:
-            s_new.save(dbconn=cherrypy.thread_data.db)
+            s_new.save()
         except:
             roboger.core.log_traceback()
             api_internal_error()
@@ -748,12 +726,10 @@ class MasterAPI(object):
             api_404('source endpoint or wrong address')
         if not et or (config.check_ownership and et.addr != addr):
             api_404('target endpoint or wrong address')
-        if et.endpoint_id in \
-                roboger.events.subscriptions_by_endpoint_id:
+        if et.endpoint_id in roboger.events.subscriptions_by_endpoint_id:
             for i, s in roboger.events.subscriptions_by_endpoint_id[
                     et.endpoint_id].copy().items():
-                roboger.events.destroy_subscription(
-                    s, dbconn=cherrypy.thread_data.db)
+                roboger.events.destroy_subscription(s)
         for i, s in roboger.events.subscriptions_by_endpoint_id[
                 e.endpoint_id].copy().items():
             s_new = roboger.events.EventSubscription(
@@ -767,7 +743,7 @@ class MasterAPI(object):
                 level_match=s.level_match,
                 autosave=False)
             try:
-                s_new.save(dbconn=cherrypy.thread_data.db)
+                s_new.save()
             except:
                 roboger.core.log_traceback()
                 api_internal_error()
@@ -786,37 +762,43 @@ class MasterAPI(object):
             limit = int(data['limit'])
         except:
             limit = None
-        q = 'select id, addr_id, d, scheduled,' + \
-            ' delivered, location, keywords, sender, level_id, expires,' + \
-            'subject, msg, media from event'
-        qp = ()
+        q = ('select id, addr_id, d, scheduled, delivered, location, ' +
+             'keywords, sender, level_id, expires, subject, msg, media ' +
+             'from event')
         if addr:
-            q += ' where addr_id=%s'
-            qp += (addr.addr_id,)
+            q += ' where addr_id=:id'
         q += ' order by d desc'
         if limit:
             q += ' limit %u' % limit
         try:
-            c = roboger.db.query(q, qp, dbconn=cherrypy.thread_data.db)
-            r = []
+            c = db().execute(sql(q), id=addr.addr_id if addr else None)
+            result = []
             while True:
-                row = c.fetchone()
-                if row is None: break
-                u = roboger.addr.get_addr(row[1])
+                r = c.fetchone()
+                if r is None: break
+                u = roboger.addr.get_addr(r.addr_id)
                 if not u: continue
-                e = roboger.events.Event(u, row[0], row[2], row[3], row[4],
-                                         row[5], row[6], row[7], row[8], row[9],
-                                         row[10], row[11], row[12])
+                e = roboger.events.Event(
+                    addr=u,
+                    event_id=r.id,
+                    d=r.d,
+                    scheduled=r.scheduled,
+                    delivered=r.delivered,
+                    location=r.location,
+                    keywords=r.keywords,
+                    sender=r.sender,
+                    level_id=r.level_id,
+                    expires=r.expires,
+                    subject=r.subject,
+                    msg=r.msg,
+                    media=r.media)
                 ev = e.serialize()
                 ev['addr'] = u.a
-                r.append(ev)
-            c.close()
-            db.free()
+                result.append(ev)
         except:
             roboger.core.log_traceback()
             api_internal_error()
-            db.free()
-        return sorted(r, key=lambda k: k['id'])
+        return sorted(result, key=lambda k: k['id'])
 
 
 class PushAPI(object):
@@ -883,22 +865,14 @@ class PushAPI(object):
                 d['media'] = ''
         except:
             d['media'] = ''
-        check_db()
         if d['addr'] is None:
             raise cherrypy.HTTPError('403 Forbidden', 'Address not specified')
         for x in ['sender', 'location', 'keywords', 'subject', 'media']:
             if x in d and d[x] is None: d[x] = ''
         result = roboger.events.push_event(
-            d.get('addr', ''),
-            d.get('level', 20),
-            d.get('sender', ''),
-            d.get('location', ''),
-            d.get('keywords', ''),
-            d.get('subject', ''),
-            d.get('expires', ''),
-            d.get('msg', ''),
-            d.get('media', ''),
-            dbconn=cherrypy.thread_data.db)
+            d.get('addr', ''), d.get('level', 20), d.get('sender', ''),
+            d.get('location', ''), d.get('keywords', ''), d.get('subject', ''),
+            d.get('expires', ''), d.get('msg', ''), d.get('media', ''))
         if result is None:
             api_404('address')
         if result is False:
@@ -907,7 +881,6 @@ class PushAPI(object):
             return api_result()
         raise cherrypy.HTTPError('403 Forbidden',
                                  'Address is disabled: %u' % result)
-
 
 
 default_port = 7719
@@ -926,4 +899,3 @@ config = SimpleNamespace(
     check_ownership=False,
     masterkey=None,
     master_allow=None)
-

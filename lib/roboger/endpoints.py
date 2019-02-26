@@ -1,7 +1,7 @@
 __author__ = "Altertech Group, http://www.altertech.com/"
 __copyright__ = "Copyright (C) 2018-2019 Altertech Group"
 __license__ = "Apache License 2.0"
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
@@ -10,7 +10,6 @@ import email.utils
 
 import smtplib
 
-from roboger import db
 import roboger.core
 import roboger.events
 
@@ -25,6 +24,9 @@ import filetype
 import time
 
 from roboger.bots.telegram import RTelegramBot
+from roboger.core import db
+
+from sqlalchemy import text as sql
 
 endpoints_by_id = {}
 endpoints_by_addr_id = {}
@@ -49,8 +51,8 @@ def update_config(cfg):
     except:
         telegram_bot_token = None
     try:
-        telegram_poll_interval = \
-                int(cfg.get('endpoint_telegram', 'poll_interval'))
+        telegram_poll_interval = int(
+            cfg.get('endpoint_telegram', 'poll_interval'))
     except:
         telegram_poll_interval = 1
     if telegram_bot_token:
@@ -93,13 +95,13 @@ def append_endpoint(e):
             roboger.core.log_traceback()
 
 
-def destroy_endpoint(e, dbconn=None):
+def destroy_endpoint(e):
     with endpoints_lock:
         if isinstance(e, int):
             _e = get_endpoint(e)
         else:
             _e = e
-        _e.destroy(dbconn)
+        _e.destroy()
         try:
             del endpoints_by_id[_e.endpoint_id]
             del endpoints_by_addr_id[_e.addr.addr_id][_e.endpoint_id]
@@ -107,51 +109,79 @@ def destroy_endpoint(e, dbconn=None):
             roboger.core.log_traceback()
 
 
-def destroy_endpoints_by_addr(u, dbconn=None):
+def destroy_endpoints_by_addr(u):
     with endpoints_lock:
         if u.addr_id not in endpoints_by_addr_id: return
         try:
             for e in endpoints_by_addr_id[u.addr_id].copy():
-                destroy_endpoint(e, dbconn)
+                destroy_endpoint(e)
             del endpoints_by_addr_id[u.addr_id]
         except:
             roboger.core.log_traceback()
 
 
 def load():
-    c = db.query('select id, name from endpoint_type')
+    c = db().execute(sql('select id, name from endpoint_type'))
     while True:
-        row = c.fetchone()
-        if row is None: break
-        endpoint_types[row[0]] = row[1]
-        endpoint_codes[row[1]] = row[0]
-    c.close()
-    db.free()
-    c = db.query('select id, addr_id, endpoint_type_id, ' + \
-            'data, data2, data3, active, skip_dups, description from endpoint')
+        r = c.fetchone()
+        if r is None: break
+        endpoint_types[r.id] = r.name
+        endpoint_codes[r.name] = r.id
+    c = db().execute(
+        sql('select id, addr_id, endpoint_type_id, data, data2, ' +
+            'data3, active, skip_dups, description from endpoint'))
     while True:
-        row = c.fetchone()
-        if row is None: break
-        u = roboger.addr.get_addr(row[1])
+        r = c.fetchone()
+        if r is None: break
+        u = roboger.addr.get_addr(r.addr_id)
         if not u:
-            logging.error('Addr %u not found but endpoints exist!' % row[1])
+            logging.error('Addr %u not found but endpoints exist!' % r.addr_id)
             continue
         e = None
-        if row[2] == 2:
-            e = EmailEndpoint(u, row[3], row[0], row[6], row[7], row[8])
-        elif row[2] == 3:
-            e = HTTPPostEndpoint(u, row[3], row[5], row[0], row[6], row[7],
-                                 row[8])
-        elif row[2] == 4:
-            e = HTTPJSONEndpoint(u, row[3], row[5], row[0], row[6], row[7],
-                                 row[8])
-        elif row[2] == 100:
-            e = SlackEndpoint(u, row[3], row[4], row[0], row[6], row[7], row[8])
-        elif row[2] == 101:
-            e = TelegramEndpoint(u, row[3], row[0], row[6], row[7], row[8])
+        if r.endpoint_type_id == 2:
+            e = EmailEndpoint(
+                addr=u,
+                rcpt=r.data,
+                endpoint_id=r.id,
+                active=r.active,
+                skip_dups=r.skip_dups,
+                description=r.description)
+        elif r.endpoint_type_id == 3:
+            e = HTTPPostEndpoint(
+                addr=u,
+                url=r.data,
+                params=r.data3,
+                endpoint_id=r.id,
+                active=r.active,
+                skip_dups=r.skip_dups,
+                description=r.description)
+        elif r.endpoint_type_id == 4:
+            e = HTTPJSONEndpoint(
+                addr=u,
+                url=r.data,
+                params=r.data3,
+                endpoint_id=r.id,
+                active=r.active,
+                skip_dups=r.skip_dups,
+                description=r.description)
+        elif r.endpoint_type_id == 100:
+            e = SlackEndpoint(
+                addr=u,
+                webhook=r.data,
+                fmt=r.data2,
+                endpoint_id=r.id,
+                active=r.active,
+                skip_dups=r.skip_dups,
+                description=r.description)
+        elif r.endpoint_type_id == 101:
+            e = TelegramEndpoint(
+                addr=u,
+                chat_id=r.data,
+                endpoint_id=r.id,
+                active=r.active,
+                skip_dups=r.skip_dups,
+                description=r.description)
         append_endpoint(e)
-    c.close()
-    db.free()
     logging.debug('endpoint: %u endpoint(s) loaded' % len(endpoints_by_id))
     return True
 
@@ -207,8 +237,7 @@ class GenericEndpoint(object):
         if self.last_event_hash and self.last_event_time and \
                  h == self.last_event_hash  and \
                  time.time() - self.last_event_time < self.skip_dups:
-            logging.info('endpoint %s duplicate event' % \
-                self.endpoint_id)
+            logging.info('endpoint %s duplicate event' % self.endpoint_id)
             return False
         self.last_event_hash = h
         self.last_event_time = time.time()
@@ -233,55 +262,66 @@ class GenericEndpoint(object):
         if roboger.core.is_development(): u['destroyed'] = self._destroyed
         return u
 
-    def set_data(self, data='', data2='', data3='', dbconn=None):
+    def set_data(self, data='', data2='', data3=''):
         self.data = data if data else ''
         self.data2 = data2 if data2 else ''
         self.data3 = data3 if data3 else ''
-        self.save(dbconn=dbconn)
+        self.save()
 
-    def set_skip_dups(self, skip_dups=0, dbconn=None):
+    def set_skip_dups(self, skip_dups=0):
         try:
             self.skip_dups = int(skip_dups)
         except:
             self.skip_dups = 0
-        self.save(dbconn=dbconn)
+        self.save()
 
-    def set_description(self, description='', dbconn=None):
+    def set_description(self, description=''):
         self.description = description if description else ''
-        self.save(dbconn=dbconn)
+        self.save()
 
-    def set_active(self, active=1, dbconn=None):
+    def set_active(self, active=1):
         self.active = active
-        self.save(dbconn)
+        self.save()
 
-    def save(self, dbconn=None):
+    def save(self):
         if self._destroyed: return
         if self.endpoint_id:
-            db.query('update endpoint set active = %s, skip_dups = %s, ' + \
-                    'description = %s, data = %s, data2 = %s, data3 = %s' + \
-                    ' where id = %s',
-                    (self.active, self.skip_dups, self.description,
-                        self.data, self.data2, self.data3, self.endpoint_id),
-                    True, dbconn)
+            db().execute(
+                sql('update endpoint set active = :active, ' +
+                    'skip_dups = :skip_dups, ' +
+                    'description = :description, data = :data, ' +
+                    'data2 = :data2, data3 = :data3 where id = :id'),
+                active=self.active,
+                skip_dups=self.skip_dups,
+                description=self.description,
+                data=self.data,
+                data2=self.data2,
+                data3=self.data3,
+                id=self.endpoint_id)
         else:
-            self.endpoint_id = db.query(
-                    'insert into endpoint(addr_id, endpoint_type_id,' + \
-                    ' data, data2, data3, active, skip_dups, description) ' + \
-                    'values (%s, %s, %s, %s, %s, %s, %s, %s)',
-                    (self.addr.addr_id, self.type_id,
-                        self.data, self.data2, self.data3, self.active,
-                        self.skip_dups, self.description),
-                    True, dbconn)
+            self.endpoint_id = db().execute(
+                sql('insert into endpoint(addr_id, endpoint_type_id, ' +
+                    'data, data2, data3, active, skip_dups, description) ' +
+                    'values (:addr_id, :type_id, :data, :data2, :data3, ' +
+                    ':active, :skip_dups, :description)'),
+                addr_id=self.addr.addr_id,
+                type_id=self.type_id,
+                data=self.data,
+                data2=self.data2,
+                data3=self.data3,
+                active=self.active,
+                skip_dups=self.skip_dups,
+                description=self.description).lastrowid
 
-    def destroy(self, dbconn):
+    def destroy(self):
         self._destroyed = True
         self.active = 0
         self.addr.remove_endpoint(self)
         if self.endpoint_id:
             for s in self.subscriptions.copy():
-                roboger.events.destroy_subscription(s, dbconn)
-            db.query('delete from endpoint where id = %s', (self.endpoint_id,),
-                     True, dbconn)
+                roboger.events.destroy_subscription(s)
+            db().execute(
+                sql('delete from endpoint where id = :id'), id=self.endpoint_id)
 
     def send(self, event):
         if not self.check_dup(event): return False
@@ -314,12 +354,12 @@ class EmailEndpoint(GenericEndpoint):
         d['rcpt'] = self.rcpt
         return d
 
-    def set_config(self, config, dbconn=None):
-        self.set_data(config.get('rcpt', ''), dbconn=dbconn)
+    def set_config(self, config):
+        self.set_data(config.get('rcpt', ''))
 
-    def set_data(self, data=None, data2=None, data3=None, dbconn=None):
+    def set_data(self, data=None, data2=None, data3=None):
         self.rcpt = data
-        super().set_data(data, data2, data3, dbconn)
+        super().set_data(data, data2, data3)
 
     def send(self, event):
         if not self.check_dup(event): return False
@@ -331,8 +371,8 @@ class EmailEndpoint(GenericEndpoint):
             msg = MIMEMultipart()
         else:
             msg = MIMEText(t)
-        logging.info('sending event %s via endpoint %u' % \
-                (event.event_id, self.endpoint_id))
+        logging.info('sending event %s via endpoint %u' % (event.event_id,
+                                                           self.endpoint_id))
         msg['Subject'] = event.formatted_subject
         msg['From'] = event.sender
         msg['To'] = self.rcpt
@@ -354,8 +394,8 @@ class EmailEndpoint(GenericEndpoint):
             sm.close()
             return True
         except:
-            logging.warning('failed to send event %s via endpoint %u' % \
-                    (event.event_id, self.endpoint_id))
+            logging.warning('failed to send event %s via endpoint %u' %
+                            (event.event_id, self.endpoint_id))
             roboger.core.log_traceback()
             return False
 
@@ -390,16 +430,16 @@ class HTTPPostEndpoint(GenericEndpoint):
         d['params'] = self.params
         return d
 
-    def set_config(self, config, dbconn=None):
+    def set_config(self, config):
         params = config.get('params', '')
         if isinstance(params, dict):
             params = jsonpickle.encode(params)
-        self.set_data(config.get('url', ''), data3=params, dbconn=dbconn)
+        self.set_data(config.get('url', ''), data3=params)
 
-    def set_data(self, data=None, data2=None, data3=None, dbconn=None):
+    def set_data(self, data=None, data2=None, data3=None):
         self.url = data
         self.params = data3
-        super().set_data(data, data2, data3, dbconn)
+        super().set_data(data, data2, data3)
 
     def send(self, event):
         if not self.check_dup(event): return False
@@ -410,20 +450,20 @@ class HTTPPostEndpoint(GenericEndpoint):
             data['keywords'] = ','.join(data['keywords'])
         if isinstance(data['d'], datetime.datetime):
             data['d'] = data['d'].strftime("%Y/%m/%d %H:%M:%S")
-        logging.info('sending event %s via endpoint %u' % \
-                (event.event_id, self.endpoint_id))
+        logging.info('sending event %s via endpoint %u' % (event.event_id,
+                                                           self.endpoint_id))
         try:
             logging.info('HTTPPostEndpoint sending event to %s' % self.url)
             r = requests.post(
                 self.url, data=data, timeout=roboger.core.timeout())
             if r.status_code != 200:
-                logging.info('HTTPPostEndpoint %s return code %s' % \
-                        (self.url, r.status_code))
+                logging.info('HTTPPostEndpoint %s return code %s' %
+                             (self.url, r.status_code))
                 return False
             return True
         except:
-            logging.warning('failed to send event %s via endpoint %u' % \
-                    (event.event_id, self.endpoint_id))
+            logging.warning('failed to send event %s via endpoint %u' %
+                            (event.event_id, self.endpoint_id))
             roboger.core.log_traceback()
             return False
 
@@ -464,13 +504,13 @@ class HTTPJSONEndpoint(GenericEndpoint):
         d['params'] = self.params
         return d
 
-    def set_config(self, config, dbconn=None):
+    def set_config(self, config):
         params = config.get('params', '')
         if isinstance(params, dict):
             params = jsonpickle.encode(params)
-        self.set_data(config.get('url', ''), data3=params, dbconn=dbconn)
+        self.set_data(config.get('url', ''), data3=params)
 
-    def set_data(self, data=None, data2=None, data3=None, dbconn=None):
+    def set_data(self, data=None, data2=None, data3=None):
         self.url = data
         if data3:
             try:
@@ -479,7 +519,7 @@ class HTTPJSONEndpoint(GenericEndpoint):
                 self.params = None
         else:
             self.params = None
-        super().set_data(data, data2, data3, dbconn)
+        super().set_data(data, data2, data3)
 
     def send(self, event):
         if not self.check_dup(event): return False
@@ -488,20 +528,20 @@ class HTTPJSONEndpoint(GenericEndpoint):
         data['params'] = self.params
         if isinstance(data['d'], datetime.datetime):
             data['d'] = data['d'].strftime("%Y/%m/%d %H:%M:%S")
-        logging.info('sending event %s via endpoint %u' % \
-                (event.event_id, self.endpoint_id))
+        logging.info('sending event %s via endpoint %u' % (event.event_id,
+                                                           self.endpoint_id))
         try:
             logging.info('HTTPJSONEndpoint sending event to %s' % self.url)
             r = requests.post(
                 self.url, json=data, timeout=roboger.core.timeout())
             if r.status_code != 200:
-                logging.info('HTTPJSONEndpoint %s return code %s' % \
-                        (self.url, r.status_code))
+                logging.info('HTTPJSONEndpoint %s return code %s' %
+                             (self.url, r.status_code))
                 return False
             return True
         except:
-            logging.warning('failed to send event %s via endpoint %u' % \
-                    (event.event_id, self.endpoint_id))
+            logging.warning('failed to send event %s via endpoint %u' %
+                            (event.event_id, self.endpoint_id))
             roboger.core.log_traceback()
             return False
 
@@ -544,16 +584,16 @@ class SlackEndpoint(GenericEndpoint):
         d['rich_fmt'] = self.rich_fmt
         return d
 
-    def set_config(self, config, dbconn=None):
+    def set_config(self, config):
         url = config.get('url')
         if not url:
             url = config.get('webhook')
-        self.set_data(url, config.get('fmt'), dbconn=dbconn)
+        self.set_data(url, config.get('fmt'))
 
-    def set_data(self, data=None, data2=None, data3=None, dbconn=None):
+    def set_data(self, data=None, data2=None, data3=None):
         self.webhook = data
         self.rich_fmt = (data2 == 'rich')
-        super().set_data(data, data2, data3, dbconn)
+        super().set_data(data, data2, data3)
 
     def send(self, event):
         if not self.check_dup(event): return False
@@ -578,8 +618,8 @@ class SlackEndpoint(GenericEndpoint):
             j = {'text': msg}
         if event.sender:
             j['username'] = event.sender
-        logging.info('sending event %s via endpoint %u' % \
-                (event.event_id, self.endpoint_id))
+        logging.info('sending event %s via endpoint %u' % (event.event_id,
+                                                           self.endpoint_id))
         try:
             r = requests.post(
                 self.webhook, json=j, timeout=roboger.core.timeout())
@@ -587,8 +627,8 @@ class SlackEndpoint(GenericEndpoint):
                 return False
             return True
         except:
-            logging.warning('failed to send event %s via endpoint %u' % \
-                    (event.event_id, self.endpoint_id))
+            logging.warning('failed to send event %s via endpoint %u' %
+                            (event.event_id, self.endpoint_id))
             roboger.core.log_traceback()
             return False
 
@@ -623,12 +663,12 @@ class TelegramEndpoint(GenericEndpoint):
             d['chat_id_plain'] = True if self._chat_id_plain else None
         return d
 
-    def set_config(self, config, dbconn=None):
-        self.set_data(config.get('chat_id'), dbconn=dbconn)
+    def set_config(self, config):
+        self.set_data(config.get('chat_id'))
 
-    def set_data(self, data=None, data2=None, data3=None, dbconn=None):
+    def set_data(self, data=None, data2=None, data3=None):
         self._set_chat_id(data)
-        super().set_data(data, data2, data3, dbconn)
+        super().set_data(data, data2, data3)
 
     def _set_chat_id(self, chat_id):
         if chat_id:
@@ -640,8 +680,8 @@ class TelegramEndpoint(GenericEndpoint):
             except:
                 self.chat_id = None
                 self._chat_id_plain = None
-                logging.info('Telegram endpoint %s: invalid chat id' % \
-                        self.endpoint_id)
+                logging.info(
+                    'Telegram endpoint %s: invalid chat id' % self.endpoint_id)
         else:
             self.chat_id = None
             self._chat_id_plain = None
@@ -655,12 +695,12 @@ class TelegramEndpoint(GenericEndpoint):
             msg += '<b>' + em + event.formatted_subject + \
                     '</b>\n'
             msg += event.msg
-            logging.info('sending event %s via endpoint %u' % \
-                    (event.event_id, self.endpoint_id))
+            logging.info('sending event %s via endpoint %u' %
+                         (event.event_id, self.endpoint_id))
             if not telegram_bot.send_message(self._chat_id_plain, msg,
                                              (event.level_id <= 10)):
-                logging.warning('failed to send event %s via endpoint %u' % \
-                    (event.event_id, self.endpoint_id))
+                logging.warning('failed to send event %s via endpoint %u' %
+                                (event.event_id, self.endpoint_id))
                 return False
             if event.media:
                 ft = filetype.guess(event.media)
