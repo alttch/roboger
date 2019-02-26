@@ -10,6 +10,7 @@ import roboger.endpoints
 import logging
 import base64
 import json
+import shlex
 
 from types import SimpleNamespace
 
@@ -27,6 +28,7 @@ def dict_from_str(s):
     if not s: return result
     vals = s.split(',')
     for v in vals:
+        print(v)
         name, value = v.split('=')
         if value.find('||') != -1:
             _value = value.split('||')
@@ -368,16 +370,14 @@ class MasterAPI(object):
                 data.get('type'))
         if not endpoint_type: api_invalid_data('Specify endpoint type')
         cfg = data.get('config')
-        if isinstance(cfg, dict):
-            config = cfg
-        elif isinstance(cfg, str):
-            config = dict_from_str(cfg)
-        else:
-            config = {}
+        if isinstance(cfg, str):
+            cfg = dict_from_str(cfg)
+        elif not isinstance(cfg, dict):
+            cfg = {}
         try:
             # email
             if endpoint_type == 2:
-                email = config.get('rcpt')
+                email = cfg.get('rcpt')
                 if not email: email = data.get('data')
                 e = roboger.endpoints.EmailEndpoint(
                     addr,
@@ -386,9 +386,9 @@ class MasterAPI(object):
                     autosave=False)
             # http/post
             elif endpoint_type == 3:
-                url = config.get('url')
+                url = cfg.get('url')
                 if not url: url = data.get('data')
-                params = config.get('params')
+                params = cfg.get('params')
                 if not params: params = data.get('data3')
                 e = roboger.endpoints.HTTPPostEndpoint(
                     addr,
@@ -398,9 +398,9 @@ class MasterAPI(object):
                     autosave=False)
             # http/json
             elif endpoint_type == 4:
-                url = config.get('url')
+                url = cfg.get('url')
                 if not url: url = data.get('data')
-                params = config.get('params')
+                params = cfg.get('params')
                 if not params: params = data.get('data3')
                 e = roboger.endpoints.HTTPJSONEndpoint(
                     addr,
@@ -410,11 +410,11 @@ class MasterAPI(object):
                     autosave=False)
             # slack
             elif endpoint_type == 100:
-                url = config.get('url')
+                url = cfg.get('url')
                 if not url:
-                    url = config.get('webhook')
+                    url = cfg.get('webhook')
                 if not url: url = data.get('data')
-                fmt = config.get('fmt')
+                fmt = cfg.get('fmt')
                 if not fmt: fmt = data.get('data2')
                 e = roboger.endpoints.SlackEndpoint(
                     addr,
@@ -424,7 +424,7 @@ class MasterAPI(object):
                     autosave=False)
             # telegram
             elif endpoint_type == 101:
-                chat_id = config.get('chat_id')
+                chat_id = cfg.get('chat_id')
                 if not chat_id: chat_id = data.get('data')
                 e = roboger.endpoints.TelegramEndpoint(
                     addr,

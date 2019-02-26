@@ -18,6 +18,7 @@ mods = [
         'jsonpickle',
         'logging',
         'sqlite3',
+        'shlex',
         'netaddr',
         'pandas',
         'platform',
