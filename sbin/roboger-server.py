@@ -1,6 +1,6 @@
 __author__ = "Altertech Group, http://www.altertech.com/"
-__copyright__ = "Copyright (C) 2018 Altertech Group"
-__license__ = "See https://www.roboger.com/"
+__copyright__ = "Copyright (C) 2018-2019 Altertech Group"
+__license__ = "Apache License 2.0"
 __version__ = "1.0.0"
 
 import sys
@@ -16,7 +16,7 @@ import roboger.api
 
 import logging
 
-product_build = 2019022601
+product_build = 2019022602
 
 roboger.core.init()
 roboger.core.set_build(product_build)
