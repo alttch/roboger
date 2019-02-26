@@ -20,7 +20,8 @@ class FunctionCollecton:
         try:
             self.functions.remove(f)
         except:
-            log_traceback()
+            if self.on_error:
+                self.on_error()
 
     def run(self):
         for f in self.functions:
