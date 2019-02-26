@@ -128,8 +128,7 @@ def deploy_subscription(addr_id, endpoint_id, k, data):
     xparams['addr_id'] = addr_id
     xparams['endpoint_id'] = endpoint_id
     try:
-        result = json.loads(
-            api_call('subscription_create', xparams).text)
+        result = json.loads(api_call('subscription_create', xparams).text)
         print('        + subscription {}'.format(k))
     except:
         print('        ! subscription {} not created: server error'.format(k))
@@ -383,7 +382,9 @@ sp_set_endpoint_config.add_argument(
     metavar='ADDRESS',
     dest='_address')
 sp_set_endpoint_config.add_argument(
-    'config', help='Endpoint config (email, url, webhook, chat id etc.)')
+    'config',
+    help='Config (rcp, url, webhook, chat id etc, separated by "|")',
+    metavar='CONFIG')
 
 sp_set_endpoint_data = sp_endpoint.add_parser(
     'data', help='Set endpoint data params')

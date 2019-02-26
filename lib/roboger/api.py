@@ -22,11 +22,11 @@ from sqlalchemy import text as sql
 
 
 # throws exception
-def dict_from_str(s):
+def dict_from_str(s, spl=','):
     if not isinstance(s, str): return s
     result = {}
     if not s: return result
-    vals = s.split(',')
+    vals = s.split(spl)
     for v in vals:
         print(v)
         name, value = v.split('=')
@@ -476,7 +476,7 @@ class MasterAPI(object):
         if not cfg:
             api_invalid_data('invalid config params')
         if isinstance(cfg, str):
-            cfg = dict_from_str(cfg)
+            cfg = dict_from_str(cfg, spl='|')
         try:
             e.set_config(cfg)
         except:
