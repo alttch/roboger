@@ -32,7 +32,7 @@ arg_sections = ['addr', 'endpoint', 'subscription', 'event']
 
 _level_match_sign = {'g': ' >', 'ge': '>=', 'l': ' <', 'le': '<=', 'e': '='}
 
-current_deploy = SimpleNamespace(deploy_a=[], deploy_errors=False)
+current_deploy = SimpleNamespace(a=[], error=False)
 
 
 def format_json(obj, minimal=False):
@@ -135,7 +135,7 @@ def deploy_subscription(addr_id, endpoint_id, k, data):
         print('        + subscription {}'.format(k))
     except:
         print('        ! subscription {} not created: server error'.format(k))
-        current_deploy.deploy_errors = True
+        current_deploy.error = True
 
 
 def deploy_endpoint(addr_id, k, data):
@@ -169,14 +169,14 @@ def deploy_endpoint(addr_id, k, data):
                 deploy_subscription(addr_id, result['id'], z, v)
     except:
         print('    ! endpoint {} not created: server error'.format(k))
-        current_deploy.deploy_errors = True
+        current_deploy.error = True
 
 
 def deploy_address(k, data):
     try:
         result = jsonpickle.decode(api_call('addr_create', {}).text)
         print('+ address {}'.format(k))
-        current_deploy.deploy_a.append(result)
+        current_deploy.a.append(result)
         for z, v in data.items():
             if z.startswith('endpoint_'):
                 deploy_endpoint(result['id'], z, v)
@@ -184,7 +184,7 @@ def deploy_address(k, data):
                 print('directive unknown: ' + z)
     except:
         print('! address {} not created: server error'.format(k))
-        current_deploy.deploy_errors = True
+        current_deploy.error = True
 
 
 def deploy_config(params):
@@ -196,15 +196,15 @@ def deploy_config(params):
         else:
             print('directive unknown: ' + k)
     print()
-    if current_deploy.deploy_errors:
+    if current_deploy.error:
         print('DEPLOYMENT FINISHED WITH ERRORS')
     else:
         print('Deployment completed successfully!')
     print()
-    for result in current_deploy.deploy_a:
+    for result in current_deploy.a:
         print('ADDRESS for {}: {} (ID: {})'.format(k, result['a'],
                                                    result['id']))
-    return not current_deploy.deploy_errors
+    return not current_deploy.error
 
 
 def api_call(func, params):
