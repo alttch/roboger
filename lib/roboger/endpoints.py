@@ -420,6 +420,8 @@ class HTTPPostEndpoint(GenericEndpoint):
                     self.params = json.loads(params)
                 except:
                     self.params = None
+        else:
+            self.params = None
         super().__init__(
             addr,
             3,
@@ -499,6 +501,8 @@ class HTTPJSONEndpoint(GenericEndpoint):
                     self.params = json.loads(params)
                 except:
                     self.params = None
+        else:
+            self.params = None
         super().__init__(
             addr,
             4,
