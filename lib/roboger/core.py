@@ -15,56 +15,13 @@ import json
 import jsonpickle
 import requests
 import urllib3
-
 from netaddr import IPNetwork, IPAddress
-
-logging.getLogger('requests').setLevel(logging.CRITICAL)
-logging.getLogger('urllib3').setLevel(logging.CRITICAL)
-
-dir_roboger_default = '/opt/roboger'
-
-version = __version__
-
-system_name = platform.node()
-
-product_build = None
-
-
-dir_roboger = os.environ['ROBOGER_DIR'] if 'ROBOGER_DIR' in os.environ \
-                            else dir_roboger_default
-
-dir_var = dir_roboger + '/var'
-dir_etc = dir_roboger + '/etc'
-
-_stop_func = set()
-
-_sigterm_sent = False
-
-pid_file = None
-
-log_file = None
-
-primary_config = None
-
-logger = None
-
-keep_events = 0
-
-debug = False
-
-development = False
-
-show_traceback = False
-
-smtp_host = '127.0.0.1'
-smtp_port = 25
-
-timeout = 5
+from types import SimpleNamespace
+from roboger.datatypes import FunctionCollecton
 
 
 def set_build(build):
-    global product_build
-    product_build = build
+    product.build = build
 
 
 def sighandler_hup(signum, frame):
@@ -76,53 +33,49 @@ def sighandler_hup(signum, frame):
 
 
 def sighandler_term(signum, frame):
-    global _sigterm_sent
     logging.info('got TERM signal, exiting')
-    shutdown()
+    shutdown.run()
     unlink_pid_file()
-    _sigterm_sent = True
+    __core_data.term_sent = True
     logging.info('Roboger core shut down')
     sys.exit(0)
 
 
 def init():
-    global pid_file, log_file
     signal.signal(signal.SIGHUP, sighandler_hup)
     signal.signal(signal.SIGTERM, sighandler_term)
-    pid_file = '%s/%s.pid' % (dir_var, 'roboger')
+    __core_data.pid_file = '%s/%s.pid' % (dir_var, 'roboger')
 
 
 def write_pid_file():
     try:
-        open(pid_file, 'w').write(str(os.getpid()))
+        open(__core_data.pid_file, 'w').write(str(os.getpid()))
     except:
         log_traceback()
 
 
 def unlink_pid_file():
     try:
-        os.unlink(pid_file)
+        os.unlink(__core_data.pid_file)
     except:
         log_traceback()
 
 
 def debug_on():
-    global debug
-    debug = True
+    config.debug = True
     logging.basicConfig(level=logging.DEBUG)
-    if logger: logger.setLevel(logging.DEBUG)
+    if __core_data.logger: __core_data.logger.setLevel(logging.DEBUG)
     logging.info('Debug mode ON')
 
 
 def debug_off():
-    global debug
-    debug = False
-    if logger: logger.setLevel(logging.INFO)
+    config.debug = False
+    if __core_data.logger: __core_data.logger.setLevel(logging.INFO)
     logging.info('Debug mode OFF')
 
 
 def log_traceback(display=False, notifier=False, force=False):
-    if (show_traceback or force) and not display:
+    if (config.show_traceback or force) and not display:
         pfx = '.' if notifier else ''
         logging.error(pfx + traceback.format_exc())
     elif display:
@@ -145,47 +98,47 @@ def format_cfg_fname(fname, cfg=None, ext='ini', path=None, runtime=False):
 
 
 def reset_log(initial=False):
-    global logger, log_file_handler
-    if logger and not log_file: return
-    logger = logging.getLogger()
+    if __core_data.logger and not __core_data.log_file: return
+    __core_data.logger = logging.getLogger()
     try:
-        log_file_handler.stream.close()
+        __core_data.log_file_handler.stream.close()
     except:
         pass
     if initial:
-        for h in logger.handlers:
-            logger.removeHandler(h)
+        for h in __core_data.logger.handlers:
+            __core_data.logger.removeHandler(h)
     else:
-        logger.removeHandler(log_file_handler)
-    if not development:
+        __core_data.logger.removeHandler(__core_data.log_file_handler)
+    if not config.development:
         formatter = logging.Formatter('%(asctime)s ' + system_name + \
             '  %(levelname)s ' + 'roboger' + ' %(threadName)s: %(message)s')
     else:
         formatter = logging.Formatter('%(asctime)s ' + system_name + \
             ' %(levelname)s f:%(filename)s mod:%(module)s fn:%(funcName)s ' + \
             'l:%(lineno)d th:%(threadName)s :: %(message)s')
-    if log_file: log_file_handler = logging.FileHandler(log_file)
-    else: log_file_handler = logging.StreamHandler(sys.stdout)
-    log_file_handler.setFormatter(formatter)
-    logger.addHandler(log_file_handler)
+    if __core_data.log_file:
+        __core_data.log_file_handler = logging.FileHandler(__core_data.log_file)
+    else:
+        __core_data.log_file_handler = logging.StreamHandler(sys.stdout)
+    __core_data.log_file_handler.setFormatter(formatter)
+    __core_data.logger.addHandler(__core_data.log_file_handler)
 
 
 def load(fname=None, initial=False, init_log=True):
-    global log_file, pid_file, debug, development, show_traceback
-    global timeout, smtp_host, smtp_port, keep_events
     fname_full = format_cfg_fname(fname)
     cfg = configparser.ConfigParser(inline_comment_prefixes=';')
     try:
         cfg.read(fname_full)
         if initial:
             try:
-                pid_file = cfg.get('server', 'pid_file')
-                if pid_file and pid_file[0] != '/':
-                    pid_file = dir_roboger + '/' + pid_file
+                __core_data.pid_file = cfg.get('server', '__core_data.pid_file')
+                if __core_data.pid_file and __core_data.pid_file[0] != '/':
+                    __core_data.pid_file = dir_roboger + '/' + \
+                            __core_data.pid_file
             except:
                 pass
             try:
-                pid = int(open(pid_file).readline().strip())
+                pid = int(open(__core_data.pid_file).readline().strip())
                 p = psutil.Process(pid)
                 print('Can not start Roboger with config %s. ' % \
                         (fname_full), end = '')
@@ -195,30 +148,30 @@ def load(fname=None, initial=False, init_log=True):
                 log_traceback()
             if not os.environ.get('ROBOGER_CORE_LOG_STDOUT'):
                 try:
-                    log_file = cfg.get('server', 'log_file')
+                    __core_data.log_file = cfg.get('server',
+                                                   '__core_data.log_file')
                 except:
-                    log_file = None
-            if log_file and log_file[0] != '/':
-                log_file = dir_roboger + '/' + log_file
+                    __core_data.log_file = None
+            if __core_data.log_file and __core_data.log_file[0] != '/':
+                __core_data.log_file = dir_roboger + '/' + __core_data.log_file
             if init_log: reset_log(initial)
             try:
-                development = (cfg.get('server', 'development') == 'yes')
-                if development:
-                    show_traceback = True
+                config.development = (cfg.get('server', 'development') == 'yes')
+                if config.development:
+                    config.show_traceback = True
             except:
-                development = False
-            if development:
-                show_traceback = True
+                config.development = False
+            if config.development:
+                config.show_traceback = True
                 debug_on()
                 logging.critical('DEVELOPMENT MODE STARTED')
-                debug = True
             else:
                 try:
-                    show_traceback = (cfg.get('server',
-                                              'show_traceback') == 'yes')
+                    config.show_traceback = (cfg.get('server',
+                                                     'show_traceback') == 'yes')
                 except:
-                    show_traceback = False
-            if not development and not debug:
+                    config.show_traceback = False
+            if not config.development and not config.debug:
                 try:
                     debug = (cfg.get('server', 'debug') == 'yes')
                     if debug: debug_on()
@@ -226,26 +179,29 @@ def load(fname=None, initial=False, init_log=True):
                     pass
                 if not debug:
                     logging.basicConfig(level=logging.INFO)
-                    if logger: logger.setLevel(logging.INFO)
+                    if __core_data.logger:
+                        __core_data.logger.setLevel(logging.INFO)
             logging.info('Loading server config')
-            logging.debug('server.pid_file = %s' % pid_file)
+            logging.debug(
+                'server.__core_data.pid_file = %s' % __core_data.pid_file)
         try:
-            timeout = float(cfg.get('server', 'timeout'))
+            config.timeout = float(cfg.get('server', 'timeout'))
         except:
             pass
-        logging.debug('server.timeout = %s' % timeout)
+        logging.debug('server.config.timeout = %s' % config.timeout)
         try:
-            smtp_host, smtp_port = parse_host_port(
+            config.smtp_host, config.smtp_port = parse_host_port(
                 cfg.get('server', 'smtp_host'))
-            if not smtp_port: smtp_port = 25
+            if not config.smtp_port: config.smtp_port = 25
         except:
             pass
-        logging.debug('server.smtp_host = %s:%u' % (smtp_host, smtp_port))
+        logging.debug('server.config.smtp_host = %s:%u' % (config.smtp_host,
+                                                           config.smtp_port))
         try:
-            keep_events = int(cfg.get('server', 'keep_events'))
+            config.keep_events = int(cfg.get('server', 'keep_events'))
         except:
-            keep_events = 0
-        logging.debug('server.keep_events = %s' % keep_events)
+            config.keep_events = 0
+        logging.debug('server.config.keep_events = %s' % config.keep_events)
         return cfg
     except:
         print('Can not read primary config %s' % fname_full)
@@ -264,28 +220,9 @@ def parse_host_port(hp):
     return (host, port)
 
 
-def shutdown():
-    for f in _stop_func:
-        try:
-            f()
-        except:
-            log_traceback()
-
-
 def block():
-    while not _sigterm_sent:
+    while not __core_data.term_sent:
         time.sleep(0.2)
-
-
-def append_stop_func(func):
-    _stop_func.add(func)
-
-
-def remove_stop_func(func):
-    try:
-        _stop_func.remove(func)
-    except:
-        log_traceback()
 
 
 def format_json(obj, minimal=False):
@@ -298,3 +235,50 @@ def netacl_match(host, acl):
     for a in acl:
         if IPAddress(host) in a: return True
     return False
+
+
+def is_development():
+    return config.development
+
+
+def timeout():
+    return config.timeout
+
+
+def smtp_config():
+    return config.smtp_host, config.smtp_port
+
+
+def get_keep_events():
+    return config.keep_events
+
+
+logging.getLogger('requests').setLevel(logging.CRITICAL)
+logging.getLogger('urllib3').setLevel(logging.CRITICAL)
+
+dir_roboger_default = '/opt/roboger'
+
+system_name = platform.node()
+
+product = SimpleNamespace(build=None, version=__version__)
+
+
+dir_roboger = os.environ['ROBOGER_DIR'] if 'ROBOGER_DIR' in os.environ \
+                            else dir_roboger_default
+
+dir_var = dir_roboger + '/var'
+dir_etc = dir_roboger + '/etc'
+
+__core_data = SimpleNamespace(
+    term_sent=False, pid_file=None, log_file=None, logger=None)
+
+config = SimpleNamespace(
+    keep_events=0,
+    debug=False,
+    development=False,
+    show_traceback=False,
+    smtp_host='127.0.0.1',
+    smtp_port=25,
+    timeout=5)
+
+shutdown = FunctionCollecton(on_error=log_traceback)

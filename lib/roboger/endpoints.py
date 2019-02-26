@@ -29,10 +29,7 @@ from roboger.bots.telegram import RTelegramBot
 endpoints_by_id = {}
 endpoints_by_addr_id = {}
 
-telegram_bot_token = None
-telegram_poll_interval = 1
-
-telegram_bot = None
+telegram_bot = RTelegramBot()
 
 endpoint_types = {}
 endpoint_codes = {}
@@ -45,36 +42,34 @@ def get_endpoint_code(name):
 
 
 def update_config(cfg):
-    global telegram_bot_token, telegram_poll_interval
-    global telegram_bot
+    # telegram
     try:
         telegram_bot_token = cfg.get('endpoint_telegram', 'bot_token')
         logging.debug('endpoint.telegram bot token loaded')
     except:
-        pass
+        telegram_bot_token = None
     try:
         telegram_poll_interval = \
                 int(cfg.get('endpoint_telegram', 'poll_interval'))
     except:
-        pass
+        telegram_poll_interval = 1
     if telegram_bot_token:
         logging.debug('endpoint.telegram.poll_interval = %s' % \
                 telegram_poll_interval)
-        telegram_bot = RTelegramBot(telegram_bot_token)
+        telegram_bot.set_token(telegram_bot_token)
+        telegram_bot.poll_interval = telegram_poll_interval
     return True
 
 
 def start():
-    global telegram_bot
-    roboger.core.append_stop_func(stop)
-    if telegram_bot:
-        telegram_bot.poll_interval = telegram_poll_interval
+    if telegram_bot.is_ready():
         if telegram_bot.test():
             telegram_bot.start()
         else:
             logging.error('Failed to start RTelegramBot')
 
 
+@roboger.core.shutdown
 def stop():
     if telegram_bot:
         telegram_bot.stop()
@@ -235,7 +230,7 @@ class GenericEndpoint(object):
         u['description'] = self.description
         u['type_id'] = self.type_id
         u['type'] = endpoint_types.get(self.type_id)
-        if roboger.core.development: u['destroyed'] = self._destroyed
+        if roboger.core.is_development(): u['destroyed'] = self._destroyed
         return u
 
     def set_data(self, data='', data2='', data3='', dbconn=None):
@@ -353,7 +348,8 @@ class EmailEndpoint(GenericEndpoint):
             msg.attach(a)
         try:
             logging.info('EmailEndpoint sending event to %s' % self.rcpt)
-            sm = smtplib.SMTP(roboger.core.smtp_host, roboger.core.smtp_port)
+            host, port = roboger.core.smtp_config()
+            sm = smtplib.SMTP(host, port)
             sm.sendmail(event.sender, self.rcpt, msg.as_string())
             sm.close()
             return True
@@ -418,7 +414,8 @@ class HTTPPostEndpoint(GenericEndpoint):
                 (event.event_id, self.endpoint_id))
         try:
             logging.info('HTTPPostEndpoint sending event to %s' % self.url)
-            r = requests.post(self.url, data=data, timeout=roboger.core.timeout)
+            r = requests.post(
+                self.url, data=data, timeout=roboger.core.timeout())
             if r.status_code != 200:
                 logging.info('HTTPPostEndpoint %s return code %s' % \
                         (self.url, r.status_code))
@@ -495,7 +492,8 @@ class HTTPJSONEndpoint(GenericEndpoint):
                 (event.event_id, self.endpoint_id))
         try:
             logging.info('HTTPJSONEndpoint sending event to %s' % self.url)
-            r = requests.post(self.url, json=data, timeout=roboger.core.timeout)
+            r = requests.post(
+                self.url, json=data, timeout=roboger.core.timeout())
             if r.status_code != 200:
                 logging.info('HTTPJSONEndpoint %s return code %s' % \
                         (self.url, r.status_code))
@@ -584,7 +582,7 @@ class SlackEndpoint(GenericEndpoint):
                 (event.event_id, self.endpoint_id))
         try:
             r = requests.post(
-                self.webhook, json=j, timeout=roboger.core.timeout)
+                self.webhook, json=j, timeout=roboger.core.timeout())
             if r.status_code != 200:
                 return False
             return True
@@ -619,7 +617,7 @@ class TelegramEndpoint(GenericEndpoint):
     def serialize(self):
         d = super().serialize()
         d['chat_id'] = self.chat_id
-        if roboger.core.development:
+        if roboger.core.is_development():
             d['chat_id_plain'] = self._chat_id_plain
         else:
             d['chat_id_plain'] = True if self._chat_id_plain else None

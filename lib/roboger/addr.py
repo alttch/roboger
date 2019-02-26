@@ -117,7 +117,7 @@ class Addr:
         u['id'] = self.addr_id
         u['a'] = self.a
         u['active'] = self.active
-        if roboger.core.development: u['destroyed'] = self._destroyed
+        if roboger.core.is_development(): u['destroyed'] = self._destroyed
         return u
 
     def set_a(self, a=None, autosave=True):

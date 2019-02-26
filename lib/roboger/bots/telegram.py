@@ -5,25 +5,36 @@ import time
 import roboger.core
 import logging
 
-from cryptography.fernet import Fernet
 import base64
 import hashlib
 
+from cryptography.fernet import Fernet
+from roboger.threads import BackgroundWorker
 
-class RTelegramBot(object):
 
-    def __init__(self, token):
-        self.token = token
-        self.uri = 'https://api.telegram.org/bot%s' % self.token
+class RTelegramBot(BackgroundWorker):
+
+    def __init__(self):
+        self.__token = None
+        self.ce = None
+        self.__uri = None
         self.timeout = 10
         self.poll_interval = 2
         self.update_offset = 0
-        self.update_thread = None
-        self.update_thread_active = True
-        self.ce = None
-        if self.token:
+        super().__init__(name='RTelegramBot_t_get_updates')
+
+    def set_token(self, token=None):
+        if token:
+            self.__uri = 'https://api.telegram.org/bot%s' % token
             _k = base64.b64encode(hashlib.sha256(token.encode()).digest())
             self.ce = Fernet(_k)
+            self.__token = token
+        else:
+            self.ce = None
+            self.__token = None
+
+    def is_ready(self):
+        return self.__token is not None
 
     def test(self):
         result = self.call('getMe')
@@ -34,13 +45,15 @@ class RTelegramBot(object):
         try:
             if files:
                 r = requests.post(
-                    '%s/%s' % (self.uri, func),
+                    '%s/%s' % (self.__uri, func),
                     data=args,
                     files=files,
                     timeout=self.timeout)
             else:
                 r = requests.post(
-                    '%s/%s' % (self.uri, func), json=args, timeout=self.timeout)
+                    '%s/%s' % (self.__uri, func),
+                    json=args,
+                    timeout=self.timeout)
             if r.status_code == 200:
                 result = jsonpickle.decode(r.text)
                 if result.get('ok'): return result
@@ -51,22 +64,11 @@ class RTelegramBot(object):
             roboger.core.log_traceback()
             return None
 
-    def start(self):
-        self.update_thread = threading.Thread(
-            name='RTelegramBot_t_get_updates', target=self._t_get_updates)
-        self.update_thread.start()
-
-    def stop(self):
-        if self.update_thread_active and \
-                self.update_thread and \
-                self.update_thread.isAlive():
-            self.update_thread_active = False
-            self.update_thread.join()
-
-    def _t_get_updates(self):
+    def run(self):
+        if not self.__token:
+            raise Exception('token not provided')
         logging.debug('update thread started')
-        self.update_thread_active = True
-        while self.update_thread_active:
+        while self.is_active():
             result = self.call('getUpdates', {'offset': self.update_offset + 1})
             if result and 'result' in result:
                 for m in result['result']:

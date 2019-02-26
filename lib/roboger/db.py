@@ -6,70 +6,71 @@ __version__ = "1.0.0"
 import logging
 import roboger.core
 
-db_engine = None
+from types import SimpleNamespace
 
-db = None
-
-db_host = None
-
-db_user = None
-
-db_password = None
-
-db_name = None
+database = SimpleNamespace(
+    connection=None,
+    engine=None,
+    host=None,
+    user=None,
+    password=None,
+    name=None)
 
 
 def update_config(cfg):
-    global db_engine, db, db_host, db_user, db_password, db_name
     try:
-        db_engine = cfg.get('db', 'engine')
+        database.engine = cfg.get('db', 'engine')
     except:
-        db_engine = 'sqlite'
+        database.engine = 'sqlite'
     try:
-        db_host = cfg.get('db', 'host')
+        database.host = cfg.get('db', 'host')
     except:
-        db_host = '127.0.0.1'
+        database.host = '127.0.0.1'
     try:
-        db_user = cfg.get('db', 'user')
+        database.user = cfg.get('db', 'user')
     except:
-        db_user = 'root'
+        database.user = 'root'
     try:
-        db_password = cfg.get('db', 'password')
+        database.password = cfg.get('db', 'password')
     except:
-        db_password = ''
+        database.password = ''
     try:
-        db_name = cfg.get('db', 'database')
+        database.name = cfg.get('db', 'database')
     except:
-        db_name = 'roboger'
+        database.name = 'roboger'
     try:
-        if db_engine == 'sqlite' and db_name[0]!='/':
-            db_name = roboger.core.dir_roboger + '/' + db_name
+        if database.engine == 'sqlite' and database.name[0] != '/':
+            database.name = roboger.core.dir_roboger + '/' + database.name
     except:
         pass
-    db = connect()
-    if db:
-        if db_engine == 'sqlite':
-            logging.debug('database connected: sqlite:%s' % db_name)
+    database.connection = connect()
+    if database.connection:
+        if database.engine == 'sqlite':
+            logging.debug('database connected: sqlite:%s' % database.name)
         else:
             logging.debug('database connected: %s:%s@%s/%s' % \
-                    (db_engine, db_user, db_host, db_name))
+                    (database.engine, database.user, database.host, database.name))
     else:
         logging.error('Database connection error %s:%s@%s/%s' % \
-                (db_engine, db_user, db_host, db_name))
+                (database.engine, database.user, database.host, database.name))
         return False
     return True
 
 
 def connect():
-    if db_engine == 'sqlite':
+    if database.engine == 'sqlite':
         import sqlite3
         return True
-    elif db_engine == 'mysql':
+    elif database.engine == 'mysql':
         import MySQLdb
         try:
-            db = MySQLdb.connect(
-                db_host, db_user, db_password, db_name, charset='utf8')
-            return db
+            database.connection = MySQLdb.connect(
+                database.host,
+                database.user,
+                database.password,
+                database.name,
+                charset='utf8')
+            return database.connection
         except:
             roboger.core.log_traceback()
             return None
@@ -78,8 +79,8 @@ def connect():
 
 
 def check(dbconn=None):
-    if db_engine == 'sqlite': return True
-    elif db_engine == 'mysql':
+    if database.engine == 'sqlite': return True
+    elif database.engine == 'mysql':
         try:
             if dbconn:
                 cursor = dbconn.cursor()
@@ -95,29 +96,28 @@ def check(dbconn=None):
 
 
 def prepare_sql(sql):
-    if db_engine == 'sqlite':
+    if database.engine == 'sqlite':
         return sql.replace('%s', '?')
     else:
         return sql
 
 
 def query(sql, args=(), do_commit=False, dbconn=None):
-    if db_engine == 'sqlite':
+    if database.engine == 'sqlite':
         import sqlite3
         oe = sqlite3.OperationalError
-    elif db_engine == 'mysql':
+    elif database.engine == 'mysql':
         import MySQLdb
         oe = MySQLdb.OperationalError
-    global db
     try:
-        if db_engine == 'sqlite':
-            dbconn = sqlite3.connect(db_name)
+        if database.engine == 'sqlite':
+            dbconn = sqlite3.connect(database.name)
             cursor = dbconn.cursor()
         else:
             if dbconn:
                 cursor = dbconn.cursor()
             else:
-                cursor = db.cursor()
+                cursor = database.connection.cursor()
         cursor.execute(prepare_sql(sql), args)
     except (AttributeError, oe):
         roboger.core.log_traceback()
@@ -125,13 +125,13 @@ def query(sql, args=(), do_commit=False, dbconn=None):
             dbconn = connect()
             if not dbconn: return None
         else:
-            db = connect()
-            if not db: return None
+            database.connection = connect()
+            if not database.connection: return None
         try:
             if dbconn:
                 cursor = dbconn.cursor()
             else:
-                cursor = db.cursor()
+                cursor = databse.connection.cursor()
             cursor.execute(sql, args)
         except:
             return None
@@ -140,14 +140,15 @@ def query(sql, args=(), do_commit=False, dbconn=None):
         if dbconn:
             dbconn.rollback()
         else:
-            db.rollback()
+            database.connection.rollback()
         raise
     if do_commit:
         return commit(cursor, dbconn)
     return cursor
 
+
 def free(dbconn=None):
-    if db_engine != 'sqlite': return
+    if database.engine != 'sqlite': return
     try:
         if dbconn: dbconn.close()
     except:
@@ -157,16 +158,16 @@ def free(dbconn=None):
 def commit(c=None, dbconn=None):
     try:
         if dbconn: dbconn.commit()
-        else: db.commit()
+        else: database.connection.commit()
         if c:
             lrid = c.lastrowid
             c.close()
             return lrid
-        if db_engine == 'sqlite':
+        if database.engine == 'sqlite':
             dbconn.close()
         return True
     except:
-        if db_engine == 'sqlite':
+        if database.engine == 'sqlite':
             dbconn.close()
         roboger.core.log_traceback()
         return False

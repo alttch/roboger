@@ -11,25 +11,12 @@ import roboger.endpoints
 import logging
 import base64
 
+from types import SimpleNamespace
+
 from netaddr import IPNetwork
 
 from roboger.core import format_json
 from roboger import db
-
-host = None
-default_port = 7719
-ssl_host = None
-ssl_port = None
-ssl_module = 'builtin'
-ssl_cert = None
-ssl_key = None
-ssl_chain = None
-thread_pool = 15
-
-check_ownership = False
-
-masterkey = None
-master_allow = None
 
 # throws exception
 def dict_from_str(s):
@@ -58,6 +45,7 @@ def dict_from_str(s):
         result[name] = value
     return result
 
+
 def arr_from_str(s):
     if not isinstance(s, str) or s.find('|') == -1: return s
     result = []
@@ -70,6 +58,7 @@ def arr_from_str(s):
             _v = v
         result.append(_v)
     return result
+
 
 def api_forbidden():
     raise cherrypy.HTTPError('403 Forbidden', 'Invalid API key')
@@ -121,46 +110,48 @@ def api_result(status='OK', msg=None, data=None):
 def cp_json_handler(*args, **kwargs):
     value = cherrypy.serving.request._json_inner_handler(*args, **kwargs)
     return format_json(
-        value, minimal=not roboger.core.development).encode('utf-8')
+        value, minimal=not roboger.core.is_development()).encode('utf-8')
 
 
 def update_config(cfg):
-    global host, port, ssl_host, ssl_port
-    global ssl_module, ssl_cert, ssl_key, ssl_chain
-    global thread_pool, masterkey, master_allow, check_ownership
     try:
-        host, port = roboger.core.parse_host_port(cfg.get('api', 'listen'))
-        if not port:
-            port = default_port
-        logging.debug('api.listen = %s:%u' % (host, port))
+        config.host, config.port = roboger.core.parse_host_port(
+            cfg.get('api', 'listen'))
+        if not config.port:
+            config.port = default_port
+        logging.debug('api.listen = %s:%u' % (config.host, config.port))
     except:
         roboger.core.log_traceback()
         return False
     try:
-        ssl_host, ssl_port = parse_host_port(cfg.get('api', 'ssl_listen'))
-        if not ssl_port:
-            ssl_port = default_ssl_port
+        config.ssl_host, config.ssl_port = parse_host_port(
+            cfg.get('api', 'ssl_listen'))
+        if not config.ssl_port:
+            config.ssl_port = default_ssl_port
         try:
-            ssl_module = cfg.get('api', 'ssl_module')
+            config.ssl_module = cfg.get('api', 'ssl_module')
         except:
-            ssl_module = 'builtin'
-        ssl_cert = cfg.get('api', 'ssl_cert')
-        if ssl_cert[0] != '/': ssl_cert = roboger.core.dir_etc + '/' + ssl_cert
-        ssl_key = cfg.get('api', 'ssl_key')
-        if ssl_key[0] != '/': ssl_key = roboger.core.dir_etc + '/' + ssl_key
-        logging.debug('api.ssl_listen = %s:%u' % (ssl_host, ssl_port))
-        ssl_chain = cfg.get('api', 'ssl_chain')
-        if ssl_chain[0] != '/':
-            ssl_chain = roboger.core.dir_etc + '/' + ssl_chain
+            config.ssl_module = 'builtin'
+        config.ssl_cert = cfg.get('api', 'ssl_cert')
+        if config.ssl_cert[0] != '/':
+            config.ssl_cert = roboger.core.dir_etc + '/' + config.ssl_cert
+        config.ssl_key = cfg.get('api', 'ssl_key')
+        if config.ssl_key[0] != '/':
+            config.ssl_key = roboger.core.dir_etc + '/' + config.ssl_key
+        logging.debug(
+            'api.ssl_listen = %s:%u' % (config.ssl_host, config.ssl_port))
+        config.ssl_chain = cfg.get('api', 'ssl_chain')
+        if config.ssl_chain[0] != '/':
+            config.ssl_chain = roboger.core.dir_etc + '/' + config.ssl_chain
     except:
         pass
     try:
-        thread_pool = int(cfg.get('api', 'thread_pool'))
+        config.thread_pool = int(cfg.get('api', 'thread_pool'))
     except:
         pass
-    logging.debug('api.thread_pool = %u' % thread_pool)
+    logging.debug('api.thread_pool = %u' % config.thread_pool)
     try:
-        masterkey = cfg.get('api', 'masterkey')
+        config.masterkey = cfg.get('api', 'masterkey')
         logging.debug('api.masterkey loaded')
     except:
         logging.error('masterkey not found in config. Can not continue')
@@ -171,57 +162,59 @@ def update_config(cfg):
         _ha = '127.0.0.1'
     try:
         _hosts_allow = list(filter(None, [x.strip() for x in _ha.split(',')]))
-        master_allow = [IPNetwork(h) for h in _hosts_allow]
+        config.master_allow = [IPNetwork(h) for h in _hosts_allow]
     except:
-        logging.error('roboger bad master host acl!')
+        logging.error('invalid master host acl!')
         roboger.core.log_traceback()
         return None
     logging.debug('api.master_allow = %s' % \
-            ', '.join([ str(h) for h in master_allow ]))
+            ', '.join([ str(h) for h in config.master_allow ]))
     try:
-        check_ownership = (cfg.get('api', 'check_ownership') == 'yes')
+        config.check_ownership = (cfg.get('api',
+                                          'config.check_ownership') == 'yes')
     except:
-        check_ownership = False
-    logging.debug('api.check_ownership = %s' % check_ownership)
+        config.check_ownership = False
+    logging.debug('api.config.check_ownership = %s' % config.check_ownership)
     return True
 
 
 def start():
-    if not host: return False
+    if not config.host: return False
     cherrypy.tree.mount(PushAPI(), '/')
     cherrypy.tree.mount(MasterAPI(), '/manage')
     cherrypy.server.unsubscribe()
     logging.info('HTTP API listening at at %s:%s' % \
-            (host, port))
+            (config.host, config.port))
     server1 = cherrypy._cpserver.Server()
-    server1.socket_port = port
-    server1._socket_host = host
-    server1.thread_pool = thread_pool
+    server1.socket_port = config.port
+    server1._socket_host = config.host
+    server1.thread_pool = config.thread_pool
     server1.subscribe()
-    if ssl_host and ssl_module and ssl_cert and ssl_key:
+    if config.ssl_host and config.ssl_module and \
+            config.ssl_cert and config.ssl_key:
         logging.info('HTTP API SSL listening at %s:%s' % \
-                (ssl_host, ssl_port))
+                (config.ssl_host, config.ssl_port))
         server_ssl = cherrypy._cpserver.Server()
-        server_ssl.socket_port = ssl_port
-        server_ssl._socket_host = ssl_host
-        server_ssl.thread_pool = thread_pool
-        server_ssl.ssl_certificate = ssl_cert
-        server_ssl.ssl_private_key = ssl_key
-        if ssl_chain:
-            server_ssl.ssl_certificate_chain = ssl_chain
+        server_ssl.socket_port = config.ssl_port
+        server_ssl._socket_host = config.ssl_host
+        server_ssl.thread_pool = config.thread_pool
+        server_ssl.ssl_certificate = config.ssl_cert
+        server_ssl.ssl_private_key = config.ssl_key
+        if config.ssl_chain:
+            server_ssl.ssl_certificate_chain = config.ssl_chain
         if ssl_module:
-            server_ssl.ssl_module = ssl_module
+            server_ssl.ssl_module = config.ssl_module
         server_ssl.subscribe()
-    if not roboger.core.development:
+    if not roboger.core.is_development():
         cherrypy.config.update({'environment': 'production'})
         cherrypy.log.access_log.propagate = False
         cherrypy.log.error_log.propagate = False
     else:
         cherrypy.config.update({'global': {'engine.autoreload.on': False}})
-    roboger.core.append_stop_func(stop)
     cherrypy.engine.start()
 
 
+@roboger.core.shutdown
 def stop():
     cherrypy.engine.exit()
 
@@ -239,7 +232,7 @@ class MasterAPI(object):
             'before_handler', self.cp_check_perm, priority=60)
 
     def cp_check_perm(self):
-        if roboger.core.netacl_match(http_real_ip(), master_allow):
+        if roboger.core.netacl_match(http_real_ip(), config.master_allow):
             if 'k' in cherrypy.serving.request.params:
                 k = cherrypy.serving.request.params.get('k')
                 if 'data' in cherrypy.serving.request.params:
@@ -267,7 +260,7 @@ class MasterAPI(object):
                     cherrypy.serving.request.params['data'] = d
                 except:
                     api_forbidden()
-            if k == masterkey:
+            if k == config.masterkey:
                 check_db()
                 return
         api_forbidden()
@@ -275,8 +268,8 @@ class MasterAPI(object):
     @cherrypy.expose
     def test(self, data):
         d = {}
-        d['version'] = roboger.core.version
-        d['build'] = roboger.core.product_build
+        d['version'] = roboger.core.product.version
+        d['build'] = roboger.core.product.build
         return d
 
     @cherrypy.expose
@@ -360,7 +353,7 @@ class MasterAPI(object):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         if 'endpoint_id' in data:
             e = roboger.endpoints.get_endpoint(data['endpoint_id'])
-            if not e or (check_ownership and e.addr != addr):
+            if not e or (config.check_ownership and e.addr != addr):
                 api_404('endpoint or wrong address')
             return e.serialize()
         else:
@@ -480,7 +473,7 @@ class MasterAPI(object):
     def endpoint_data(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
-        if not e or (check_ownership and e.addr != addr):
+        if not e or (config.check_ownership and e.addr != addr):
             api_404('endpoint or wrong address')
         try:
             e.set_data(
@@ -497,7 +490,7 @@ class MasterAPI(object):
     def endpoint_config(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
-        if not e or (check_ownership and e.addr != addr):
+        if not e or (config.check_ownership and e.addr != addr):
             api_404('endpoint or wrong address')
         config = data.get('config')
         if not config:
@@ -505,9 +498,7 @@ class MasterAPI(object):
         if isinstance(config, str):
             config = dict_from_str(config)
         try:
-            e.set_config(
-                config,
-                dbconn=cherrypy.thread_data.db)
+            e.set_config(config, dbconn=cherrypy.thread_data.db)
         except:
             roboger.core.log_traceback()
             api_internal_error()
@@ -517,7 +508,7 @@ class MasterAPI(object):
     def endpoint_skipdups(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
-        if not e or (check_ownership and e.addr != addr):
+        if not e or (config.check_ownership and e.addr != addr):
             api_404('endpoint or wrong address')
         try:
             e.set_skip_dups(
@@ -531,7 +522,7 @@ class MasterAPI(object):
     def endpoint_description(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
-        if not e or (check_ownership and e.addr != addr):
+        if not e or (config.check_ownership and e.addr != addr):
             api_404('endpoint or wrong address')
         try:
             e.set_description(
@@ -555,7 +546,7 @@ class MasterAPI(object):
     def endpoint_set_active(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
-        if not e or (check_ownership and e.addr != addr):
+        if not e or (config.check_ownership and e.addr != addr):
             api_404('endpoint or wrong address')
         try:
             _active = int(data['active'])
@@ -568,7 +559,7 @@ class MasterAPI(object):
     def endpoint_delete(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
-        if not e or (check_ownership and e.addr != addr):
+        if not e or (config.check_ownership and e.addr != addr):
             api_404('endpoint or wrong address')
         roboger.endpoints.destroy_endpoint(e, dbconn=cherrypy.thread_data.db)
         return api_result()
@@ -576,13 +567,13 @@ class MasterAPI(object):
     @cherrypy.expose
     def subscription_create(self, data):
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
-        if e and not check_ownership:
+        if e and not config.check_ownership:
             addr = e.addr
         else:
             addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
             if addr is None:
                 api_invalid_data('No such address')
-        if not e or (check_ownership and \
+        if not e or (config.check_ownership and \
                 e.addr.addr_id != data.get('addr_id')):
             api_invalid_data('No such endpoint or wrong address')
         _lm = data.get('level_match')
@@ -623,12 +614,12 @@ class MasterAPI(object):
         else:
             e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
-        if not e or (check_ownership and e.addr != addr):
+        if not e or (config.check_ownership and e.addr != addr):
             api_404('No such endpoint or wrong address')
         if 'subscription_id' in data:
             s = roboger.events.get_subscription(data['subscription_id'])
             e = s.endpoint
-            if not s or (check_ownership and \
+            if not s or (config.check_ownership and \
                     s.addr.addr_id != data.get('addr_id')):
                 api_404('subscription or wrong address')
             return s.serialize()
@@ -660,7 +651,7 @@ class MasterAPI(object):
     def subscription_set_active(self, data):
         s = roboger.events.get_subscription(data.get('subscription_id'))
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
-        if not s or (check_ownership and s.addr != addr):
+        if not s or (config.check_ownership and s.addr != addr):
             api_404('subscription or wrong address')
         try:
             _active = int(data['active'])
@@ -673,7 +664,7 @@ class MasterAPI(object):
     def subscription_location(self, data):
         s = roboger.events.get_subscription(data.get('subscription_id'))
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
-        if not s or (check_ownership and s.addr != addr):
+        if not s or (config.check_ownership and s.addr != addr):
             api_404('subscription or wrong address')
         s.set_location(data.get('location'), dbconn=cherrypy.thread_data.db)
         return s.serialize()
@@ -682,7 +673,7 @@ class MasterAPI(object):
     def subscription_keywords(self, data):
         s = roboger.events.get_subscription(data.get('subscription_id'))
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
-        if not s or (check_ownership and s.addr != addr):
+        if not s or (config.check_ownership and s.addr != addr):
             api_404('subscription or wrong address')
         s.set_keywords(data.get('keywords'), dbconn=cherrypy.thread_data.db)
         return s.serialize()
@@ -691,7 +682,7 @@ class MasterAPI(object):
     def subscription_senders(self, data):
         s = roboger.events.get_subscription(data.get('subscription_id'))
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
-        if not s or (check_ownership and s.addr != addr):
+        if not s or (config.check_ownership and s.addr != addr):
             api_404('subscription or wrong address')
         s.set_senders(data.get('senders'), dbconn=cherrypy.thread_data.db)
         return s.serialize()
@@ -700,7 +691,7 @@ class MasterAPI(object):
     def subscription_level(self, data):
         s = roboger.events.get_subscription(data.get('subscription_id'))
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
-        if not s or (check_ownership and s.addr != addr):
+        if not s or (config.check_ownership and s.addr != addr):
             api_404('subscription or wrong address')
         _lm = data.get('level_match')
         if _lm and _lm not in ['e', 'ge', 'le', 'g', 'l']:
@@ -719,7 +710,7 @@ class MasterAPI(object):
     def subscription_delete(self, data):
         s = roboger.events.get_subscription(data.get('subscription_id'))
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
-        if not s or (check_ownership and s.addr != addr):
+        if not s or (config.check_ownership and s.addr != addr):
             api_404('subscription or wrong address')
         roboger.events.destroy_subscription(s, dbconn=cherrypy.thread_data.db)
         return api_result()
@@ -728,7 +719,7 @@ class MasterAPI(object):
     def subscription_duplicate(self, data):
         s = roboger.events.get_subscription(data.get('subscription_id'))
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
-        if not s or (check_ownership and s.addr != addr):
+        if not s or (config.check_ownership and s.addr != addr):
             api_404('subscription or wrong address')
         s_new = roboger.events.EventSubscription(
             s.addr,
@@ -753,9 +744,9 @@ class MasterAPI(object):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
         et = roboger.endpoints.get_endpoint(data.get('endpoint_id_t'))
-        if not e or (check_ownership and e.addr != addr):
+        if not e or (config.check_ownership and e.addr != addr):
             api_404('source endpoint or wrong address')
-        if not et or (check_ownership and et.addr != addr):
+        if not et or (config.check_ownership and et.addr != addr):
             api_404('target endpoint or wrong address')
         if et.endpoint_id in \
                 roboger.events.subscriptions_by_endpoint_id:
@@ -916,3 +907,23 @@ class PushAPI(object):
             return api_result()
         raise cherrypy.HTTPError('403 Forbidden',
                                  'Address is disabled: %u' % result)
+
+
+
+default_port = 7719
+default_ssl_port = 7720
+
+config = SimpleNamespace(
+    host=None,
+    port=default_port,
+    ssl_host=None,
+    ssl_port=default_ssl_port,
+    ssl_module='builtin',
+    ssl_cert=None,
+    ssl_key=None,
+    ssl_chain=None,
+    thread_pool=15,
+    check_ownership=False,
+    masterkey=None,
+    master_allow=None)
+

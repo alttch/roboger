@@ -17,6 +17,7 @@ from queue import Queue
 import roboger.core
 import roboger.addr
 from roboger import db
+from roboger.threads import BackgroundWorker
 
 level_names = {
     10: 'DEBUG',
@@ -28,19 +29,76 @@ level_names = {
 
 level_codes = {'d': 10, 'i': 20, 'w': 30, 'e': 40, 'c': 50}
 
-q = Queue()
+event_clean_interval = 60
 
-subscriptions_by_id = {}
-subscriptions_by_addr_id = {}
-subscriptions_by_endpoint_id = {}
 
-subscriptions_lock = threading.RLock()
+class QueueProcessor(BackgroundWorker):
 
-queue_processor_active = False
-queue_processor = None
+    def __init__(self):
+        super().__init__(name='_t_queue_processor')
 
-event_cleaner_active = False
-event_cleaner = None
+    def run(self):
+        if roboger.core.get_keep_events():
+            dbconn = db.connect()
+        else:
+            dbconn = None
+        while self.is_active() or not roboger.core.get_keep_events():
+            eq = q.get()
+            if dbconn and not db.check(dbconn):
+                dbconn = db.connect()
+            if not eq or \
+                    (roboger.core.get_keep_events() and not self.is_active()):
+                break
+            if eq.subscription._destroyed: continue
+            logging.info('Sending queued event id: %s' % eq.event.event_id + \
+                ', endpoint id: %s' % eq.subscription.endpoint.endpoint_id + \
+                ', subscription id: %s' % eq.subscription.subscription_id + \
+                ', addr id: %s, addr: %s' % (eq.event.addr.addr_id,
+                                    eq.event.addr.a))
+            t = threading.Thread(target=eq.send)
+            t.start()
+            eq.mark_delivered(dbconn=dbconn)
+        if dbconn and not isinstance(dbconn, bool):
+            dbconn.close()
+
+    def after_stop(self):
+        q.put(None)
+
+
+class EventCleaner(BackgroundWorker):
+
+    def __init__(self):
+        super().__init__(name='_t_event_cleaner')
+
+    def run(self):
+        clean_interval = event_clean_interval
+        dbconn = db.connect()
+        c = clean_interval
+        while self.is_active():
+            c += 1
+            if c > clean_interval:
+                logging.debug('cleaning old events')
+                try:
+                    if dbconn and not db.check(dbconn):
+                        dbconn = db.connect()
+                    # move this logic out
+                    if db.database.engine == 'sqlite':
+                        q = 'delete from event where d < ' + \
+                                'datetime(current_timestamp, ' + \
+                                '"localtime", "-%s second")' % \
+                                roboger.core.get_keep_events()
+                    elif db.database.engine == 'mysql':
+                        q = 'delete from event where d<NOW() ' + \
+                                ' - INTERVAL %s SECOND' % \
+                                roboger.core.get_keep_events()
+                    else:
+                        q = None
+                    if q:
+                        db.query(q, (), True, dbconn=dbconn)
+                except:
+                    roboger.core.log_traceback()
+                c = 0
+            time.sleep(1)
 
 
 def push_event(a,
@@ -82,94 +140,17 @@ def push_event(a,
         return False
 
 
-def _t_queue_processor():
-    global queue_processor_active
-    if roboger.core.keep_events:
-        dbconn = db.connect()
-    else:
-        dbconn = None
-    queue_processor_active = True
-    while queue_processor_active or not roboger.core.keep_events:
-        eq = q.get()
-        if dbconn and not db.check(dbconn):
-            dbconn = db.connect()
-        if not eq or \
-                (roboger.core.keep_events and not queue_processor_active):
-            break
-        if eq.subscription._destroyed: continue
-        logging.info('Sending queued event id: %s' % eq.event.event_id + \
-                ', endpoint id: %s' % eq.subscription.endpoint.endpoint_id + \
-                ', subscription id: %s' % eq.subscription.subscription_id + \
-                ', addr id: %s, addr: %s' % (eq.event.addr.addr_id,
-                                    eq.event.addr.a)
-                                    )
-        t = threading.Thread(target=eq.send)
-        t.start()
-        eq.mark_delivered(dbconn=dbconn)
-    if dbconn:
-        dbconn.close()
-
-
-def _t_event_cleaner():
-    global event_cleaner_active
-    clean_interval = 60
-    dbconn = db.connect()
-    event_cleaner_active = True
-    c = clean_interval
-    while event_cleaner_active:
-        c += 1
-        if c > clean_interval:
-            logging.debug('cleaning old events')
-            try:
-                if dbconn and not db.check(dbconn):
-                    dbconn = db.connect()
-                # move this logic out
-                if db.db_engine == 'sqlite':
-                    q = 'delete from event where d < ' + \
-                            'datetime(current_timestamp, "-%s second")' % \
-                            roboger.core.keep_events
-                elif db.db_engine == 'mysql':
-                    q = 'delete from event where d<NOW() ' + \
-                            ' - INTERVAL %s SECOND' % roboger.core.keep_events
-                else:
-                    q = None
-                if q:
-                    db.query(q, (), True, dbconn=dbconn)
-            except:
-                roboger.core.log_traceback()
-            c = 0
-        time.sleep(1)
-
-
+@roboger.core.shutdown
 def stop():
-    global queue_processor_active
-    global event_cleaner_active
-    if queue_processor_active and \
-            queue_processor and queue_processor.isAlive():
-        queue_processor_active = False
-        q.put(None)
-        queue_processor.join()
-    if event_cleaner_active and \
-            event_cleaner and event_cleaner.isAlive():
-        event_cleaner_active = False
-        event_cleaner.join()
+    queue_processor.stop()
+    event_cleaner.stop()
     return
 
 
 def start():
-    global queue_processor, event_cleaner
-    roboger.core.append_stop_func(stop)
-    if not ( queue_processor_active and \
-            queue_processor and queue_processor.isAlive() ):
-        queue_processor = threading.Thread(
-            target=_t_queue_processor, name="_t_queue_processor")
-        queue_processor.start()
-    if roboger.core.keep_events:
-        if not ( event_cleaner_active and \
-                event_cleaner and event_cleaner.isAlive() ):
-            event_cleaner = threading.Thread(
-                target=_t_event_cleaner, name="_t_event_cleaner")
-            event_cleaner.start()
+    queue_processor.start()
+    if roboger.core.get_keep_events():
+        event_cleaner.start()
 
 
 def location_match(lmask, location):
@@ -354,7 +335,7 @@ class EventQueueItem(object):
             roboger.core.log_traceback()
 
     def save(self, initial=False, dbconn=None):
-        if self._destroyed or not roboger.core.keep_events: return True
+        if self._destroyed or not roboger.core.get_keep_events(): return True
         if initial:
             db.query('insert into event_queue ' + \
                     '(event_id, subscription_id, status, dd)' + \
@@ -468,7 +449,7 @@ class EventSubscription(object):
         u['level_id'] = self.level_id
         u['level'] = get_event_level_name(self.level_id)
         u['level_match'] = self.level_match
-        if roboger.core.development: u['destroyed'] = self._destroyed
+        if roboger.core.is_development(): u['destroyed'] = self._destroyed
         return u
 
     def set_active(self, active=1, dbconn=None):
@@ -599,7 +580,7 @@ class Event(object):
         u['subject'] = self.subject
         u['msg'] = self.msg
         u['media'] = base64.b64encode(self.media).decode() if self.media else ''
-        if roboger.core.development: u['destroyed'] = self._destroyed
+        if roboger.core.is_development(): u['destroyed'] = self._destroyed
         return u
 
     def save(self, dbconn=None):
@@ -607,15 +588,15 @@ class Event(object):
         if self.event_id:
             if self.scheduled == self.delivered and not self.dd:
                 self.dd = datetime.datetime.now()
-            if roboger.core.keep_events:
+            if roboger.core.get_keep_events():
                 db.query('update event set scheduled=%s, delivered=%s, ' + \
                         'dd=%s where id=%s',
                         (self.scheduled, self.delivered,
                         self.dd, self.event_id),
                         True, dbconn)
-        elif roboger.core.keep_events:
+        elif roboger.core.get_keep_events():
             # move logic out
-            if db.db_engine == 'sqlite':
+            if db.database.engine == 'sqlite':
                 binary_w = ''
                 import sqlite3
                 if isinstance(self.media, str):
@@ -640,6 +621,18 @@ class Event(object):
 
     def destroy(self, dbconn=None):
         self._destroyed = True
-        if self.event_id and roboger.core.keep_events:
+        if self.event_id and roboger.core.get_keep_events():
             db.query('delete from event where id = %s', (self.event_id,), True,
                      dbconn)
+
+
+q = Queue()
+
+subscriptions_by_id = {}
+subscriptions_by_addr_id = {}
+subscriptions_by_endpoint_id = {}
+
+subscriptions_lock = threading.RLock()
+
+queue_processor = QueueProcessor()
+event_cleaner = EventCleaner()

@@ -16,13 +16,13 @@ import roboger.api
 
 import logging
 
-product_build = 2019022003
+product_build = 2019022601
 
 roboger.core.init()
 roboger.core.set_build(product_build)
 
-_me = 'Roboger server version %s build %s ' % (roboger.core.version,
-                                               roboger.core.product_build)
+_me = 'Roboger server version %s build %s ' % (roboger.core.product.version,
+                                               roboger.core.product.build)
 
 ap = argparse.ArgumentParser(description=_me)
 ap.add_argument(

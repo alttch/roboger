@@ -15,6 +15,8 @@ import configparser
 import requests
 import re
 
+from types import SimpleNamespace
+
 _pd_cols = {
     'ls_subscriptions':
     ['id', 'active', 'level', 'senders', 'location', 'keywords'],
@@ -29,6 +31,8 @@ _pd_cols = {
 arg_sections = ['addr', 'endpoint', 'subscription', 'event']
 
 _level_match_sign = {'g': ' >', 'ge': '>=', 'l': ' <', 'le': '<=', 'e': '='}
+
+current_deploy = SimpleNamespace(deploy_a=[], deploy_errors=False)
 
 
 def format_json(obj, minimal=False):
@@ -121,12 +125,7 @@ def pprint_df(data, func):
         print(df)
 
 
-deploy_a = []
-deploy_errors = False
-
-
 def deploy_subscription(addr_id, endpoint_id, k, data):
-    global deploy_errors
     xparams = data.copy() if data else {}
     xparams['addr_id'] = addr_id
     xparams['endpoint_id'] = endpoint_id
@@ -136,11 +135,10 @@ def deploy_subscription(addr_id, endpoint_id, k, data):
         print('        + subscription {}'.format(k))
     except:
         print('        ! subscription {} not created: server error'.format(k))
-        deploy_errors = True
+        current_deploy.deploy_errors = True
 
 
 def deploy_endpoint(addr_id, k, data):
-    global deploy_errors
     if not 'type' in data:
         print(' [!] endpoint {} not created: type not specified'.format(k))
         return
@@ -171,15 +169,14 @@ def deploy_endpoint(addr_id, k, data):
                 deploy_subscription(addr_id, result['id'], z, v)
     except:
         print('    ! endpoint {} not created: server error'.format(k))
-        deploy_errors = True
+        current_deploy.deploy_errors = True
 
 
 def deploy_address(k, data):
-    global deploy_errors
     try:
         result = jsonpickle.decode(api_call('addr_create', {}).text)
         print('+ address {}'.format(k))
-        deploy_a.append(result)
+        current_deploy.deploy_a.append(result)
         for z, v in data.items():
             if z.startswith('endpoint_'):
                 deploy_endpoint(result['id'], z, v)
@@ -187,7 +184,7 @@ def deploy_address(k, data):
                 print('directive unknown: ' + z)
     except:
         print('! address {} not created: server error'.format(k))
-        deploy_errors = True
+        current_deploy.deploy_errors = True
 
 
 def deploy_config(params):
@@ -199,15 +196,15 @@ def deploy_config(params):
         else:
             print('directive unknown: ' + k)
     print()
-    if deploy_errors:
+    if current_deploy.deploy_errors:
         print('DEPLOYMENT FINISHED WITH ERRORS')
     else:
         print('Deployment completed successfully!')
     print()
-    for result in deploy_a:
+    for result in current_deploy.deploy_a:
         print('ADDRESS for {}: {} (ID: {})'.format(k, result['a'],
                                                    result['id']))
-    return not deploy_errors
+    return not current_deploy.deploy_errors
 
 
 def api_call(func, params):
@@ -485,7 +482,7 @@ sp_mk_subscription.add_argument(
 sp_mk_subscription.add_argument(
     '-x', '--senders', help='Senders, comma separated')
 sp_mk_subscription.add_argument(
-    '-l', '--level', help='Subscription level', dest='_level')
+    '-l', '--level', help='Subscription level', dest='_level', metavar='LEVEL')
 sp_mk_subscription.add_argument(
     '-m',
     '--level-match',
