@@ -135,11 +135,6 @@ def load(fname=None, initial=False, init_log=True):
         cfg.read(fname_full)
         if initial:
             try:
-                config.database = cfg.get('server', 'database')
-            except:
-                print('database is not defined in roboger.ini [server] section')
-                return None
-            try:
                 __core_data.pid_file = cfg.get('server', '__core_data.pid_file')
                 if __core_data.pid_file and __core_data.pid_file[0] != '/':
                     __core_data.pid_file = (
@@ -191,6 +186,12 @@ def load(fname=None, initial=False, init_log=True):
                     if __core_data.logger:
                         __core_data.logger.setLevel(logging.INFO)
             logging.info('Loading server config')
+            try:
+                config.database = cfg.get('server', 'database')
+            except:
+                print('database is not defined in roboger.ini [server] section')
+                return None
+            logging.debug('server.database = %s' % config.database)
             logging.debug(
                 'server.__core_data.pid_file = %s' % __core_data.pid_file)
         try:

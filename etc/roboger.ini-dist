@@ -1,7 +1,7 @@
 [server]
 ;database access
 database = sqlite:///var/db/roboger.db
-; for mysql requires MySQLdb python3 module (python3-mysqldb)
+; for mysql requires pymsql module (pip3 install pymysql)
 ;database = mysql+pymysql://username:password@localhost/roboger
 ;debug mode
 debug = no
