@@ -13,14 +13,6 @@ class BackgroundWorker:
         self.__active = False
         self.name = name
 
-    def stop(self, wait=True):
-        if self.__active and self.__thread and self.__thread.isAlive():
-            self.before_stop()
-            self.__active = False
-            self.after_stop()
-            if wait:
-                self.__thread.join()
-
     def start(self, *args, **kwargs):
         if not (self.__active and self.__thread and self.__thread.isAlive()):
             _kwargs = kwargs.copy()
@@ -36,6 +28,14 @@ class BackgroundWorker:
             self.before_start()
             self.__thread.start()
             self.after_start()
+
+    def stop(self, wait=True):
+        if self.__active and self.__thread and self.__thread.isAlive():
+            self.before_stop()
+            self.__active = False
+            self.after_stop()
+            if wait:
+                self.__thread.join()
 
     def is_active(self):
         return self.__active
