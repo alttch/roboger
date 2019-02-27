@@ -253,13 +253,14 @@ def netacl_match(host, acl):
 
 def db():
     with db_lock:
-        t = threading.local()
-        conn = getattr(t, 'dbconn', None)
+        conn = getattr(g, 'dbconn', None)
         if conn:
+            print('-------------- GOT thread local db')
             return conn
         else:
+            print('-------------- NEW thread local db')
             conn = __core_data.db.connect()
-            t.dbconn = conn
+            g.dbconn = conn
             return conn
 
 
@@ -316,3 +317,6 @@ config = SimpleNamespace(
     timeout=5)
 
 shutdown = FunctionCollecton(on_error=log_traceback)
+
+g = threading.local()
+
