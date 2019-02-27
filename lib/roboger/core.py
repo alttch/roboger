@@ -255,10 +255,8 @@ def db():
     with db_lock:
         conn = getattr(g, 'dbconn', None)
         if conn:
-            print('-------------- GOT thread local db')
             return conn
         else:
-            print('-------------- NEW thread local db')
             conn = __core_data.db.connect()
             g.dbconn = conn
             return conn

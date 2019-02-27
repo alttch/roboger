@@ -628,17 +628,6 @@ class Event(object):
                     dd=self.dd,
                     id=self.event_id)
         elif roboger.core.get_keep_events():
-            # move logic out
-            # if db.database.engine == 'sqlite':
-            # binary_w = ''
-            # import sqlite3
-            # if isinstance(self.media, str):
-            # media = sqlite3.Binary(self.media.encode())
-            # else:
-            # media = sqlite3.Binary(self.media)
-            # else:
-            # binary_w = '_binary'
-            # media = self.media
             self.event_id = db().execute(
                 sql('insert into event (addr_id, d, dd, scheduled, ' +
                     'delivered, location, keywords, sender, level_id, ' +
