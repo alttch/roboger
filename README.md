@@ -8,9 +8,9 @@ What is Roboger?
 
 Then Roboger is definitely for you!
 
-Actually nowadays the majority of emails are sent from robots and people don't need to
-reply. People eventually use emails much less, preferring messengers and
-alternative apps. And we made Roboger - a new generation messenger designed
+Actually nowadays the majority of emails are sent from robots and people don't
+need to reply. People eventually use emails much less, preferring messengers
+and alternative apps. And we made Roboger - a new generation messenger designed
 specifically for robots.
 
 ![How Roboger works](roboger-scheme.png?raw=true "How Roboger works")
@@ -32,8 +32,9 @@ You get information messages from your server to Slack, warnings to Slack and
 Telegram, errors to messengers and by mail and on critical events you want to
 additionally hook API of your PBX to call you on mobile.
 
-In the past you would have needed to write a code, call APIs, manage event routing and
-finish in a script hell without any idea what and where notifies you.
+In the past you would have needed to write a code, call APIs, manage event
+routing and finish in a script hell without any idea what and where notifies
+you.
   
 Now you can use Roboger, where everything is already coded, organized and can
 be set up with a couple of commands.
@@ -78,8 +79,8 @@ we just warn you about that)
 Limitations
 -----------
 
-* until the launch of https://roboger.com/, stability is very limited, management
-  API can be changed at any time. Use at your own risk
+* until the launch of https://roboger.com/, stability is very limited,
+  management API can be changed at any time. Use at your own risk
 
 Installation
 ------------
