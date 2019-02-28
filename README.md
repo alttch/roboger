@@ -166,4 +166,3 @@ Configuration deployment
 **./bin/roboger-cmd** does the job, but if you want to deploy in batch, use
 *roboger-cmd deploy file.yml* command. Look *sample-deploy.yml* for deployment
 example.
-
