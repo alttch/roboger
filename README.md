@@ -1,17 +1,17 @@
 What is Roboger?
 ----------------
 
-* Do you like old good "echo alarm | sendmail me@mydomain" trick in crontab?
+* Do you like the old good "echo alarm | sendmail me@mydomain" trick in crontab?
 * Does your software or servers send you mail/sms alerts when something is
   wrong?
-* Tired getting emails from robots?
+* Tired of getting emails from robots?
 
 Then Roboger is definitely for you!
 
-Actually nowdays majority emails are sent from robots and people don't need to
-reply. Actually people use emails much less, prefering messengers and
-alternative apps. And we made Roboger - new generation messenger designed
-especially for robots.
+Actually nowadays the majority of emails are sent from robots and people don't need to
+reply. People eventually use emails much less, preferring messengers and
+alternative apps. And we made Roboger - a new generation messenger designed
+specifically for robots.
 
 ![How Roboger works](roboger-scheme.png?raw=true "How Roboger works")
 
@@ -21,19 +21,19 @@ What can Roboger do?
 * It can get notifications and forward them to specified endpoints
 * It supports endpoint types: email, http/post, http/json, Slack, Telegram and
   Roboger Smartphone App (only via https://roboger.com/)
-* This software actually allows you to run own Roboger server, in case you
-  don't want to use https://roboger.com/, want to have backup alternative or
+* This software actually allows you to run your own Roboger server, in case you
+  don't want to use https://roboger.com/, want to have a backup alternative or
   want to use custom http web hooks.
 
 Real life example
 -----------------
 
 You get information messages from your server to Slack, warnings to Slack and
-Telegram, errors to messengers and by mail and on critical events you want
+Telegram, errors to messengers and by mail and on critical events you want to
 additionally hook API of your PBX to call you on mobile.
 
-In past you would need to write a code, call APIs, manage event routing and
-finish in a script hell without any idea what and where notify you.
+In the past you would have needed to write a code, call APIs, manage event routing and
+finish in a script hell without any idea what and where notifies you.
 
 Now you can use Roboger, where everything is already coded, organized and can
 be set up with a couple of commands.
@@ -41,7 +41,7 @@ be set up with a couple of commands.
 How to use
 ----------
 
-Firstly - setup Roboger server, create address, endpoints and subscriptions
+Firstly - set up Roboger server, create address, endpoints and subscriptions
 with **./bin/roboger-cmd**
 
 Then use Roboger API to send event notifications:
@@ -63,7 +63,7 @@ Or, for old machines (you can't send binary data with GET):
 
     GET http://your-roboger-host:7719/push?r=&s=&l=&k=&s=&m=&l=
 
-Or with **roboger-push** console client in old good crontab or any other
+Or with **roboger-push** console client in the old good crontab or any other
 software/scripts:
 
     echo Everything's down!!! | roboger-push
@@ -78,7 +78,7 @@ we just warn you about that)
 Limitations
 -----------
 
-* until launch of https://roboger.com/, stability is very limited, management
+* until the launch of https://roboger.com/, stability is very limited, management
   API can be changed at any time. Use at your own risk
 
 Installation
@@ -87,7 +87,7 @@ Installation
 * put roboger to */opt/roboger* (recommended)
 * install realpath and pip3
 * python3 module python3-cryptography has problems installing via pip3, install
-  it better manually
+  it rather manually
 * run install.sh to make required dirs and install missing python3 mods
 * use sqlite database (default) or:
   * install pymysql module (pip3 install pymysql)
@@ -149,14 +149,14 @@ Endpoint types
 How it works with Telegram
 --------------------------
 
-* Firstly you need to register own bot and obtain bot token
+* Firstly you need to register your own bot and obtain bot token
   (https://core.telegram.org/bots#6-botfather)
 * Put bot token to etc/roboger.ini and restart roboger server
 * Find your bot in Telegram and write something to chat
 * Bot will instantly report you your Chat ID. Use it for *chat_id=chat_id*
   config param when creating endpoint.
 
-Note: roboger Chat ID is differnet from integer Telegram Chat ID. Actually it's
+Note: roboger Chat ID is different from integer Telegram Chat ID. Actually it's
 encrypted with your bot token to avoid people brute forcing chat IDs of shared
 bots.
 
