@@ -76,6 +76,29 @@ Note: if you want to send media attachments with roboger-push, you should have
 local *openssl* CLI installed (it's actually installed everywhere by default,
 we just warn you about that)
 
+Python client module
+----------------------
+
+Client module for Python 3: https://github.com/alttch/pyrpush. The module can
+be installed it with pip3 as well:
+
+    pip3 install pyrpush
+    
+Usage example:
+ 
+```python
+from pyrpush import Client as RPushClient
+
+r = RPushClient()
+r.sender = 'bot1'
+r.location = 'lab'
+r.push('test message')
+r.push(media_file='1.jpg', level='warning', msg='sending you image')
+```
+
+The module requires **roboger-push** client installed (uses its config only, you
+can remove *roboger-push* script after the installation)
+
 Limitations
 -----------
 
