@@ -133,7 +133,7 @@ function sendPush() {
                 VERB="-v"
             fi
             local CODE=`echo ${_data} | curl --header "Content-Type: application/json" --data @- -X POST -m ${T} -s ${VERB} -o /dev/null -w "%{http_code}" ${PUSH}/push`
-            if [ "x${CODE}" == "x200" ]; then
+            if [ "x${CODE}" == "x200" ] || [ "x${CODE}" == "x202" ]; then
                 echoV "${SRV} ${ADDR} - sent"
                 _EX=0
                 break
