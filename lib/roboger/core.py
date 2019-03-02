@@ -19,6 +19,7 @@ import urllib3
 from netaddr import IPNetwork, IPAddress
 from types import SimpleNamespace
 from pyaltt import FunctionCollecton
+from pyaltt import g
 
 
 def set_build(build):
@@ -315,6 +316,3 @@ config = SimpleNamespace(
     timeout=5)
 
 shutdown = FunctionCollecton(on_error=log_traceback)
-
-g = threading.local()
-
