@@ -1,7 +1,7 @@
 __author__ = "Altertech Group, http://www.altertech.com/"
 __copyright__ = "Copyright (C) 2018-2019 Altertech Group"
 __license__ = "Apache License 2.0"
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 import os
 import platform
@@ -18,7 +18,7 @@ import requests
 import urllib3
 from netaddr import IPNetwork, IPAddress
 from types import SimpleNamespace
-from roboger.datatypes import FunctionCollecton
+from pyaltt import FunctionCollecton
 
 
 def set_build(build):
@@ -75,7 +75,7 @@ def debug_off():
     logging.info('Debug mode OFF')
 
 
-def log_traceback(display=False, notifier=False, force=False):
+def log_traceback(display=False, notifier=False, force=False, e=None):
     if (config.show_traceback or force) and not display:
         pfx = '.' if notifier else ''
         logging.error(pfx + traceback.format_exc())

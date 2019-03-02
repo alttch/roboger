@@ -1,6 +1,5 @@
 import requests
 import json
-import threading
 import time
 import roboger.core
 import logging
@@ -9,32 +8,50 @@ import base64
 import hashlib
 
 from cryptography.fernet import Fernet
-from roboger.threads import BackgroundWorker
+from pyaltt import background_worker
 
 
-class RTelegramBot(BackgroundWorker):
+@background_worker(on_error=roboger.core.log_traceback)
+def telegram_bot(o, **kwargs):
+    if not o._token:
+        raise Exception('token not provided')
+    result = o.call('getUpdates', {'offset': o.update_offset + 1})
+    if result and 'result' in result:
+        for m in result['result']:
+            if m.get('message'): o.process_update(msg)
+            update_id = m.get('update_id')
+            if update_id and update_id > o.update_offset:
+                o.update_offset = update_id
+
+
+class RTelegramBot():
 
     def __init__(self):
-        self.__token = None
+        self._token = None
         self.ce = None
         self.__uri = None
         self.timeout = 10
         self.poll_interval = 2
         self.update_offset = 0
-        super().__init__(name='RTelegramBot_t_get_updates')
+
+    def start(self):
+        telegram_bot.start(o=self, _interval=self.poll_interval)
+
+    def stop(self):
+        telegram_bot.stop()
 
     def set_token(self, token=None):
         if token:
             self.__uri = 'https://api.telegram.org/bot%s' % token
             _k = base64.b64encode(hashlib.sha256(token.encode()).digest())
             self.ce = Fernet(_k)
-            self.__token = token
+            self._token = token
         else:
             self.ce = None
-            self.__token = None
+            self._token = None
 
     def is_ready(self):
-        return self.__token is not None
+        return self._token is not None
 
     def test(self):
         result = self.call('getMe')
@@ -63,21 +80,6 @@ class RTelegramBot(BackgroundWorker):
         except:
             roboger.core.log_traceback()
             return None
-
-    def run(self):
-        if not self.__token:
-            raise Exception('token not provided')
-        logging.debug('update thread started')
-        while self.is_active():
-            result = self.call('getUpdates', {'offset': self.update_offset + 1})
-            if result and 'result' in result:
-                for m in result['result']:
-                    msg = m.get('message')
-                    if msg: self.process_update(msg)
-                    update_id = m.get('update_id')
-                    if update_id and update_id > self.update_offset:
-                        self.update_offset = update_id
-            time.sleep(self.poll_interval)
 
     def send_message(self, chat_id, msg, quiet=False):
         return self.call(

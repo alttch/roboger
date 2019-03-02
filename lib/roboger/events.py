@@ -1,7 +1,7 @@
 __author__ = "Altertech Group, http://www.altertech.com/"
 __copyright__ = "Copyright (C) 2018-2019 Altertech Group"
 __license__ = "Apache License 2.0"
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 import datetime
 import base64
@@ -17,7 +17,8 @@ from queue import Queue
 import roboger.core
 import roboger.addr
 from roboger.core import db
-from roboger.threads import BackgroundWorker
+
+from pyaltt import background_worker
 
 from sqlalchemy import text as sql
 
@@ -31,66 +32,34 @@ level_names = {
 
 level_codes = {'d': 10, 'i': 20, 'w': 30, 'e': 40, 'c': 50}
 
-event_clean_interval = 60
+
+@background_worker(q=True, on_error=roboger.core.log_traceback)
+def queue_processor(eq, **kwargs):
+    if not eq.subscription._destroyed:
+        logging.info(
+            'Sending queued event id: %s' % eq.event.event_id +
+            ', endpoint id: %s' % eq.subscription.endpoint.endpoint_id +
+            ', subscription id: %s' % eq.subscription.subscription_id +
+            ', addr id: %s, addr: %s' %
+            (eq.event.addr.addr_id, eq.event.addr.a))
+        t = threading.Thread(target=eq.send)
+        t.start()
+        eq.mark_delivered()
 
 
-class QueueProcessor(BackgroundWorker):
-
-    def __init__(self):
-        super().__init__(name='_t_queue_processor')
-
-    def run(self):
-        while self.is_active() or not roboger.core.get_keep_events():
-            eq = q.get()
-            if not eq or \
-                    (roboger.core.get_keep_events() and not self.is_active()):
-                break
-            if eq.subscription._destroyed: continue
-            logging.info(
-                'Sending queued event id: %s' % eq.event.event_id +
-                ', endpoint id: %s' % eq.subscription.endpoint.endpoint_id +
-                ', subscription id: %s' % eq.subscription.subscription_id +
-                ', addr id: %s, addr: %s' %
-                (eq.event.addr.addr_id, eq.event.addr.a))
-            t = threading.Thread(target=eq.send)
-            t.start()
-            eq.mark_delivered()
-
-    def after_stop(self):
-        q.put(None)
-
-
-class EventCleaner(BackgroundWorker):
-
-    def __init__(self):
-        super().__init__(name='_t_event_cleaner')
-
-    def run(self):
-        clean_interval = event_clean_interval
-        c = clean_interval
-        while self.is_active():
-            c += 1
-            if c > clean_interval:
-                logging.debug('cleaning old events')
-                try:
-                    # move this logic out
-                    if roboger.core.db_type() == 'sqlite':
-                        q = ('delete from event where d < ' +
-                             'datetime(current_timestamp, ' +
-                             '"localtime", "-%s second")' %
-                             roboger.core.get_keep_events())
-                    elif roboger.core.db_type() == 'mysql':
-                        q = ('delete from event where d<NOW() ' +
-                             ' - INTERVAL %s SECOND' %
-                             roboger.core.get_keep_events())
-                    else:
-                        q = None
-                    if q:
-                        db().execute(sql(q))
-                except:
-                    roboger.core.log_traceback()
-                c = 0
-            time.sleep(1)
+@background_worker(delay=60, on_error=roboger.core.log_traceback)
+def event_cleaner(**kwargs):
+    logging.debug('cleaning old events')
+    if roboger.core.db_type() == 'sqlite':
+        q = ('delete from event where d < ' + 'datetime(current_timestamp, ' +
+             '"localtime", "-%s second")' % roboger.core.get_keep_events())
+    elif roboger.core.db_type() == 'mysql':
+        q = ('delete from event where d<NOW() ' +
+             ' - INTERVAL %s SECOND' % roboger.core.get_keep_events())
+    else:
+        q = None
+    if q:
+        db().execute(sql(q))
 
 
 def push_event(a,
@@ -207,7 +176,7 @@ def queue_event(event):
             eq.save(initial=True)
             event.scheduled += 1
             event.save()
-            q.put(eq)
+            queue_processor.put(eq)
 
 
 def destroy_subscription(s):
@@ -317,7 +286,7 @@ def load_queued_events():
             autosave=r.autosave)
         eq = EventQueueItem(e, s)
         cqe += 1
-        q.put(eq)
+        queue_processor.put(eq)
     logging.debug('events: %u queued event(s) loaded' % cqe)
 
 
@@ -657,13 +626,8 @@ class Event(object):
                 sql('delete from event where id = :id'), id=self.event_id)
 
 
-q = Queue()
-
 subscriptions_by_id = {}
 subscriptions_by_addr_id = {}
 subscriptions_by_endpoint_id = {}
 
 subscriptions_lock = threading.RLock()
-
-queue_processor = QueueProcessor()
-event_cleaner = EventCleaner()

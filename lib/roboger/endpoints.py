@@ -1,7 +1,7 @@
 __author__ = "Altertech Group, http://www.altertech.com/"
 __copyright__ = "Copyright (C) 2018-2019 Altertech Group"
 __license__ = "Apache License 2.0"
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication

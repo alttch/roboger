@@ -19,6 +19,7 @@ mods = [
         'sqlite3',
         'netaddr',
         'pandas',
+        'pyaltt',
         'platform',
         'queue',
         'requests',
