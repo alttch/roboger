@@ -11,20 +11,19 @@ from cryptography.fernet import Fernet
 from pyaltt import background_worker
 
 
-@background_worker(on_error=roboger.core.log_traceback)
-def telegram_bot(o, **kwargs):
-    if not o._token:
-        raise Exception('token not provided')
-    result = o.call('getUpdates', {'offset': o.update_offset + 1})
-    if result and 'result' in result:
-        for m in result['result']:
-            if m.get('message'): o.process_update(msg)
-            update_id = m.get('update_id')
-            if update_id and update_id > o.update_offset:
-                o.update_offset = update_id
-
-
 class RTelegramBot():
+
+    @background_worker(on_error=roboger.core.log_traceback)
+    def telegram_bot(o, **kwargs):
+        if not o._token:
+            raise Exception('token not provided')
+        result = o.call('getUpdates', {'offset': o.update_offset + 1})
+        if result and 'result' in result:
+            for m in result['result']:
+                if m.get('message'): o.process_update(msg)
+                update_id = m.get('update_id')
+                if update_id and update_id > o.update_offset:
+                    o.update_offset = update_id
 
     def __init__(self):
         self._token = None
@@ -35,10 +34,10 @@ class RTelegramBot():
         self.update_offset = 0
 
     def start(self):
-        telegram_bot.start(o=self, _interval=self.poll_interval)
+        self.telegram_bot.start(o=self, _interval=self.poll_interval)
 
     def stop(self):
-        telegram_bot.stop()
+        self.telegram_bot.stop()
 
     def set_token(self, token=None):
         if token:
