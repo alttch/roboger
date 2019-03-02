@@ -12,8 +12,6 @@ import time
 import threading
 import hashlib
 
-from queue import Queue
-
 import roboger.core
 import roboger.addr
 from roboger.core import db
@@ -104,7 +102,6 @@ def push_event(a,
 def stop():
     queue_processor.stop()
     event_cleaner.stop()
-    return
 
 
 def start():
