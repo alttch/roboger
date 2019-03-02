@@ -254,13 +254,9 @@ def netacl_match(host, acl):
 
 def db():
     with db_lock:
-        conn = getattr(g, 'dbconn', None)
-        if conn:
-            return conn
-        else:
-            conn = __core_data.db.connect()
-            g.dbconn = conn
-            return conn
+        if not hasattr(g, 'dbconn'):
+            g.dbconn = __core_data.db.connect()
+        return g.dbconn
 
 
 def db_type():
