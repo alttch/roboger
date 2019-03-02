@@ -17,6 +17,7 @@ import roboger.addr
 from roboger.core import db
 
 from pyaltt import background_worker
+from pyaltt import background_job
 
 from sqlalchemy import text as sql
 
@@ -40,8 +41,7 @@ def queue_processor(eq, **kwargs):
             ', subscription id: %s' % eq.subscription.subscription_id +
             ', addr id: %s, addr: %s' %
             (eq.event.addr.addr_id, eq.event.addr.a))
-        t = threading.Thread(target=eq.send)
-        t.start()
+        background_job(eq.send)()
         eq.mark_delivered()
 
 
