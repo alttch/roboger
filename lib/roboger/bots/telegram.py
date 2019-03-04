@@ -20,7 +20,7 @@ class RTelegramBot():
         result = o.call('getUpdates', {'offset': o.update_offset + 1})
         if result and 'result' in result:
             for m in result['result']:
-                if m.get('message'): o.process_update(msg)
+                if 'message' in m: o.process_update(m['message'])
                 update_id = m.get('update_id')
                 if update_id and update_id > o.update_offset:
                     o.update_offset = update_id
