@@ -146,6 +146,7 @@ def update_config(cfg):
     except:
         pass
     logging.debug('api.thread_pool = %u' % config.thread_pool)
+    roboger.core.config.db_pool_size = config.thread_pool
     try:
         config.masterkey = cfg.get('api', 'masterkey')
         logging.debug('api.masterkey loaded')

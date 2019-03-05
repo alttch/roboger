@@ -221,7 +221,13 @@ def load(fname=None, initial=False, init_log=True):
 
 
 def start():
-    __core_data.db = sqlalchemy.create_engine(config.database)
+    if config.database.startswith('sqlite:///'):
+        __core_data.db = sqlalchemy.create_engine(config.database)
+    else:
+        __core_data.db = sqlalchemy.create_engine(
+            config.database,
+            pool_size=config.db_pool_size,
+            max_overflow=config.db_pool_size * 2)
     write_pid_file()
 
 
@@ -309,6 +315,7 @@ config = SimpleNamespace(
     show_traceback=False,
     smtp_host='127.0.0.1',
     smtp_port=25,
+    db_pool_size=15,
     timeout=5)
 
 shutdown = FunctionCollecton(on_error=log_traceback)
