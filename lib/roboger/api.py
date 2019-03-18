@@ -239,24 +239,20 @@ class MasterAPI(object):
                 except:
                     api_invalid_json_data()
             else:
-                try:
-                    if 'data' in cherrypy.serving.request.params:
-                        try:
-                            d = json.loads(
-                                cherrypy.serving.request.params['data'])
-                        except:
-                            api_invalid_json_data()
-                    else:
-                        cl = cherrypy.request.headers['Content-Length']
-                        rawbody = cherrypy.request.body.read(int(cl))
-                        try:
-                            d = json.loads(rawbody.decode())
-                        except:
-                            api_invalid_json_data()
-                    if not k: k = d.get('k')
-                    cherrypy.serving.request.params['data'] = d
-                except:
-                    api_forbidden()
+                if 'data' in cherrypy.serving.request.params:
+                    try:
+                        d = json.loads(cherrypy.serving.request.params['data'])
+                    except:
+                        api_invalid_json_data()
+                else:
+                    cl = cherrypy.request.headers['Content-Length']
+                    rawbody = cherrypy.request.body.read(int(cl))
+                    try:
+                        d = json.loads(rawbody.decode())
+                    except:
+                        api_invalid_json_data()
+                if not k: k = d.get('k')
+                cherrypy.serving.request.params['data'] = d
             if k == config.masterkey:
                 return
         api_forbidden()
