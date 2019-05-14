@@ -259,9 +259,22 @@ def netacl_match(host, acl):
 
 
 def db():
+
+    def _make_new_connection():
+        return __core_data.db.connect()
+
     with db_lock:
         if not g.has('dbconn'):
-            g.dbconn = __core_data.db.connect()
+            g.dbconn = _make_new_connection()
+        else:
+            try:
+                g.dbconn.execute('select 1')
+            except:
+                try:
+                    g.dbconn.close()
+                except:
+                    pass
+                g.dbconn = _make_new_connection()
         return g.dbconn
 
 
