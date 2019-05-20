@@ -5,7 +5,8 @@ __version__ = "1.0.2"
 
 import uuid
 import hashlib
-import os
+import random
+import string
 import logging
 import threading
 
@@ -17,12 +18,9 @@ from roboger.core import db
 from sqlalchemy import text as sql
 
 
-def gen_random_hash():
-    s = hashlib.sha256()
-    s.update(os.urandom(1024))
-    s.update(str(uuid.uuid4()).encode())
-    s.update(os.urandom(1024))
-    return s.hexdigest()
+def gen_random_str(length=64):
+    symbols = string.ascii_letters + '0123456789'
+    return ''.join(random.choice(symbols) for i in range(length))
 
 
 addrs_by_id = {}
@@ -121,7 +119,7 @@ class Addr:
         return u
 
     def set_a(self, a=None, autosave=True):
-        self.a = a if a else gen_random_hash()
+        self.a = a if a else gen_random_str()
         if autosave: self.save()
         return self.a
 
