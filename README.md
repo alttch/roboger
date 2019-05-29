@@ -93,7 +93,7 @@ r = RPushClient()
 r.sender = 'bot1'
 r.location = 'lab'
 r.push('test message')
-r.push(media_file='1.jpg', level='warning', msg='sending you image')
+r.push(msg='sending you image', media_file='1.jpg', level='warning')
 ```
 
 The module requires **roboger-push** client installed (uses its config only, you
