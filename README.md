@@ -80,7 +80,7 @@ Python client module
 ----------------------
 
 Client module for Python 3: https://github.com/alttch/pyrpush. The module can
-be installed it with pip3 as well:
+be installed with pip3:
 
     pip3 install pyrpush
     
