@@ -372,8 +372,17 @@ class MasterAPI(object):
         elif not isinstance(cfg, dict):
             cfg = {}
         try:
+            # android app
+            if endpoint_type == 1:
+                device_id = cfg.get('device_id')
+                if not device_id: device_id = data.get('data')
+                e = roboger.endpoints.AndroidEndpoint(
+                        addr,
+                        device_id,
+                        description=data.get('description'),
+                        autosave=False)
             # email
-            if endpoint_type == 2:
+            elif endpoint_type == 2:
                 email = cfg.get('rcpt')
                 if not email: email = data.get('data')
                 e = roboger.endpoints.EmailEndpoint(
