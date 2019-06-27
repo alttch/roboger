@@ -374,11 +374,11 @@ class MasterAPI(object):
         try:
             # android app
             if endpoint_type == 1:
-                device_id = cfg.get('device_id')
-                if not device_id: device_id = data.get('data')
+                registration_id = cfg.get('registration_id')
+                if not registration_id: registration_id = data.get('data')
                 e = roboger.endpoints.AndroidEndpoint(
                         addr,
-                        device_id,
+                        registration_id,
                         description=data.get('description'),
                         autosave=False)
             # email

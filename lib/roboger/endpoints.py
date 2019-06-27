@@ -155,7 +155,7 @@ def load():
         if r.endpoint_type_id == 1:
             e = AndroidEndpoint(
                 addr=u,
-                device_id=r.data,
+                registration_id=r.data,
                 endpoint_id=r.id,
                 active=r.active,
                 skip_dups=r.skip_dups,
@@ -354,13 +354,13 @@ class AndroidEndpoint(GenericEndpoint):
 
     def __init__(self,
                  addr,
-                 device_id,
+                 registration_id,
                  endpoint_id=None,
                  active=1,
                  skip_dups=0,
                  description='',
                  autosave=True):
-        self.device_id = device_id
+        self.registration_id = registration_id
         super().__init__(
             addr,
             1,
@@ -373,30 +373,30 @@ class AndroidEndpoint(GenericEndpoint):
 
     def serialize(self):
         d = super().serialize()
-        d['device_id'] = self.device_id
+        d['registration_id'] = self.registration_id
         return d
 
     def set_config(self, config):
-        self.set_data(config.get('device_id', ''))
+        self.set_data(config.get('registration_id', ''))
 
     def set_data(self, data=None, data2=None, data3=None):
-        self.device_id = data
+        self.registration_id = data
         super().set_data(data, data2, data3)
 
     def send(self, event):
         if not 'android' in push_services: return False
         if not self.check_dup(event): return False
         if not self.active or event._destroyed: return True
-        if not self.device_id: return False
+        if not self.registration_id: return False
         if not event.sender: return False
         data = event.serialize(for_endpoint=True)
         logging.info('sending event %s via endpoint %u' % (event.event_id,
                                                            self.endpoint_id))
         try:
             logging.info(
-                'Android endpoint sending event to %s' % self.device_id)
+                'Android endpoint sending event to %s' % self.registration_id)
             push_services['android'].single_device_data_message(
-                registration_id=self.device_id, data_message=data)
+                registration_id=self.registration_id, data_message=data)
         except:
             logging.warning('failed to send event %s via endpoint %u' %
                             (event.event_id, self.endpoint_id))
