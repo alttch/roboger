@@ -365,7 +365,7 @@ class AndroidEndpoint(GenericEndpoint):
             addr,
             1,
             endpoint_id,
-            rcpt,
+            registration_id,
             active=active,
             description=description,
             skip_dups=skip_dups,
