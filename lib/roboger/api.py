@@ -28,7 +28,6 @@ def dict_from_str(s, spl=','):
     if not s: return result
     vals = s.split(spl)
     for v in vals:
-        print(v)
         name, value = v.split('=')
         if value.find('||') != -1:
             _value = value.split('||')
