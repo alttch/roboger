@@ -567,7 +567,7 @@ class Event(object):
             u['addr_id'] = self.addr.addr_id
             u['scheduled'] = self.scheduled
             u['delivered'] = self.delivered
-        u['d'] = self.d
+        u['d'] = self.d.timestamp()
         u['location'] = self.location
         u['keywords'] = self.keywords
         u['sender'] = self.sender
