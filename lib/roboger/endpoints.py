@@ -390,6 +390,7 @@ class AndroidEndpoint(GenericEndpoint):
         if not self.registration_id: return False
         if not event.sender: return False
         data = event.serialize(for_endpoint=True)
+        data['d'] = int(data['d'].timestamp() * 1000)
         logging.info('sending event %s via endpoint %u' % (event.event_id,
                                                            self.endpoint_id))
         try:
