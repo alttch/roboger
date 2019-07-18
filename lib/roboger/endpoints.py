@@ -71,7 +71,7 @@ def update_config(cfg):
         telegram_poll_interval = 1
     if telegram_bot_token:
         logging.debug('endpoint.telegram.poll_interval = %s' % \
-                telegram_poll_interval)
+                      telegram_poll_interval)
         telegram_bot.set_token(telegram_bot_token)
         telegram_bot.poll_interval = telegram_poll_interval
     return True
@@ -209,14 +209,13 @@ def load():
 
 
 class GenericEndpoint(object):
-
     emoji_code = {
         20: u'\U00002139',
         30: u'\U000026A0',
         40: u'\U0000203C',
         50: u'\U0001F170'
     }
-
+    
     def __init__(self,
                  addr,
                  type_id,
@@ -248,27 +247,27 @@ class GenericEndpoint(object):
             except:
                 roboger.core.log_traceback()
                 self._destroyed = True
-
+    
     def append_subscription(self, s):
         with self.lock:
             self.subscriptions.append(s)
-
+    
     def check_dup(self, event):
         if self.skip_dups <= 0: return True
         h = event.get_hash()
         if self.last_event_hash and self.last_event_time and \
-                 h == self.last_event_hash  and \
-                 time.time() - self.last_event_time < self.skip_dups:
+                h == self.last_event_hash and \
+                time.time() - self.last_event_time < self.skip_dups:
             logging.info('endpoint %s duplicate event' % self.endpoint_id)
             return False
         self.last_event_hash = h
         self.last_event_time = time.time()
         return True
-
+    
     def remove_subscription(self, s):
         with self.lock:
             self.subscriptions.remove(s)
-
+    
     def serialize(self):
         u = {}
         u['id'] = self.endpoint_id
@@ -283,28 +282,28 @@ class GenericEndpoint(object):
         u['type'] = endpoint_types.get(self.type_id)
         if roboger.core.is_development(): u['destroyed'] = self._destroyed
         return u
-
+    
     def set_data(self, data='', data2='', data3=''):
         self.data = data if data else ''
         self.data2 = data2 if data2 else ''
         self.data3 = data3 if data3 else ''
         self.save()
-
+    
     def set_skip_dups(self, skip_dups=0):
         try:
             self.skip_dups = int(skip_dups)
         except:
             self.skip_dups = 0
         self.save()
-
+    
     def set_description(self, description=''):
         self.description = description if description else ''
         self.save()
-
+    
     def set_active(self, active=1):
         self.active = active
         self.save()
-
+    
     def save(self):
         if self._destroyed: return
         if self.endpoint_id:
@@ -334,7 +333,7 @@ class GenericEndpoint(object):
                 active=self.active,
                 skip_dups=self.skip_dups,
                 description=self.description).lastrowid
-
+    
     def destroy(self):
         self._destroyed = True
         self.active = 0
@@ -343,15 +342,16 @@ class GenericEndpoint(object):
             for s in self.subscriptions.copy():
                 roboger.events.destroy_subscription(s)
             db().execute(
-                sql('delete from endpoint where id = :id'), id=self.endpoint_id)
-
+                sql('delete from endpoint where id = :id'),
+                id=self.endpoint_id)
+    
     def send(self, event):
         if not self.check_dup(event): return False
         return True
 
 
 class AndroidEndpoint(GenericEndpoint):
-
+    
     def __init__(self,
                  addr,
                  registration_id,
@@ -370,19 +370,19 @@ class AndroidEndpoint(GenericEndpoint):
             description=description,
             skip_dups=skip_dups,
             autosave=autosave)
-
+    
     def serialize(self):
         d = super().serialize()
         d['registration_id'] = self.registration_id
         return d
-
+    
     def set_config(self, config):
         self.set_data(config.get('registration_id', ''))
-
+    
     def set_data(self, data=None, data2=None, data3=None):
         self.registration_id = data
         super().set_data(data, data2, data3)
-
+    
     def send(self, event):
         if not 'android' in push_services: return False
         if not self.check_dup(event): return False
@@ -391,6 +391,10 @@ class AndroidEndpoint(GenericEndpoint):
         if not event.sender: return False
         data = event.serialize(for_endpoint=True)
         data['d'] = int(data['d'].timestamp() * 1000)
+        if event.media:
+            ft = filetype.guess(event.media)
+            data['media'] = {'type': (ft.extension if ft else 'Unknown'),
+                             'data': data['media']}
         logging.info('sending event %s via endpoint %u' % (event.event_id,
                                                            self.endpoint_id))
         try:
@@ -406,7 +410,7 @@ class AndroidEndpoint(GenericEndpoint):
 
 
 class EmailEndpoint(GenericEndpoint):
-
+    
     def __init__(self,
                  addr,
                  rcpt,
@@ -425,19 +429,19 @@ class EmailEndpoint(GenericEndpoint):
             description=description,
             skip_dups=skip_dups,
             autosave=autosave)
-
+    
     def serialize(self):
         d = super().serialize()
         d['rcpt'] = self.rcpt
         return d
-
+    
     def set_config(self, config):
         self.set_data(config.get('rcpt', ''))
-
+    
     def set_data(self, data=None, data2=None, data3=None):
         self.rcpt = data
         super().set_data(data, data2, data3)
-
+    
     def send(self, event):
         if not self.check_dup(event): return False
         if not self.active or event._destroyed: return True
@@ -478,7 +482,7 @@ class EmailEndpoint(GenericEndpoint):
 
 
 class HTTPPostEndpoint(GenericEndpoint):
-
+    
     def __init__(self,
                  addr,
                  url,
@@ -509,17 +513,17 @@ class HTTPPostEndpoint(GenericEndpoint):
             skip_dups=skip_dups,
             description=description,
             autosave=autosave)
-
+    
     def serialize(self):
         d = super().serialize()
         d['url'] = self.url
         d['params'] = self.params
         return d
-
+    
     def set_config(self, config):
         params = config.get('params', '')
         self.set_data(config.get('url', ''), data3=params)
-
+    
     def set_data(self, data=None, data2=None, data3=None):
         self.url = data
         if data3:
@@ -530,7 +534,7 @@ class HTTPPostEndpoint(GenericEndpoint):
         else:
             self.params = None
         super().set_data(data, data2, data3)
-
+    
     def send(self, event):
         if not self.check_dup(event): return False
         if not self.url: return False
@@ -559,7 +563,7 @@ class HTTPPostEndpoint(GenericEndpoint):
 
 
 class HTTPJSONEndpoint(GenericEndpoint):
-
+    
     def __init__(self,
                  addr,
                  url,
@@ -590,17 +594,17 @@ class HTTPJSONEndpoint(GenericEndpoint):
             skip_dups=skip_dups,
             description=description,
             autosave=autosave)
-
+    
     def serialize(self):
         d = super().serialize()
         d['url'] = self.url
         d['params'] = self.params
         return d
-
+    
     def set_config(self, config):
         params = config.get('params', '')
         self.set_data(config.get('url', ''), data3=params)
-
+    
     def set_data(self, data=None, data2=None, data3=None):
         self.url = data
         if data3:
@@ -611,7 +615,7 @@ class HTTPJSONEndpoint(GenericEndpoint):
         else:
             self.params = None
         super().set_data(data, data2, data3)
-
+    
     def send(self, event):
         if not self.check_dup(event): return False
         if not self.url: return False
@@ -638,7 +642,6 @@ class HTTPJSONEndpoint(GenericEndpoint):
 
 
 class SlackEndpoint(GenericEndpoint):
-
     slack_color = {
         10: '#555555',
         20: 'good',
@@ -646,7 +649,7 @@ class SlackEndpoint(GenericEndpoint):
         40: 'danger',
         50: '#FF2222'
     }
-
+    
     def __init__(self,
                  addr,
                  webhook,
@@ -668,24 +671,24 @@ class SlackEndpoint(GenericEndpoint):
             skip_dups=skip_dups,
             description=description,
             autosave=autosave)
-
+    
     def serialize(self):
         d = super().serialize()
         d['url'] = self.webhook
         d['rich_fmt'] = self.rich_fmt
         return d
-
+    
     def set_config(self, config):
         url = config.get('url')
         if not url:
             url = config.get('webhook')
         self.set_data(url, config.get('fmt'))
-
+    
     def set_data(self, data=None, data2=None, data3=None):
         self.webhook = data
         self.rich_fmt = (data2 == 'rich')
         super().set_data(data, data2, data3)
-
+    
     def send(self, event):
         if not self.check_dup(event): return False
         if not self.webhook: return False
@@ -695,9 +698,9 @@ class SlackEndpoint(GenericEndpoint):
             if not color: color = 'good'
             j['attachments'] = [{
                 'fallback':
-                event.formatted_subject,
+                    event.formatted_subject,
                 'color':
-                color,
+                    color,
                 'fields': [{
                     'title': event.formatted_subject,
                     'value': event.msg,
@@ -725,7 +728,7 @@ class SlackEndpoint(GenericEndpoint):
 
 
 class TelegramEndpoint(GenericEndpoint):
-
+    
     def __init__(self,
                  addr,
                  chat_id=None,
@@ -744,7 +747,7 @@ class TelegramEndpoint(GenericEndpoint):
             description=description,
             autosave=autosave)
         self._set_chat_id(chat_id)
-
+    
     def serialize(self):
         d = super().serialize()
         d['chat_id'] = self.chat_id
@@ -753,21 +756,21 @@ class TelegramEndpoint(GenericEndpoint):
         else:
             d['chat_id_plain'] = True if self._chat_id_plain else None
         return d
-
+    
     def set_config(self, config):
         self.set_data(config.get('chat_id'))
-
+    
     def set_data(self, data=None, data2=None, data3=None):
         self._set_chat_id(data)
         super().set_data(data, data2, data3)
-
+    
     def _set_chat_id(self, chat_id):
         if chat_id:
             try:
                 self.chat_id = chat_id
                 self._chat_id_plain = \
-                        int(telegram_bot.ce.decrypt(chat_id.encode())) if \
-                            telegram_bot else None
+                    int(telegram_bot.ce.decrypt(chat_id.encode())) if \
+                        telegram_bot else None
             except:
                 self.chat_id = None
                 self._chat_id_plain = None
@@ -776,15 +779,15 @@ class TelegramEndpoint(GenericEndpoint):
         else:
             self.chat_id = None
             self._chat_id_plain = None
-
+    
     def send(self, event):
         if not self.check_dup(event): return False
         if self._chat_id_plain:
             msg = '<pre>%s</pre>\n' % event.sender if event.sender else ''
             em = '' if event.level_id not in self.emoji_code else \
-                    self.emoji_code.get(event.level_id) + ' '
+                self.emoji_code.get(event.level_id) + ' '
             msg += '<b>' + em + event.formatted_subject + \
-                    '</b>\n'
+                   '</b>\n'
             msg += event.msg
             logging.info('sending event %s via endpoint %u' %
                          (event.event_id, self.endpoint_id))
@@ -799,10 +802,14 @@ class TelegramEndpoint(GenericEndpoint):
                     mt = ft.mime.split('/')[0]
                 else:
                     mt = None
-                if mt == 'image': send_func = telegram_bot.send_photo
-                elif mt == 'video': send_func = telegram_bot.send_video
-                elif mt == 'audio': send_func = telegram_bot.send_audio
-                else: send_func = telegram_bot.send_document
+                if mt == 'image':
+                    send_func = telegram_bot.send_photo
+                elif mt == 'video':
+                    send_func = telegram_bot.send_video
+                elif mt == 'audio':
+                    send_func = telegram_bot.send_audio
+                else:
+                    send_func = telegram_bot.send_document
                 if not send_func(self._chat_id_plain,
                                  '<pre>%s</pre>' % event.sender, event.media,
                                  (event.level_id <= 10)):
