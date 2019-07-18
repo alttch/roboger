@@ -391,6 +391,7 @@ class AndroidEndpoint(GenericEndpoint):
         if not event.sender: return False
         data = event.serialize(for_endpoint=True)
         data['d'] = int(data['d'].timestamp() * 1000)
+        data['keywords'] = ', '.join(data['keywords']) if data['keywords'] else ''
         if event.media:
             ft = filetype.guess(event.media)
             data['media'] = {'type': (ft.extension if ft else 'Unknown'),
