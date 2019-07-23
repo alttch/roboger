@@ -358,15 +358,18 @@ class AndroidEndpoint(GenericEndpoint):
                  endpoint_id=None,
                  active=1,
                  skip_dups=0,
+                 device_id='',
                  description='',
                  autosave=True):
         self.registration_id = registration_id
+        self.device_id = device_id
         super().__init__(
             addr,
             1,
             endpoint_id,
             registration_id,
             active=active,
+            data2=device_id,
             description=description,
             skip_dups=skip_dups,
             autosave=autosave)
@@ -374,6 +377,7 @@ class AndroidEndpoint(GenericEndpoint):
     def serialize(self):
         d = super().serialize()
         d['registration_id'] = self.registration_id
+        d['device_id'] = self.device_id
         return d
     
     def set_config(self, config):
@@ -391,7 +395,8 @@ class AndroidEndpoint(GenericEndpoint):
         if not event.sender: return False
         data = event.serialize(for_endpoint=True)
         data['d'] = int(data['d'].timestamp() * 1000)
-        data['keywords'] = ', '.join(data['keywords']) if data['keywords'] else ''
+        data['keywords'] = ', '.join(data['keywords']) if data[
+            'keywords'] else ''
         if event.media:
             ft = filetype.guess(event.media)
             data['media'] = {'type': (ft.extension if ft else 'Unknown'),
@@ -650,7 +655,7 @@ class SlackEndpoint(GenericEndpoint):
         40: 'danger',
         50: '#FF2222'
     }
-    
+
     def __init__(self,
                  addr,
                  webhook,
@@ -672,24 +677,24 @@ class SlackEndpoint(GenericEndpoint):
             skip_dups=skip_dups,
             description=description,
             autosave=autosave)
-    
+
     def serialize(self):
         d = super().serialize()
         d['url'] = self.webhook
         d['rich_fmt'] = self.rich_fmt
         return d
-    
+
     def set_config(self, config):
         url = config.get('url')
         if not url:
             url = config.get('webhook')
         self.set_data(url, config.get('fmt'))
-    
+
     def set_data(self, data=None, data2=None, data3=None):
         self.webhook = data
         self.rich_fmt = (data2 == 'rich')
         super().set_data(data, data2, data3)
-    
+
     def send(self, event):
         if not self.check_dup(event): return False
         if not self.webhook: return False
@@ -729,7 +734,7 @@ class SlackEndpoint(GenericEndpoint):
 
 
 class TelegramEndpoint(GenericEndpoint):
-    
+
     def __init__(self,
                  addr,
                  chat_id=None,
@@ -748,7 +753,7 @@ class TelegramEndpoint(GenericEndpoint):
             description=description,
             autosave=autosave)
         self._set_chat_id(chat_id)
-    
+
     def serialize(self):
         d = super().serialize()
         d['chat_id'] = self.chat_id
@@ -757,14 +762,14 @@ class TelegramEndpoint(GenericEndpoint):
         else:
             d['chat_id_plain'] = True if self._chat_id_plain else None
         return d
-    
+
     def set_config(self, config):
         self.set_data(config.get('chat_id'))
-    
+
     def set_data(self, data=None, data2=None, data3=None):
         self._set_chat_id(data)
         super().set_data(data, data2, data3)
-    
+
     def _set_chat_id(self, chat_id):
         if chat_id:
             try:
@@ -780,7 +785,7 @@ class TelegramEndpoint(GenericEndpoint):
         else:
             self.chat_id = None
             self._chat_id_plain = None
-    
+
     def send(self, event):
         if not self.check_dup(event): return False
         if self._chat_id_plain:
