@@ -15,7 +15,6 @@ RUN apt-get -y install --no-install-recommends net-tools
 RUN apt-get -y install --no-install-recommends supervisor
 RUN apt-get -y install --no-install-recommends sqlite3
 RUN apt-get -y install --no-install-recommends coreutils
-RUN apt-get -y install --no-install-recommends python3-pandas
 RUN apt-get -y install --no-install-recommends python3-dev
 RUN apt-get -y install --no-install-recommends python3-wheel
 RUN apt-get -y install --no-install-recommends python3-setuptools

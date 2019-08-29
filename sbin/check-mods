@@ -18,7 +18,6 @@ mods = [
         'logging',
         'sqlite3',
         'netaddr',
-        'pandas',
         'pyaltt',
         'platform',
         'queue',
@@ -29,6 +28,8 @@ mods = [
         'threading',
         'time',
         'traceback',
+        'termcolor',
+        'rapidtables',
         'uuid',
         'yaml'
     ]
