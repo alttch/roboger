@@ -220,11 +220,11 @@ class MasterAPI(object):
         'tools.json_out.handler': cp_json_handler,
         'tools.auth.on': True,
     }
-    
+
     def __init__(self):
         cherrypy.tools.auth = cherrypy.Tool(
             'before_handler', self.cp_pre, priority=60)
-    
+
     def cp_pre(self):
         if roboger.core.netacl_match(http_real_ip(), config.master_allow):
             k = cherrypy.request.headers.get('X-Auth-Key')
@@ -251,17 +251,20 @@ class MasterAPI(object):
                         api_invalid_json_data()
                 if not k: k = d.get('k')
                 cherrypy.serving.request.params['data'] = d
+            if cherrypy.request.path_info == '/_media':
+                if not config.allow_attach:
+                    return api_404()
             if k == config.masterkey:
                 return
         api_forbidden()
-    
+
     @cherrypy.expose
     def test(self, data):
         d = {}
         d['version'] = roboger.core.product.version
         d['build'] = roboger.core.product.build
         return d
-    
+
     @cherrypy.expose
     def addr_list(self, data):
         r = []
@@ -274,19 +277,19 @@ class MasterAPI(object):
             for i, addr in roboger.addr.addrs_by_id.copy().items():
                 if not addr._destroyed: r.append(addr.serialize())
         return sorted(r, key=lambda k: k['id'])
-    
+
     @cherrypy.expose
     def addr_create(self, data):
         addr = roboger.addr.append_addr()
         return addr.serialize()
-    
+
     @cherrypy.expose
     def addr_change(self, data):
         addr = roboger.addr.change_addr(data.get('addr_id'), data.get('addr'))
         if not addr:
             api_404('address')
         return addr.serialize()
-    
+
     @cherrypy.expose
     def addr_set_active(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
@@ -298,17 +301,17 @@ class MasterAPI(object):
             _active = 1
         addr.set_active(_active)
         return addr.serialize()
-    
+
     @cherrypy.expose
     def addr_enable(self, data):
         data['active'] = 1
         return self.addr_set_active(data)
-    
+
     @cherrypy.expose
     def addr_disable(self, data):
         data['active'] = 0
         return self.addr_set_active(data)
-    
+
     @cherrypy.expose
     def addr_delete(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
@@ -316,7 +319,7 @@ class MasterAPI(object):
             api_404('address')
         addr.destroy()
         return api_result()
-    
+
     @cherrypy.expose
     def endpoint_types(self, data):
         result = []
@@ -331,7 +334,7 @@ class MasterAPI(object):
             roboger.core.log_traceback()
             api_internal_error()
         return sorted(result, key=lambda k: k['id'])
-    
+
     @cherrypy.expose
     def endpoint_list(self, data):
         r = []
@@ -353,7 +356,7 @@ class MasterAPI(object):
                 roboger.core.log_traceback()
                 api_internal_error()
         return sorted(r, key=lambda k: k['id'])
-    
+
     @cherrypy.expose
     def endpoint_create(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
@@ -457,7 +460,7 @@ class MasterAPI(object):
             api_internal_error()
         roboger.endpoints.append_endpoint(e)
         return e.serialize()
-    
+
     @cherrypy.expose
     def endpoint_data(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
@@ -470,7 +473,7 @@ class MasterAPI(object):
             roboger.core.log_traceback()
             api_internal_error()
         return e.serialize()
-    
+
     @cherrypy.expose
     def endpoint_config(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
@@ -488,7 +491,7 @@ class MasterAPI(object):
             roboger.core.log_traceback()
             api_internal_error()
         return e.serialize()
-    
+
     @cherrypy.expose
     def endpoint_skipdups(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
@@ -501,7 +504,7 @@ class MasterAPI(object):
             roboger.core.log_traceback()
             api_internal_error()
         return e.serialize()
-    
+
     @cherrypy.expose
     def endpoint_description(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
@@ -514,17 +517,17 @@ class MasterAPI(object):
             roboger.core.log_traceback()
             api_internal_error()
         return e.serialize()
-    
+
     @cherrypy.expose
     def endpoint_enable(self, data):
         data['active'] = 1
         return self.endpoint_set_active(data)
-    
+
     @cherrypy.expose
     def endpoint_disable(self, data):
         data['active'] = 0
         return self.endpoint_set_active(data)
-    
+
     @cherrypy.expose
     def endpoint_set_active(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
@@ -537,7 +540,7 @@ class MasterAPI(object):
             _active = 1
         e.set_active(_active)
         return e.serialize()
-    
+
     @cherrypy.expose
     def endpoint_delete(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
@@ -546,7 +549,7 @@ class MasterAPI(object):
             api_404('endpoint or wrong address')
         roboger.endpoints.destroy_endpoint(e)
         return api_result()
-    
+
     @cherrypy.expose
     def subscription_create(self, data):
         e = roboger.endpoints.get_endpoint(data.get('endpoint_id'))
@@ -584,7 +587,7 @@ class MasterAPI(object):
             api_internal_error()
         roboger.events.append_subscription(s)
         return s.serialize()
-    
+
     @cherrypy.expose
     def subscription_list(self, data):
         r = []
@@ -616,17 +619,17 @@ class MasterAPI(object):
                 roboger.core.log_traceback()
                 api_internal_error()
         return sorted(r, key=lambda k: k['id'])
-    
+
     @cherrypy.expose
     def subscription_enable(self, data):
         data['active'] = 1
         return self.subscription_set_active(data)
-    
+
     @cherrypy.expose
     def subscription_disable(self, data):
         data['active'] = 0
         return self.subscription_set_active(data)
-    
+
     @cherrypy.expose
     def subscription_set_active(self, data):
         s = roboger.events.get_subscription(data.get('subscription_id'))
@@ -639,7 +642,7 @@ class MasterAPI(object):
             _active = 1
         s.set_active(_active)
         return s.serialize()
-    
+
     @cherrypy.expose
     def subscription_location(self, data):
         s = roboger.events.get_subscription(data.get('subscription_id'))
@@ -648,7 +651,7 @@ class MasterAPI(object):
             api_404('subscription or wrong address')
         s.set_location(data.get('location'))
         return s.serialize()
-    
+
     @cherrypy.expose
     def subscription_keywords(self, data):
         s = roboger.events.get_subscription(data.get('subscription_id'))
@@ -657,7 +660,7 @@ class MasterAPI(object):
             api_404('subscription or wrong address')
         s.set_keywords(data.get('keywords'))
         return s.serialize()
-    
+
     @cherrypy.expose
     def subscription_senders(self, data):
         s = roboger.events.get_subscription(data.get('subscription_id'))
@@ -666,7 +669,7 @@ class MasterAPI(object):
             api_404('subscription or wrong address')
         s.set_senders(data.get('senders'))
         return s.serialize()
-    
+
     @cherrypy.expose
     def subscription_level(self, data):
         s = roboger.events.get_subscription(data.get('subscription_id'))
@@ -684,7 +687,7 @@ class MasterAPI(object):
                 data['level_id'] = 20
         s.set_level(data.get('level_id'), _lm)
         return s.serialize()
-    
+
     @cherrypy.expose
     def subscription_delete(self, data):
         s = roboger.events.get_subscription(data.get('subscription_id'))
@@ -693,7 +696,7 @@ class MasterAPI(object):
             api_404('subscription or wrong address')
         roboger.events.destroy_subscription(s)
         return api_result()
-    
+
     @cherrypy.expose
     def subscription_duplicate(self, data):
         s = roboger.events.get_subscription(data.get('subscription_id'))
@@ -717,7 +720,7 @@ class MasterAPI(object):
             api_internal_error()
         roboger.events.append_subscription(s_new)
         return s_new.serialize()
-    
+
     @cherrypy.expose
     def endpoint_copysub(self, data):
         addr = roboger.addr.get_addr(data.get('addr_id'), data.get('addr'))
@@ -750,7 +753,7 @@ class MasterAPI(object):
                 api_internal_error()
             roboger.events.append_subscription(s_new)
         return api_result()
-    
+
     @cherrypy.expose
     def event_list(self, data):
         if 'addr' in data or 'addr_id' in data:
@@ -801,17 +804,40 @@ class MasterAPI(object):
             api_internal_error()
         return sorted(result, key=lambda k: k['id'])
 
+    @cherrypy.expose
+    @cherrypy.config(**{'tools.json_out.on': False})
+    def _media(self, data):
+        if data.get('h'):
+            import glob
+            path = '%(root)s%(attach_dir)s/%(sub1)s/%(sub2)s/' % {
+                'root': roboger.core.dir_roboger,
+                'attach_dir': config.allow_attach, 'sub1': data['h'][:2],
+                'sub2': data['h'][2:4]}
+            filename = '%s.*' % data['h']
+            if glob.glob(path + filename):
+                import mimetypes
+                import os
+                file = glob.glob(path + filename)[0]
+                with open(file, 'rb') as f_img:
+                    f = f_img.read()
+                size = os.path.getsize(file)
+                mime = mimetypes.guess_type(file)[0]
+                cherrypy.serving.response.headers['content-type'] = mime
+                cherrypy.serving.response.headers['content-length'] = size
+                return f
+        return api_404()
+
 
 class PushAPI(object):
     _cp_config = {
         'tools.json_out.on': True,
         'tools.json_out.handler': cp_json_handler,
     }
-    
+
     @cherrypy.expose
     def status(self):
         return {'result': 'OK'}
-    
+
     @cherrypy.expose
     def push(self, r='', x='', n='', k='', l='', s='', e='', m='', a=''):
         _decode_a = False
