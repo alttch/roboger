@@ -51,7 +51,7 @@ def update_config(cfg):
     # android
     try:
         api_key = cfg.get('endpoint_android', 'api_key')
-        a_path = f"{os.getcwd()}{cfg.get('server', 'attachment_dir')}"
+        a_path = "{}{}".format(os.getcwd(), cfg.get('server', 'attachment_dir'))
         if not os.path.exists(a_path):
             os.makedirs(a_path)
         attach_path.append(a_path)
@@ -338,19 +338,21 @@ class AndroidEndpoint(GenericEndpoint):
         if event.media:
             ft = filetype.guess(event.media)
             event_hash = event.get_hash()
-            attach_dir = f"{attach_path[0]}/{event_hash[:2]}/{event_hash[2:4]}"
+            attach_dir = "{path}/{subdir}/{subdir1}".format(
+                path=attach_path[0], subdir=event_hash[:2],
+                subdir1=event_hash[2:4])
             if not os.path.exists(attach_dir):
                 try:
                     os.makedirs(attach_dir)
                 except:
-                    logging.warning(
-                        'saving image for event %s via endpoint %u' % (
-                            event.event_id, self.endpoint_id))
-            name = f"{attach_dir}/{event_hash}.{ft.extension}"
+                    logging.warning('saving image for event %s via endpoint %u'
+                                    % (event.event_id, self.endpoint_id))
+            name = "{attach_dir}/{hash}.{ext}".format(
+                attach_dir=attach_dir, hash=event_hash, ext=ft.extension)
             with open(name, 'wb') as img:
                 img.write(event.media)
             data['media'] = {'type': (ft.extension if ft else 'Unknown'),
-                             'data': hash}
+                                 'data': event_hash}
         logging.info('sending event %s via endpoint %u' % (
             event.event_id, self.endpoint_id))
         try:
