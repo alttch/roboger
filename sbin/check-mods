@@ -46,6 +46,7 @@ for m in mods:
         if install:
             if m == 'paho.mqtt.client': mod = 'paho-mqtt'
             elif m == 'yaml': mod = 'pyyaml'
+            elif m == 'pyaltt': mod = 'pyaltt==0.2.4'
             elif m == 'PIL': mod = 'pillow'
             else: mod = m
             os.system('pip3 install %s' % mod)
