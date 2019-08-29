@@ -171,6 +171,11 @@ def update_config(cfg):
     except:
         config.check_ownership = False
     logging.debug('api.config.check_ownership = %s' % config.check_ownership)
+    try:
+        config.allow_attach = cfg.get('server', 'attachment_dir')
+    except:
+        config.allow_attach = False
+    logging.debug('attachment dir = %s' % config.allow_attach)
     return True
 
 
@@ -253,7 +258,7 @@ class MasterAPI(object):
                 cherrypy.serving.request.params['data'] = d
             if cherrypy.request.path_info == '/_media':
                 if not config.allow_attach:
-                    return api_404()
+                    return api_404();
             if k == config.masterkey:
                 return
         api_forbidden()
