@@ -28,7 +28,7 @@ mods = [
         'threading',
         'time',
         'traceback',
-        'termcolor',
+        'neotermcolor',
         'rapidtables',
         'uuid',
         'yaml'
