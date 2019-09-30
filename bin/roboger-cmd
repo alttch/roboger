@@ -13,6 +13,7 @@ import json
 import configparser
 import requests
 import re
+import icli
 
 from types import SimpleNamespace
 from neotermcolor import colored
@@ -28,9 +29,7 @@ _pd_cols = {
         'id', 'd', 'delivered', 'sender', 'subject', 'location', 'keywords',
         'media'
     ],
-    'addr_list': [
-        'id', 'a', 'active'
-        ]
+    'addr_list': ['id', 'a', 'active']
 }
 
 arg_sections = ['addr', 'endpoint', 'subscription', 'event']
@@ -50,7 +49,8 @@ def print_json(obj):
 
 
 def list_to_str(l):
-    return ', '.join(l) if isinstance(l, list) else (str(l) if l is not None else '')
+    return ', '.join(l) if isinstance(
+        l, list) else (str(l) if l is not None else '')
 
 
 def _prepare_result_data(data, func):
@@ -248,7 +248,8 @@ xparams = {}
 
 _me = 'Roboger client version %s' % __version__
 
-ap = argparse.ArgumentParser(description=_me)
+ap = icli.ArgumentParser(description=_me,
+                         prog='' if len(sys.argv) < 2 else None)
 ap.add_argument('-U','--api-uri',
         help='specify API uri (http://host:port), if no uri specified,' + \
                 ' local config will be parsed ', dest='_uri', metavar='URI')
@@ -678,130 +679,145 @@ sp_ls_events.add_argument('-n',
                           metavar='N',
                           type=int)
 
-try:
-    import argcomplete
-    argcomplete.autocomplete(ap)
-except:
-    pass
+ap.sections = ['addr', 'event', 'endpoint', 'subscription']
 
-a = ap.parse_args()
+ap.send_args_as_dict = False
 
-if a._ver:
-    print(_me)
-    sys.exit()
 
-apiuri = a._uri
-apikey = a._key
+def error():
+    import traceback
+    traceback.print_exc()
 
-debug = a._debug
 
-itype = a._type
-if hasattr(a, '_func'):
-    func = a._func
-else:
-    func = None
+def dispatcher(a):
 
-timeout = a._timeout
+    if a._ver:
+        print(_me)
+        return
 
-for k, v in vars(a).items():
-    if k and k[0] != '_' and v is not None:
-        xparams[k] = v
+    global apiuri, apikey, debug, itype, timeout, api_func
 
-if hasattr(a, '_address') and a._address:
-    try:
-        xparams['addr_id'] = int(a._address)
-    except:
-        xparams['addr'] = a._address
+    apiuri = a._uri
+    apikey = a._key
 
-if hasattr(a, '_level') and a._level is not None:
-    try:
-        xparams['level_id'] = int(a._level)
-    except:
-        xparams['level'] = a._level
+    debug = a._debug
 
-if itype in arg_sections and not func:
-    ap.parse_args([itype, '--help'])
+    itype = a._type
+    if hasattr(a, '_func'):
+        func = a._func
+    else:
+        func = None
 
-api_func = (itype if itype else '') + ('_' + func if func else '')
+    timeout = a._timeout
 
-if not api_func:
-    ap.print_usage()
-    sys.exit(2)
+    for k, v in vars(a).items():
+        if k and k[0] != '_' and v is not None:
+            xparams[k] = v
 
-if not apiuri or not apikey:
-    cfg = configparser.ConfigParser(inline_comment_prefixes=';')
-    cfg.read(dir_etc + '/roboger.ini')
-    if not apikey:
+    if hasattr(a, '_address') and a._address:
         try:
-            apikey = cfg.get('api', 'masterkey')
+            xparams['addr_id'] = int(a._address)
+        except:
+            xparams['addr'] = a._address
+
+    if hasattr(a, '_level') and a._level is not None:
+        try:
+            xparams['level_id'] = int(a._level)
+        except:
+            xparams['level'] = a._level
+
+    if itype in arg_sections and not func:
+        ap.parse_args([itype, '--help'])
+
+    api_func = (itype if itype else '') + ('_' + func if func else '')
+
+    if not api_func:
+        ap.print_usage()
+        return 2
+
+    if not apiuri or not apikey:
+        cfg = configparser.ConfigParser(inline_comment_prefixes=';')
+        cfg.read(dir_etc + '/roboger.ini')
+        if not apikey:
+            try:
+                apikey = cfg.get('api', 'masterkey')
+            except:
+                pass
+        if not apiuri:
+            try:
+                l = cfg.get('api', 'listen')
+                proto = 'http'
+            except:
+                try:
+                    l = cfg.get('api', 'ssl_listen')
+                    proto = 'https'
+                except:
+                    l = None
+            if l:
+                try:
+                    host, port = l.split(':')
+                except:
+                    host = l
+                    port = '80'
+                if host == '0.0.0.0': host = '127.0.0.1'
+                apiuri = '%s://%s:%s' % (proto, host, port)
+        try:
+            development = (cfg.get('server', 'development') == 'yes')
+            if development: debug = True
         except:
             pass
+
     if not apiuri:
-        try:
-            l = cfg.get('api', 'listen')
-            proto = 'http'
-        except:
-            try:
-                l = cfg.get('api', 'ssl_listen')
-                proto = 'https'
-            except:
-                l = None
-        if l:
-            try:
-                host, port = l.split(':')
-            except:
-                host = l
-                port = '80'
-            if host == '0.0.0.0': host = '127.0.0.1'
-            apiuri = '%s://%s:%s' % (proto, host, port)
-    try:
-        development = (cfg.get('server', 'development') == 'yes')
-        if development: debug = True
-    except:
-        pass
+        print('no API URI specified')
+        return 5
 
-if not apiuri:
-    print('no API URI specified')
-    sys.exit(5)
+    if not apikey:
+        print('no API masterkey specified')
+        return 6
 
-if not apikey:
-    print('no API masterkey specified')
-    sys.exit(6)
-
-if api_func in local_funcs:
-    f = local_funcs.get(api_func)
-    if f(xparams): sys.exit(0)
-    sys.exit(1)
-else:
-    r = api_call(api_func, xparams)
-
-if debug:
-    print("API response code: %s" % r.status_code)
-if r.status_code == 200:
-    try:
-        j = r.json()
-    except:
-        print('API error: invalid json response')
-        sys.exit(3)
-    if a._json:
-        print_json(j)
+    if api_func in local_funcs:
+        f = local_funcs.get(api_func)
+        return None if f(xparams) else 1
     else:
-        if isinstance(j, dict):
-            rprinted = False
-            for v in sorted(j.keys()):
-                if v != 'result':
-                    print(("{:>%u} : {}" % max(map(len, j))).format(v, j[v]))
-                    rprinted = True
-            if not rprinted:
-                print('OK')
-        elif isinstance(j, list):
-            if j:
-                pprint_df(j, api_func)
-            else:
-                print('no data')
+        r = api_call(api_func, xparams)
+
+    if debug:
+        print("API response code: %s" % r.status_code)
+    if r.status_code == 200:
+        try:
+            j = r.json()
+        except:
+            print('API error: invalid json response')
+            return 3
+        if a._json:
+            print_json(j)
         else:
-            print(j)
+            if isinstance(j, dict):
+                rprinted = False
+                for v in sorted(j.keys()):
+                    if v != 'result':
+                        print(
+                            ("{:>%u} : {}" % max(map(len, j))).format(v, j[v]))
+                        rprinted = True
+                if not rprinted:
+                    print('OK')
+            elif isinstance(j, list):
+                if j:
+                    pprint_df(j, api_func)
+                else:
+                    print('no data')
+            else:
+                print(j)
+    else:
+        print("API error %u" % (r.status_code))
+        if debug: print(r.text)
+        return 2
+
+
+ap.run = dispatcher
+ap.handle_interactive_exception = error
+
+if len(sys.argv) > 1:
+    ap.launch()
 else:
-    print("API error %u" % (r.status_code))
-    if debug: print(r.text)
-    sys.exit(2)
+    ap.interactive()

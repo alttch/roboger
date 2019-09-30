@@ -27,6 +27,7 @@ mods = [
         'smtplib',
         'threading',
         'time',
+        'icli',
         'traceback',
         'neotermcolor',
         'rapidtables',
