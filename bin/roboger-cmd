@@ -710,6 +710,8 @@ def dispatcher(a):
 
     timeout = a._timeout
 
+    xparams.clear()
+
     for k, v in vars(a).items():
         if k and k[0] != '_' and v is not None:
             xparams[k] = v
