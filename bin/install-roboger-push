@@ -3,9 +3,7 @@
 ADDR=$1
 CFG_FILE=/usr/local/etc/roboger_push.ini
 
-which curl > /dev/null 2>&1
-
-if [ $? != 0 ]; then
+if ! command -v curl > /dev/null; then
   echo "curl command not found. can not continue"
   exit 3
 fi
