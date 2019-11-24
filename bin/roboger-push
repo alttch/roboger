@@ -34,7 +34,7 @@ DEFAULT_SENDER=""
 
 
 function echoV() {
-    [ ${VERBOSE} -gt 0 ] && echo $*
+    [ ${VERBOSE} -gt 0 ] && echo "$@"
 }
 
 function parseIniFile() {
@@ -45,7 +45,7 @@ function parseIniFile() {
 
     local IFS=""
 
-    while read LINE 
+    while read -r LINE
     do
         LINE=${LINE%%[;#]*}
         LINE=${LINE%%*( )}
@@ -98,51 +98,51 @@ function getProperty() {
 function sendPush() {
     local -i i
     local SRV=$1
-    getProperty ${SRV}.addr
+    getProperty "${SRV}".addr
     local ADDR=${_PROP}
-    getProperty ${SRV}.push
+    getProperty "${SRV}".push
     local PUSH=${_PROP}
-    getProperty ${SRV}.retries
+    getProperty "${SRV}".retries
     local RETRIES=${_PROP}
-    getProperty ${SRV}.retry_delay
+    getProperty "${SRV}".retry_delay
     local RETRY_DELAY=${_PROP}
-    getProperty ${SRV}.timeout
+    getProperty "${SRV}".timeout
     local T=${_PROP}
-    getProperty ${SRV}.backup
+    getProperty "${SRV}".backup
     local BACKUP_SRV=${_PROP}
     local FROM=${SENDER}
-    if [ "x${FROM}" == "x" ]; then
-        getProperty ${SRV}.sender
+    if [ -z "${FROM}" ]; then
+        getProperty "${SRV}".sender
         local FROM=${_PROP}
-        [ "x${FROM}" == "x" ] && local FROM=${DEFAULT_SENDER}
+        [ -z "${FROM}" ] && local FROM=${DEFAULT_SENDER}
     fi
     local _LOCATION=${LOCATION}
-    if [ "x${_LOCATION}" == "x" ]; then
-        getProperty ${SRV}.location
+    if [ -z "${_LOCATION}" ]; then
+        getProperty "${SRV}".location
         local _LOCATION=${_PROP}
     fi
-    [ "x${RETRIES}" == "x" ] && RETRIES=1
-    [ "x${RETRY_DELAY}" == "x" ] && RETRY_DELAY=${DEFAULT_RETRY_DELAY}
-    [ "x${T}" == "x" ] && T=_$DEFAULT_TIMEOUT
-    if [ "x${ADDR}" != "x" ] && [ "x{$PUSH}" != "x" ]; then
-        for ((i=1; i<=${RETRIES}; i+=1))
+    [ -z "${RETRIES}" ] && RETRIES=1
+    [ -z "${RETRY_DELAY}" ] && RETRY_DELAY=${DEFAULT_RETRY_DELAY}
+    [ -z "${T}" ] && T=_$DEFAULT_TIMEOUT
+    if [ "${ADDR}" ] && [ "$PUSH" ]; then
+        for ((i=1; i<=RETRIES; i+=1))
         do
             local _data="{ \"msg\": \"${MSG}\", \"subject\": \"${SUBJECT}\", \"location\": \"${_LOCATION}\", \"keywords\": \"${KEYWORDS}\", \"expires\": \"${EXPIRES}\", \"level\": \"${LEVEL}\", \"sender\" : \"${FROM}\", \"addr\":\"${ADDR}\", \"media\": \"${MEDIA}\" }"
             local VERB=""
             if [ ${VERBOSE} == "2" ]; then
                 VERB="-v"
             fi
-            local CODE=`echo ${_data} | curl --header "Content-Type: application/json" --data @- -X POST -m ${T} -s ${VERB} -o /dev/null -w "%{http_code}" ${PUSH}/push`
-            if [ "x${CODE}" == "x200" ] || [ "x${CODE}" == "x202" ]; then
+            local CODE=$(echo "${_data}" | curl --header "Content-Type: application/json" --data @- -X POST -m "${T}" -s ${VERB} -o /dev/null -w "%{http_code}" "${PUSH}"/push)
+            if [ "${CODE}" == "200" ] || [ "${CODE}" == "202" ]; then
                 echoV "${SRV} ${ADDR} - sent"
                 _EX=0
                 break
             fi
-            if [ "x${CODE}" == "x500" ] || [ "x${CODE}" == "x404" ] || [ "x${CODE}" == "x403" ]; then
+            if [ "${CODE}" == "500" ] || [ "${CODE}" == "404" ] || [ "${CODE}" == "403" ]; then
                 echoV -n "${SRV} ${ADDR} - error"
-                if [ "x${BACKUP_SRV}" != "x" ]; then
+                if [ "${BACKUP_SRV}" ]; then
                     echoV ", sending via backup"
-                    sendPush ${BACKUP_SRV}
+                    sendPush "${BACKUP_SRV}"
                 else
                     echoV
                 fi
@@ -153,9 +153,9 @@ function sendPush() {
                 sleep ${RETRY_DELAY}
             else
                 echoV -n "${SRV} ${ADDR} - error"
-                if [ "x${BACKUP_SRV}" != "x" ]; then
+                if [ "${BACKUP_SRV}" ]; then
                     echoV ", sending via backup"
-                    sendPush ${BACKUP_SRV}
+                    sendPush "${BACKUP_SRV}"
                 else
                     echoV
                 fi
@@ -249,27 +249,27 @@ do
     esac
 done
 
-if [ ! -f ${CONFIG_FILE} ]; then
+if [ ! -f "${CONFIG_FILE}" ]; then
     echo "config not found: ${CONFIG_FILE}. Use -f to specify custom config file, -h for help"
     exit 3
 fi
 
-[ "x${SENDER}" == "x" ] && DEFAULT_SENDER="`whoami`@`hostname -f`"
-[ "x${MSG}" == "x" ] && MSG=`sed 's/\t/    /g'|sed 's/\\\\/\\\\\\\\/g'|sed 's/\"/\\\"/g'|sed ':a;N;$!ba;s/\n/\\\\n/g'|head -c 2048`
+[ -z "${SENDER}" ] && DEFAULT_SENDER="$(whoami)@$(hostname -f)"
+[ -z "${MSG}" ] && MSG=$(sed 's/\t/    /g'|sed 's/\\\\/\\\\\\\\/g'|sed 's/\"/\\\"/g'|sed ':a;N;$!ba;s/\n/\\\\n/g'|head -c 2048)
 
-if [ "x${MEDIA_FILE}" != "x" ]; then
-    if [ -f ${MEDIA_FILE} ]; then
-        MEDIA=`openssl base64 -in ${MEDIA_FILE} |sed ':a;N;$!ba;s/\n//g'`
+if [ "${MEDIA_FILE}" ]; then
+    if [ -f "${MEDIA_FILE}" ]; then
+        MEDIA=$(openssl base64 -in "${MEDIA_FILE}" |sed ':a;N;$!ba;s/\n//g')
     else
         >&2 echo "Warning: no such file ${MEDIA_FILE}"
     fi
 fi
 
-parseIniFile < $CONFIG_FILE
+parseIniFile < "$CONFIG_FILE"
 for SRV in ${_SECTIONS}; do
-	getProperty ${SRV}.type
-    if [ "x${_PROP}" != "xbackup" ]; then
-        sendPush ${SRV}
+	getProperty "${SRV}".type
+    if [ "${_PROP}" != "backup" ]; then
+        sendPush "${SRV}"
     fi
 done
 exit $_EX
