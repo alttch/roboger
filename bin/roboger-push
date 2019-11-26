@@ -254,8 +254,10 @@ if [ ! -f "${CONFIG_FILE}" ]; then
     exit 3
 fi
 
-[ -z "${SENDER}" ] && DEFAULT_SENDER="$(whoami)@$(hostname -f)"
-[ -z "${MSG}" ] && MSG=$(sed 's/\t/    /g'|sed 's/\\\\/\\\\\\\\/g'|sed 's/\"/\\\"/g'|sed ':a;N;$!ba;s/\n/\\\\n/g'|head -c 2048)
+HOSTNAME=$(hostname -f 2>&1) || HOSTNAME=$(hostname)
+
+[ -z "${SENDER}" ] && DEFAULT_SENDER="$(whoami)@${HOSTNAME}"
+[ -z "${MSG}" ] && MSG=$(sed 's/\t/    /g'|sed 's/\\\\/\\\\\\\\/g'|sed 's/\"/\\\"/g'|sed ':a;N;$!ba;s/\n/\\n/g'|head -c 2048)
 
 if [ "${MEDIA_FILE}" ]; then
     if [ -f "${MEDIA_FILE}" ]; then
