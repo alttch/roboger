@@ -1,3 +1,4 @@
+- [ ] config to yaml
 - [ ] according to migration
 - [ ] move endpoints to plugins
 - [ ] migrate telegram bot plugin to tebot, check webhooks
