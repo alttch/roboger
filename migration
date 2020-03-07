@@ -1,6 +1,8 @@
+* yaml config
 * no keywords in subscription -> single tag instead
 * messages not stored in database any longer
 * no longer endpoint types - plugin_name instead
 * no longer data in endpoint - config (json) instead
 * no longer addr_id in subscription
 * no longer http/post, only json-post webhook plugin
+* new API
