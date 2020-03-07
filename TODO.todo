@@ -1,0 +1,8 @@
+- [ ] according to migration
+- [ ] move endpoints to plugins
+- [ ] migrate telegram bot plugin to tebot, check webhooks
+- [ ] dynamic data
+- [ ] new API (RESTful)
+- [ ] migrate CLI
+- [ ] migrate roboger.com UI
+- [ ] create android plugin
