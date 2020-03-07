@@ -3,3 +3,4 @@
 * no longer endpoint types - plugin_name instead
 * no longer data in endpoint - config (json) instead
 * no longer addr_id in subscription
+* no longer http/post, only json-post webhook plugin
