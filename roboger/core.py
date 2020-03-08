@@ -89,6 +89,11 @@ def init_log():
     rl.addHandler(h)
 
 
+def _dumps(*args, separators=None, **kwargs):
+    import rapidjson
+    return rapidjson.dumps(*args, **kwargs)
+
+
 def load(fname=None):
     if not fname:
         fname = f'{dir_me}/etc/roboger.yml'
@@ -103,7 +108,7 @@ def load(fname=None):
         import rapidjson
         flask.json.load = rapidjson.load
         flask.json.loads = rapidjson.loads
-        flask.json.dumps = rapidjson.dumps
+        flask.json.dumps = _dumps
         logger.debug('CORE flask JSON module: rapidjson')
     except:
         logger.debug('CORE flask JSON module: standard')

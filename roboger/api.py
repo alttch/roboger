@@ -87,7 +87,7 @@ def push():
                  sender=sender,
                  media=media,
                  media_encoded=media_encoded)
-        return Response(success, status=200)
+        return success
     except:
         log_traceback()
         abort(503)
