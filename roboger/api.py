@@ -13,7 +13,7 @@ from sqlalchemy import text as sql
 
 success = {'ok': True}
 
-from .core import logger, convert_level, log_traceback, get_app, get_db, send
+from .core import logger, convert_level, log_traceback, get_app, get_db, send, product
 
 
 def push():
@@ -75,8 +75,8 @@ def push():
                                     sender=sender,
                                     level=level):
             send(row.plugin_name,
-                 event_id=event_id,
                  config=row.config,
+                 event_id=event_id,
                  msg=msg,
                  subject=subject,
                  formatted_subject=formatted_subject,
@@ -92,6 +92,13 @@ def push():
         abort(503)
 
 
+def test():
+    result = success.copy()
+    result.update({'version': product.version, 'build': product.build})
+    return result
+
+
 def init():
     app = get_app()
+    app.add_url_rule('/core', 'core', test, methods=['GET'])
     app.add_url_rule('/push', 'push', push, methods=['POST'])
