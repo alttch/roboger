@@ -1,7 +1,4 @@
 - [ ] according to migration
-- [ ] move endpoints to plugins
-  - [ ] slack
-  - [ ] telegram
 - [ ] dynamic data
 - [ ] new API (RESTful)
 - [ ] migrate CLI
