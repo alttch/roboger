@@ -4,6 +4,7 @@
 - [ ] migrate CLI
 - [ ] test with mysql and sqlite3
 - [ ] start with start/stop
+- [ ] sender limits
 - [ ] pypi module
 - [ ] migrate roboger.com UI
 - [ ] create android plugin
