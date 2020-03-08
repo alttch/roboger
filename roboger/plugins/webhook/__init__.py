@@ -32,6 +32,7 @@ def send(config, **kwargs):
                 'location', 'tag', 'sender'
         ]:
             data = data.replace(f'${p}', str(kwargs.get(p, 'null')))
+        data = data.replace('$media', str(kwargs.get('media_encoded', 'null')))
     else:
         data = "null"
     url = config['url']
