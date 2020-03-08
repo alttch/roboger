@@ -60,14 +60,12 @@ Then use Roboger API to send event notifications:
     }
     (all fields except address are optional, default level is "info")
 
-Or, for old machines (you can't send binary data with GET):
-
-    GET http://your-roboger-host:7719/push?r=&s=&l=&k=&s=&m=&l=
-
 Or with **roboger-push** console client in the old good crontab or any other
 software/scripts:
 
-    echo Everything's down!!! | roboger-push
+```shell
+echo Everything's down!!! | roboger-push -l warning
+```
 
 **roboger-push** app is written in pure bash, so it will run almost everywhere,
 addresses are defined in /usr/local/etc/roboger_push.ini.
