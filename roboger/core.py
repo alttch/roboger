@@ -29,7 +29,7 @@ _d = SimpleNamespace(db=None, use_insertid=False, pool=None)
 config = {}
 plugins = {}
 
-product = SimpleNamespace(build=None, version=__version__)
+product = SimpleNamespace(build=None, version=__version__, user_agent='')
 system_name = platform.node()
 
 dir_me = Path(__file__).absolute().parents[1].as_posix()
@@ -49,6 +49,9 @@ app = Flask('roboger')
 
 def set_build(build):
     product.build = build
+    product.user_agent = 'Roboger/{} (v{} build {})'.format(
+        product.version[:product.version.rfind('.')], product.version,
+        product.build)
 
 
 def safe_run_method(o, method, *args, **kwargs):
@@ -132,6 +135,7 @@ def load(fname=None):
                 f'CORE failed to load plugin configuration for {plugin_name}')
             log_traceback()
         plugins[plugin_name] = mod
+        logger.info(f'CORE added plugin {plugin_name}')
     logger.debug('CORE initializing database')
     if config['db'].startswith('sqlite'):
         _d.db = sqlalchemy.create_engine(config['db'])
@@ -210,6 +214,7 @@ def send(plugin_name, **kwargs):
 
 def _safe_send(plugin_name, send_func, event_id, **kwargs):
     try:
+        logger.debug(f'CORE {event_id} sending via {plugin_name}')
         send_func(event_id=event_id, **kwargs)
     except:
         logger.error(
