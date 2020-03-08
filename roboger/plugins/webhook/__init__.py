@@ -39,14 +39,9 @@ def send(config, **kwargs):
     logger.debug(f'{__name__} {kwargs["event_id"]} sending JSON POST to {url}')
     r = requests.post(url,
                       headers={
-                          'Content-Type':
-                              'application/json',
-                          'Content-Length':
-                              str(len(data)),
-                          'User-Agent':
-                              'Roboger/{} (v{} build {})'.format(
-                                  product.version[:product.version.rfind('.')],
-                                  product.version, product.build)
+                          'Content-Type': 'application/json',
+                          'Content-Length': str(len(data)),
+                          'User-Agent': product.user_agent
                       },
                       data=data,
                       timeout=get_timeout())
