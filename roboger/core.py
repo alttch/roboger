@@ -46,6 +46,13 @@ default_thread_pool_size = 10
 
 app = Flask('roboger')
 
+emoji_code = {
+    20: u'\U00002139',
+    30: u'\U000026A0',
+    40: u'\U0000203C',
+    50: u'\U0001F170'
+}
+
 
 def set_build(build):
     product.build = build
