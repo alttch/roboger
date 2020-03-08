@@ -22,7 +22,8 @@ PROPERTY_MAP_SCHEMA = {
             'format': 'idn-email'
         },
     },
-    'additionalProperties': False
+    'additionalProperties': False,
+    'required': ['rcpt']
 }
 
 
@@ -66,5 +67,5 @@ def send(config, event_id, msg, formatted_subject, level, location, tag, sender,
         logger.error(f'{__name__} {event_id} ignored, not active')
 
 
-def validate_config(data):
-    validate(data, schema=PROPERTY_MAP_SCHEMA)
+def validate_config(config):
+    validate(config, schema=PROPERTY_MAP_SCHEMA)
