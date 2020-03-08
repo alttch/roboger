@@ -99,7 +99,12 @@ def test():
     return result
 
 
+def ping():
+    return success
+
+
 def init():
     app = get_app()
-    app.add_url_rule('/core', 'core', test, methods=['GET'])
+    app.add_url_rule('/test', 'test', test, methods=['GET'])
+    app.add_url_rule('/ping', 'ping', ping, methods=['GET'])
     app.add_url_rule('/push', 'push', push, methods=['POST'])
