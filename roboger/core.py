@@ -56,7 +56,7 @@ def safe_run_method(o, method, *args, **kwargs):
         f = getattr(o, method)
     except:
         return
-    logger.debug(f'executing {o.__name__}.{method}')
+    logger.debug(f'CORE executing {o.__name__}.{method}')
     f(*args, **kwargs)
 
 
@@ -64,29 +64,28 @@ def debug_on():
     config['debug'] = True
     logging.basicConfig(level=logging.DEBUG)
     logger.setLevel(level=logging.DEBUG)
-    logger.info('Debug mode ON')
+    logger.info('CORE debug mode ON')
 
 
 def debug_off():
     config['debug'] = False
     logging.basicConfig(level=logging.INFO)
     logger.setLevel(level=logging.INFO)
-    logger.info('Debug mode OFF')
+    logger.info('CORE debug mode OFF')
 
 
 def log_traceback():
-    if config['debug']: logger.error(traceback.format_exc())
+    if config['debug']: logger.error('CORE ' + traceback.format_exc())
 
 
 def init_log():
     rl = logging.getLogger()
     for h in rl.handlers:
-        print(h)
         rl.removeHandler(h)
     h = logging.StreamHandler(sys.stdout)
     h.setFormatter(
         logging.Formatter('%(asctime)s ' + system_name + '  %(levelname)s ' +
-                          'roboger' + ' %(threadName)s: %(message)s'))
+                          '%(name)s' + ' %(message)s'))
     rl.addHandler(h)
 
 
@@ -109,12 +108,17 @@ def load(fname=None):
                 mod = importlib.import_module(
                     'roboger-plugin-{}'.format(plugin_name))
             except:
-                logger.error(f'Unable to load plugin: {plugin_name}')
+                logger.error(f'CORE unable to load plugin: {plugin_name}')
                 log_traceback()
                 continue
-        safe_run_method(mod, 'load', plugin.get('config'), {})
+        try:
+            safe_run_method(mod, 'load', plugin.get('config', {}))
+        except:
+            logger.error(
+                f'CORE failed to load plugin configuration for {plugin_name}')
+            log_traceback()
         plugins[plugin_name] = mod
-    logger.debug('Initializing database')
+    logger.debug('CORE initializing database')
     if config['db'].startswith('sqlite'):
         _d.db = sqlalchemy.create_engine(config['db'])
     else:
@@ -126,7 +130,8 @@ def load(fname=None):
         'sqlite') or config['db'].startswith('mysql')
     get_db()
     thread_pool_size = config.get('thread-pool-size', default_thread_pool_size)
-    logger.debug(f'Initializing thread pool with max size {thread_pool_size}')
+    logger.debug(
+        f'CORE initializing thread pool with max size {thread_pool_size}')
     _d.pool = ThreadPoolExecutor(max_workers=thread_pool_size)
 
 
@@ -165,6 +170,8 @@ from flask import request, jsonify, Response
 
 import flask.json
 import base64
+import uuid
+
 from sqlalchemy import text as sql
 try:
     import rapidjson
@@ -196,9 +203,10 @@ def convert_level(level):
 
 @app.route('/push', methods=['POST'])
 def push():
+    event_id = str(uuid.uuid4())
     content = request.json
     addr = content.get('addr')
-    logger.info(f'message to {addr}')
+    logger.info(f'API message to {addr}')
     msg = content.get('msg', '')
     subject = content.get('subject', '')
     level = convert_level(content.get('level'))
@@ -212,27 +220,39 @@ def push():
     if media_encoded == '': media_encoded = None
     if media_encoded:
         try:
-            media = base64.decode(media_encoded)
+            media = base64.b64decode(media_encoded)
         except:
             media = None
             media_encoded = None
-            logger.warning('Invalid media file in message to {addr}')
+            logger.warning(
+                f'API invalid media file in {event_id} message to {addr}')
     else:
         media = None
+    formatted_subject = ''
+    level_name = logging.getLevelName(level)
+    if level_name:
+        formatted_subject = level_name
+        if location:
+            formatted_subject += f' @{location}'
+    elif location:
+        formatted_subject = location
+    if subject: formatted_subject += f': {subject}'
     for row in get_db().execute(sql("""
             SELECT plugin_name, config
             FROM subscription join endpoint ON
                 endpoint.id = subscription.endpoint_id
-            WHERE addr_id IN (SELECT id FROM addr WHERE a=:addr)
+            WHERE addr_id IN (SELECT id FROM addr WHERE a=:addr and active=1)
+                AND subscription.active = 1
+                AND endpoint.active = 1
                 AND (location=:location or location IS null)
                 AND (tag=:tag or tag IS null)
                 AND (sender=:sender or sender IS null)
                 AND (
                     (level_id=:level AND level_match='e') OR
-                    (level_id>:level and level_match='g') OR
-                    (level_id>=:level and level_match='ge') OR
-                    (level_id<:level and level_match='l') OR
-                    (level_id<=:level and level_match='le')
+                    (level_id<:level and level_match='g') OR
+                    (level_id<=:level and level_match='ge') OR
+                    (level_id>:level and level_match='l') OR
+                    (level_id>=:level and level_match='le')
                     )
                     """),
                                 addr=addr,
@@ -241,10 +261,14 @@ def push():
                                 sender=sender,
                                 level=level):
         try:
-            spawn(plugins[row.plugin_name].send,
+            spawn(safe_send,
+                  row.plugin_name,
+                  plugins[row.plugin_name].send,
+                  event_id=event_id,
                   config=row.config,
                   msg=msg,
                   subject=subject,
+                  formatted_subject=formatted_subject,
                   level=level,
                   location=location,
                   tag=tag,
@@ -252,7 +276,16 @@ def push():
                   media=media,
                   media_encoded=media_encoded)
         except KeyError:
-            logger.warning(f'No such plugin: {row.plugin_name}')
+            logger.warning(f'API no such plugin: {row.plugin_name}')
         except AttributeError:
-            logger.warning(f'No "send" method in plugin {row.plugin_name}')
+            logger.warning(f'API no "send" method in plugin {row.plugin_name}')
     return Response(success, status=200)
+
+
+def safe_send(plugin_name, send_func, event_id, **kwargs):
+    try:
+        send_func(event_id=event_id, **kwargs)
+    except:
+        logger.error(
+            f'CORE plugin {plugin_name} raised exception, {event_id} not sent')
+        log_traceback()

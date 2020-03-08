@@ -6,7 +6,6 @@ __version__ = "1.0.2"
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
-import email.utils
 
 import smtplib
 import os

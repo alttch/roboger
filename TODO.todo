@@ -1,6 +1,8 @@
 - [ ] according to migration
 - [ ] move endpoints to plugins
-- [ ] migrate telegram bot plugin to tebot, check webhooks
+  - [ ] webhook
+  - [ ] slack
+  - [ ] telegram
 - [ ] dynamic data
 - [ ] new API (RESTful)
 - [ ] migrate CLI
