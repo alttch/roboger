@@ -8,30 +8,43 @@ from flask import request, jsonify, Response, abort
 import base64
 import uuid
 import logging
+from functools import wraps
 
 from sqlalchemy import text as sql
 
 success = {'ok': True}
 
-from .core import logger, convert_level, log_traceback, get_app, get_db, send, product
+from .core import logger, convert_level, log_traceback
+from .core import get_app, get_db, send, product
+
+from functools import wraps
 
 
-def push():
+def json_in(f):
+
+    @wraps(f)
+    def do():
+        return f(**request.json)
+
+    return do
+
+
+@json_in
+def push(**kwargs):
     try:
         event_id = str(uuid.uuid4())
-        content = request.json
-        addr = content.get('addr')
+        addr = kwargs.get('addr')
         logger.info(f'API message to {addr}')
-        msg = content.get('msg', '')
-        subject = content.get('subject', '')
-        level = convert_level(content.get('level'))
-        location = content.get('location')
+        msg = kwargs.get('msg', '')
+        subject = kwargs.get('subject', '')
+        level = convert_level(kwargs.get('level'))
+        location = kwargs.get('location')
         if location == '': location = None
-        tag = content.get('tag')
+        tag = kwargs.get('tag')
         if tag == '': tag = None
-        sender = content.get('sender')
+        sender = kwargs.get('sender')
         if sender == '': sender = None
-        media_encoded = content.get('media')
+        media_encoded = kwargs.get('media')
         if media_encoded == '': media_encoded = None
         if media_encoded:
             try:
