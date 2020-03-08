@@ -81,6 +81,7 @@ def push():
                  subject=subject,
                  formatted_subject=formatted_subject,
                  level=level_name,
+                 level_id=level,
                  location=location,
                  tag=tag,
                  sender=sender,
