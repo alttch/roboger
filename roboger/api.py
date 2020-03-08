@@ -53,23 +53,23 @@ def push():
             formatted_subject = location
         if subject: formatted_subject += f': {subject}'
         for row in get_db().execute(sql("""
-                SELECT plugin_name, config
-                FROM subscription join endpoint ON
-                    endpoint.id = subscription.endpoint_id
-                WHERE addr_id IN (SELECT id FROM addr WHERE a=:addr and active=1)
-                    AND subscription.active = 1
-                    AND endpoint.active = 1
-                    AND (location=:location or location IS null)
-                    AND (tag=:tag or tag IS null)
-                    AND (sender=:sender or sender IS null)
-                    AND (
-                        (level_id=:level AND level_match='e') OR
-                        (level_id<:level and level_match='g') OR
-                        (level_id<=:level and level_match='ge') OR
-                        (level_id>:level and level_match='l') OR
-                        (level_id>=:level and level_match='le')
-                        )
-                        """),
+            SELECT plugin_name, config
+            FROM subscription join endpoint ON
+                endpoint.id = subscription.endpoint_id
+            WHERE addr_id IN (SELECT id FROM addr WHERE a=:addr and active=1)
+                AND subscription.active = 1
+                AND endpoint.active = 1
+                AND (location=:location or location IS null)
+                AND (tag=:tag or tag IS null)
+                AND (sender=:sender or sender IS null)
+                AND (
+                    (level_id=:level AND level_match='e') OR
+                    (level_id<:level and level_match='g') OR
+                    (level_id<=:level and level_match='ge') OR
+                    (level_id>:level and level_match='l') OR
+                    (level_id>=:level and level_match='le')
+                    )
+                    """),
                                     addr=addr,
                                     location=location,
                                     tag=tag,
