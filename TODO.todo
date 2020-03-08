@@ -1,6 +1,5 @@
 - [ ] according to migration
 - [ ] move endpoints to plugins
-  - [ ] webhook
   - [ ] slack
   - [ ] telegram
 - [ ] dynamic data
