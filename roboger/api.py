@@ -45,10 +45,9 @@ def push():
             media = None
         formatted_subject = ''
         level_name = logging.getLevelName(level)
-        if level_name:
-            formatted_subject = level_name
-            if location:
-                formatted_subject += f' @{location}'
+        formatted_subject = level_name
+        if location:
+            formatted_subject += f' @{location}'
         elif location:
             formatted_subject = location
         if subject: formatted_subject += f': {subject}'
@@ -81,7 +80,7 @@ def push():
                  msg=msg,
                  subject=subject,
                  formatted_subject=formatted_subject,
-                 level=level,
+                 level=level_name,
                  location=location,
                  tag=tag,
                  sender=sender,

@@ -203,9 +203,9 @@ def send(plugin_name, **kwargs):
     try:
         spawn(_safe_send, plugin_name, plugins[plugin_name].send, **kwargs)
     except KeyError:
-        logger.warning(f'API no such plugin: {row.plugin_name}')
+        logger.warning(f'API no such plugin: {plugin_name}')
     except AttributeError:
-        logger.warning(f'API no "send" method in plugin {row.plugin_name}')
+        logger.warning(f'API no "send" method in plugin {plugin_name}')
 
 
 def _safe_send(plugin_name, send_func, event_id, **kwargs):
