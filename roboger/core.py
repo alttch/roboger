@@ -1,7 +1,7 @@
-__author__ = "Altertech Group, http://www.altertech.com/"
-__copyright__ = "Copyright (C) 2018-2019 Altertech Group"
-__license__ = "Apache License 2.0"
-__version__ = "1.5.0"
+__author__ = 'Altertech, http://www.altertech.com/'
+__copyright__ = 'Copyright (C) 2018-2020 Altertech Group'
+__license__ = 'Apache License 2.0'
+__version__ = '1.5.0'
 
 import platform
 import os
@@ -98,6 +98,15 @@ def load(fname=None):
         config.update(yaml.load(fh.read())['roboger'])
     init_log()
     if config.get('debug'): debug_on()
+    import flask.json
+    try:
+        import rapidjson
+        flask.json.load = rapidjson.load
+        flask.json.loads = rapidjson.loads
+        flask.json.dumps = rapidjson.dumps
+        logger.debug('CORE flask JSON module: rapidjson')
+    except:
+        logger.debug('CORE flask JSON module: standard')
     for plugin in config.get('plugins', []):
         plugin_name = plugin['name']
         try:
@@ -133,6 +142,8 @@ def load(fname=None):
     logger.debug(
         f'CORE initializing thread pool with max size {thread_pool_size}')
     _d.pool = ThreadPoolExecutor(max_workers=thread_pool_size)
+    from . import api
+    api.init()
 
 
 def spawn(*args, **kwargs):
@@ -166,24 +177,6 @@ def is_use_insertid():
     return _d.use_insertid
 
 
-from flask import request, jsonify, Response
-
-import flask.json
-import base64
-import uuid
-
-from sqlalchemy import text as sql
-try:
-    import rapidjson
-    flask.json.load = rapidjson.load
-    flask.json.loads = rapidjson.loads
-    flask.json.dumps = rapidjson.dumps
-except:
-    pass
-
-success = {'ok': True}
-
-
 def convert_level(level):
     if level in [10, 20, 30, 40, 50]: return level
     elif isinstance(level, str):
@@ -201,88 +194,16 @@ def convert_level(level):
     return 20
 
 
-@app.route('/push', methods=['POST'])
-def push():
-    event_id = str(uuid.uuid4())
-    content = request.json
-    addr = content.get('addr')
-    logger.info(f'API message to {addr}')
-    msg = content.get('msg', '')
-    subject = content.get('subject', '')
-    level = convert_level(content.get('level'))
-    location = content.get('location')
-    if location == '': location = None
-    tag = content.get('tag')
-    if tag == '': tag = None
-    sender = content.get('sender')
-    if sender == '': sender = None
-    media_encoded = content.get('media')
-    if media_encoded == '': media_encoded = None
-    if media_encoded:
-        try:
-            media = base64.b64decode(media_encoded)
-        except:
-            media = None
-            media_encoded = None
-            logger.warning(
-                f'API invalid media file in {event_id} message to {addr}')
-    else:
-        media = None
-    formatted_subject = ''
-    level_name = logging.getLevelName(level)
-    if level_name:
-        formatted_subject = level_name
-        if location:
-            formatted_subject += f' @{location}'
-    elif location:
-        formatted_subject = location
-    if subject: formatted_subject += f': {subject}'
-    for row in get_db().execute(sql("""
-            SELECT plugin_name, config
-            FROM subscription join endpoint ON
-                endpoint.id = subscription.endpoint_id
-            WHERE addr_id IN (SELECT id FROM addr WHERE a=:addr and active=1)
-                AND subscription.active = 1
-                AND endpoint.active = 1
-                AND (location=:location or location IS null)
-                AND (tag=:tag or tag IS null)
-                AND (sender=:sender or sender IS null)
-                AND (
-                    (level_id=:level AND level_match='e') OR
-                    (level_id<:level and level_match='g') OR
-                    (level_id<=:level and level_match='ge') OR
-                    (level_id>:level and level_match='l') OR
-                    (level_id>=:level and level_match='le')
-                    )
-                    """),
-                                addr=addr,
-                                location=location,
-                                tag=tag,
-                                sender=sender,
-                                level=level):
-        try:
-            spawn(safe_send,
-                  row.plugin_name,
-                  plugins[row.plugin_name].send,
-                  event_id=event_id,
-                  config=row.config,
-                  msg=msg,
-                  subject=subject,
-                  formatted_subject=formatted_subject,
-                  level=level,
-                  location=location,
-                  tag=tag,
-                  sender=sender,
-                  media=media,
-                  media_encoded=media_encoded)
-        except KeyError:
-            logger.warning(f'API no such plugin: {row.plugin_name}')
-        except AttributeError:
-            logger.warning(f'API no "send" method in plugin {row.plugin_name}')
-    return Response(success, status=200)
+def send(plugin_name, **kwargs):
+    try:
+        spawn(_safe_send, plugin_name, plugins[plugin_name].send, **kwargs)
+    except KeyError:
+        logger.warning(f'API no such plugin: {row.plugin_name}')
+    except AttributeError:
+        logger.warning(f'API no "send" method in plugin {row.plugin_name}')
 
 
-def safe_send(plugin_name, send_func, event_id, **kwargs):
+def _safe_send(plugin_name, send_func, event_id, **kwargs):
     try:
         send_func(event_id=event_id, **kwargs)
     except:
