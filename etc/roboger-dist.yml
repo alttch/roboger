@@ -1,0 +1,16 @@
+roboger:
+  db: sqlite:///var/db/roboger.db
+  # for mysql requires pymsql module (pip3 install pymysql)
+  # for postgresql requires psycopg2
+  debug: 0
+  log: log/roboger.log
+  # specify masterkey in config or ROBOGER_MASTERKEY env variable
+  # masterkey: VERYSECRETKEY
+  # specify host range for master key
+  master_allow:
+  - 127.0.0.1
+  plugins:
+    - name: telegram
+      config:
+        token: # obtain at botfather
+        poll: 2

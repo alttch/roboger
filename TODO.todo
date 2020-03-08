@@ -1,9 +1,10 @@
-- [ ] config to yaml
 - [ ] according to migration
 - [ ] move endpoints to plugins
 - [ ] migrate telegram bot plugin to tebot, check webhooks
 - [ ] dynamic data
 - [ ] new API (RESTful)
 - [ ] migrate CLI
+- [ ] test with mysql and sqlite3
+- [ ] pypi module
 - [ ] migrate roboger.com UI
 - [ ] create android plugin
