@@ -10,7 +10,20 @@ from pyaltt2.network import parse_host_port
 
 from roboger.core import logger, log_traceback
 
+from jsonschema import validate
+
 _cfg = SimpleNamespace(host=None, port=25)
+
+PROPERTY_MAP_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'rcpt': {
+            'type': 'string',
+            'format': 'idn-email'
+        },
+    },
+    'additionalProperties': False
+}
 
 
 def load(config):
@@ -51,3 +64,7 @@ def send(config, event_id, msg, formatted_subject, level, location, tag, sender,
                          f' send message from {sender} to {rcpt}')
     else:
         logger.error(f'{__name__} {event_id} ignored, not active')
+
+
+def validate_config(data):
+    validate(data, schema=PROPERTY_MAP_SCHEMA)

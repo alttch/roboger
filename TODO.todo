@@ -3,7 +3,6 @@
   - [ ] webhook
   - [ ] slack
   - [ ] telegram
-- [ ] config validator in plugins
 - [ ] dynamic data
 - [ ] new API (RESTful)
 - [ ] migrate CLI
