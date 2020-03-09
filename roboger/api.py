@@ -25,17 +25,41 @@ from pyaltt2.network import netacl_match
 success = {'ok': True}
 
 
-def public_method(f):
+def _response_new_location(payload, code, new_id, resource):
+    r = jsonify(payload) if payload else Response()
+    r.status_code = code
+    r.headers['Location'] = f'{api_uri_rest}/{resource}/{new_id}'
+    r.autocorrect_location_header = False
+    return r
 
-    @wraps(f)
-    def do(*args):
-        return jsonify(f(*args, **request.json))
 
-    return do
+def _response_created(payload, id_field, resource):
+    return _response_new_location(payload, 201, id_field, resource)
+
+
+def _response_moved(payload, id_field, resource):
+    return _response_new_location(payload, 301, id_field, resource)
+
+
+def _response_empty():
+    return Response(status=204)
+
+
+def _response_accepted():
+    return Response(status=202)
 
 
 def http_real_ip():
     return request.remote_addr
+
+
+def public_method(f):
+
+    @wraps(f)
+    def do(*args):
+        return f(*args, **(request.json if request.json else {}))
+
+    return do
 
 
 def admin_method(f):
@@ -67,7 +91,8 @@ def admin_method(f):
 
 @public_method
 def ping(**kwargs):
-    return success
+    get_db()
+    return _response_empty()
 
 
 @public_method
@@ -141,7 +166,7 @@ def push(**kwargs):
                  sender=sender,
                  media=media,
                  media_encoded=media_encoded)
-        return success
+        return _response_accepted()
     except:
         log_traceback()
         abort(503)
@@ -221,26 +246,6 @@ def _process_addr(a):
         addr = None
     except:
         return (None, a if isinstance(a, str) else None)
-
-
-def _response_new_location(payload, code, new_id, resource):
-    r = jsonify(payload) if payload else Response()
-    r.status_code = code
-    r.headers['Location'] = f'{api_uri_rest}/{resource}/{new_id}'
-    r.autocorrect_location_header = False
-    return r
-
-
-def _response_created(payload, id_field, resource):
-    return _response_new_location(payload, 201, id_field, resource)
-
-
-def _response_moved(payload, id_field, resource):
-    return _response_new_location(payload, 301, id_field, resource)
-
-
-def _response_empty():
-    return Response(status=204)
 
 
 @admin_method
