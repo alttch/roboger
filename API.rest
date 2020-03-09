@@ -1,0 +1,3 @@
+/manage/v2/addr GET POST DELETE
+/manage/v2/endpoint GET POST PATCH DELETE
+/manage/v2/subscription GET POST PATCH DELETE

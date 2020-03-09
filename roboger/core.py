@@ -17,14 +17,17 @@ import signal
 from types import SimpleNamespace
 from flask import Flask
 from concurrent.futures import ThreadPoolExecutor
+from sqlalchemy import text as sql
 
 from pathlib import Path
 from neotasker import g
 
+from pyaltt2.crypto import gen_random_str
+
 logging.getLogger('requests').setLevel(logging.CRITICAL)
 logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 
-_d = SimpleNamespace(db=None, use_insertid=False, pool=None)
+_d = SimpleNamespace(db=None, use_lastrowid=False, pool=None)
 
 config = {}
 plugins = {}
@@ -99,11 +102,6 @@ def init_log():
     rl.addHandler(h)
 
 
-def _dumps(*args, separators=None, **kwargs):
-    import rapidjson
-    return rapidjson.dumps(*args, **kwargs)
-
-
 def load(fname=None):
     if not fname:
         fname = f'{dir_me}/etc/roboger.yml'
@@ -113,15 +111,6 @@ def load(fname=None):
         config.update(yaml.load(fh.read())['roboger'])
     init_log()
     if config.get('debug'): debug_on()
-    import flask.json
-    try:
-        import rapidjson
-        flask.json.load = rapidjson.load
-        flask.json.loads = rapidjson.loads
-        flask.json.dumps = _dumps
-        logger.debug('CORE flask JSON module: rapidjson')
-    except:
-        logger.debug('CORE flask JSON module: standard')
     for plugin in config.get('plugins', []):
         plugin_name = plugin['name']
         try:
@@ -151,7 +140,7 @@ def load(fname=None):
         _d.db = sqlalchemy.create_engine(config['db'],
                                          pool_size=pool_size,
                                          max_overflow=pool_size * 2)
-    _d.use_insertid = config['db'].startswith(
+    _d.use_lastrowid = config['db'].startswith(
         'sqlite') or config['db'].startswith('mysql')
     get_db()
     thread_pool_size = config.get('thread-pool-size', default_thread_pool_size)
@@ -189,8 +178,8 @@ def get_plugin(plugin_name):
     return plugins['plugin_name']
 
 
-def is_use_insertid():
-    return _d.use_insertid
+def is_use_lastrowid():
+    return _d.use_lastrowid
 
 
 def convert_level(level):
@@ -227,3 +216,71 @@ def _safe_send(plugin_name, send_func, event_id, **kwargs):
         logger.error(
             f'CORE plugin {plugin_name} raised exception, {event_id} not sent')
         log_traceback()
+
+
+# object functions
+
+
+def db_list(query):
+    return [dict(row) for row in get_db().execute(query).fetchall()]
+
+
+def addr_get(addr_id=None, addr=None):
+    result = get_db().execute(
+        sql("""SELECT id, a, active FROM addr WHERE id=:id or a=:a"""),
+        id=addr_id,
+        a=addr).fetchone()
+    if result:
+        return dict(result)
+    else:
+        raise LookupError
+
+
+def addr_get_list():
+    return db_list(sql("""SELECT id, a, active FROM addr ORDER BY id"""))
+
+
+def addr_create():
+    addr = gen_random_str(64)
+    result = get_db().execute(sql("""
+            INSERT INTO addr (a) VALUES (:a) {}
+            """.format('' if is_use_lastrowid() else 'RETURNING id')),
+                              a=addr)
+    i = result.lastrowid if is_use_lastrowid() else result.fetchone().id
+    return addr_get(addr_id=i)
+
+
+def addr_change(addr_id=None, addr=None):
+    new_addr = gen_random_str(64)
+    if get_db().execute(sql("""
+            UPDATE addr SET a=:new_a WHERE id=:id or a=:a
+            """),
+                        new_a=new_addr,
+                        id=addr_id,
+                        a=addr).rowcount:
+        return addr_get(addr_id=addr_id, addr=new_addr)
+    else:
+        raise LookupError
+
+
+def addr_set_active(addr_id=None, addr=None, active=1):
+    if get_db().execute(sql("""
+            UPDATE addr SET active=:active WHERE id=:id or a=:a
+            """),
+                        active=active,
+                        id=addr_id,
+                        a=addr).rowcount:
+        return addr_get(addr_id=addr_id, addr=addr)
+    else:
+        raise LookupError
+
+
+def addr_delete(addr_id=None, addr=None):
+    if get_db().execute(sql("""
+            DELETE FROM addr WHERE id=:id or a=:a
+            """),
+                        id=addr_id,
+                        a=addr).rowcount:
+        return True
+    else:
+        raise LookupError

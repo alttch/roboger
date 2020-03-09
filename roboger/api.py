@@ -12,24 +12,46 @@ from functools import wraps
 
 from sqlalchemy import text as sql
 
-success = {'ok': True}
-
-from .core import logger, convert_level, log_traceback
+from .core import logger, convert_level, log_traceback, config as core_config
 from .core import get_app, get_db, send, product
+
+from .core import addr_get, addr_get_list, addr_create, addr_delete
+from .core import addr_set_active, addr_change
 
 from functools import wraps
 
+success = {'ok': True}
 
-def json_in(f):
+
+def public_method(f):
 
     @wraps(f)
     def do():
-        return f(**request.json)
+        return jsonify(f(**request.json))
 
     return do
 
 
-@json_in
+def admin_method(f):
+
+    @wraps(f)
+    def do():
+        key = request.headers.get('X-Auth-Key', request.json.get('k'))
+        if key is None:
+            abort(401)
+        if key != core_config['master']['key']:
+            abort(403)
+        return jsonify(f(**request.json))
+
+    return do
+
+
+@public_method
+def ping(**kwargs):
+    return success
+
+
+@public_method
 def push(**kwargs):
     try:
         event_id = str(uuid.uuid4())
@@ -106,18 +128,100 @@ def push(**kwargs):
         abort(503)
 
 
-def test():
+def init():
+    app = get_app()
+    app.add_url_rule('/ping', 'ping', ping, methods=['GET'])
+    app.add_url_rule('/push', 'push', push, methods=['POST'])
+    app.add_url_rule('/manage/test', 'test', test, methods=['GET', 'POST'])
+    app.add_url_rule('/manage/addr_list',
+                     'm_addr_list',
+                     m_addr_list,
+                     methods=['POST'])
+    app.add_url_rule('/manage/addr_create',
+                     'm_addr_create',
+                     m_addr_create,
+                     methods=['POST'])
+    app.add_url_rule('/manage/addr_change',
+                     'm_addr_change',
+                     m_addr_change,
+                     methods=['POST'])
+    app.add_url_rule('/manage/addr_set_active',
+                     'm_addr_set_active',
+                     m_addr_set_active,
+                     methods=['POST'])
+    app.add_url_rule('/manage/addr_enable',
+                     'm_addr_enable',
+                     m_addr_enable,
+                     methods=['POST'])
+    app.add_url_rule('/manage/addr_disable',
+                     'm_addr_disable',
+                     m_addr_disable,
+                     methods=['POST'])
+    app.add_url_rule('/manage/addr_delete',
+                     'm_addr_delete',
+                     m_addr_delete,
+                     methods=['POST'])
+
+
+@admin_method
+def test(**kwargs):
     result = success.copy()
     result.update({'version': product.version, 'build': product.build})
     return result
 
 
-def ping():
-    return success
+@admin_method
+def m_addr_list(addr_id=None, addr=None, **kwargs):
+    if addr_id or addr:
+        try:
+            return addr_get(addr_id=addr_id, addr=addr)
+        except LookupError:
+            abort(404)
+    else:
+        return addr_get_list()
 
 
-def init():
-    app = get_app()
-    app.add_url_rule('/test', 'test', test, methods=['GET'])
-    app.add_url_rule('/ping', 'ping', ping, methods=['GET'])
-    app.add_url_rule('/push', 'push', push, methods=['POST'])
+@admin_method
+def m_addr_create(**kwargs):
+    return addr_create()
+
+
+@admin_method
+def m_addr_change(addr_id=None, addr=None, **kwargs):
+    try:
+        return addr_change(addr_id=addr_id, addr=addr)
+    except LookupError:
+        abort(404)
+
+
+@admin_method
+def m_addr_set_active(addr_id=None, addr=None, active=1, **kwargs):
+    try:
+        return addr_set_active(addr_id=addr_id, addr=addr, active=int(active))
+    except LookupError:
+        abort(404)
+
+
+@admin_method
+def m_addr_enable(addr_id=None, addr=None, active=1, **kwargs):
+    try:
+        return addr_set_active(addr_id=addr_id, addr=addr, active=1)
+    except LookupError:
+        abort(404)
+
+
+@admin_method
+def m_addr_disable(addr_id=None, addr=None, active=1, **kwargs):
+    try:
+        return addr_set_active(addr_id=addr_id, addr=addr, active=0)
+    except LookupError:
+        abort(404)
+
+
+@admin_method
+def m_addr_delete(addr_id=None, addr=None, **kwargs):
+    try:
+        addr_delete(addr_id=addr_id, addr=addr)
+        return success
+    except LookupError:
+        abort(404)
