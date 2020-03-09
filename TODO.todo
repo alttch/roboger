@@ -9,6 +9,7 @@
 - [ ] test with mysql and sqlite3
 - [ ] start with start/stop
 - [ ] sender limits
+- [ ] tests
 - [ ] pypi module
 - [ ] migrate roboger.com UI
 - [ ] create android plugin
