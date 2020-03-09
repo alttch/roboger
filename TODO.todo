@@ -1,3 +1,7 @@
+- [ ] legacy API methods for
+  - [ ] endpoint
+  - [ ] subscription
+  - [ ] duplicate / copy subscription
 - [ ] according to migration
 - [ ] dynamic data
 - [ ] new API (RESTful)
