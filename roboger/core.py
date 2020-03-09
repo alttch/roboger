@@ -116,6 +116,7 @@ def load(fname=None):
         config.update(yaml.load(fh.read())['roboger'])
     init_log()
     if config.get('debug'): debug_on()
+    _d.secure_mode = config.get('secure-mode')
     config['_acl'] = [IPNetwork(h) for h in config['master']['allow']] if \
             config.get('master', {}).get('allow') else None
     for plugin in config.get('plugins', []):
@@ -258,7 +259,7 @@ def addr_create():
             """.format('' if is_use_lastrowid() else 'RETURNING id')),
                               a=addr)
     i = result.lastrowid if is_use_lastrowid() else result.fetchone().id
-    return addr_get(addr_id=i)
+    return i
 
 
 def addr_change(addr_id=None, addr=None):
@@ -287,17 +288,15 @@ def addr_set_active(addr_id=None, addr=None, active=1):
 
 
 def addr_delete(addr_id=None, addr=None):
-    if get_db().execute(sql("""
+    if not get_db().execute(sql("""
             DELETE FROM addr WHERE id=:id or a=:a
             """),
-                        id=addr_id,
-                        a=addr).rowcount:
-        return True
-    else:
+                            id=addr_id,
+                            a=addr).rowcount:
         raise LookupError
 
 
-def endpoint_get(endpoint_id, addr_id=None, addr=None):
+def endpoint_get(endpoint_id):
     result = get_db().execute(
         sql("""SELECT id, addr_id, plugin_name, config, active,
                 description FROM endpoint WHERE id=:id"""),
@@ -312,7 +311,7 @@ def endpoint_list(addr_id=None, addr=None):
     return db_list(sql("""SELECT endpoint.id as id, addr_id, plugin_name,
         config, endpoint.active,
         description FROM endpoint JOIN addr ON addr.id=endpoint.addr_id
-        WHERE addr.id=:addr_id OR addr=:addr"""),
+        WHERE addr.id=:addr_id OR addr=:addr ORDER BY id"""),
                    addr_id=addr_id,
                    addr=addr)
 
@@ -321,10 +320,16 @@ def endpoint_create(plugin_name,
                     addr_id=None,
                     addr=None,
                     config=None,
-                    description=None):
+                    description=None,
+                    validate_config=False):
     if plugin_name not in plugins:
         raise LookupError(f'No such plugin: {plugin_name}')
     if config is None: config = {}
+    else:
+        try:
+            safe_run_method(plugins[plugin_name], 'validate_config', config)
+        except Exception as e:
+            raise ValueError(e)
     if description is None: description = ''
     result = get_db().execute(sql("""
             INSERT INTO endpoint (addr_id, plugin_name, config, description)
@@ -341,4 +346,41 @@ def endpoint_create(plugin_name,
                               config=json.dumps(config),
                               description=description)
     i = result.lastrowid if is_use_lastrowid() else result.fetchone().id
-    return endpoint_get(endpoint_id=i)
+    logging.debug(f'CORE created endpoint {i} (plugin: {plugin_name})')
+    return i
+
+
+def endpoint_update(endpoint_id, data, validate_config=False, plugin_name=None):
+    db = get_db()
+    dbt = db.begin()
+    try:
+        if 'config' in data:
+            try:
+                if plugin_name is None:
+                    plugin_name = endpoint_get(endpoint_id)['plugin_name']
+                safe_run_method(plugins[plugin_name], 'validate_config',
+                                data['config'])
+            except Exception as e:
+                raise ValueError(e)
+        for k, v in data.items():
+            if not db.execute(
+                    sql(f"""
+            UPDATE endpoint SET {k}=:v WHERE id=:id
+            """),
+                    id=endpoint_id,
+                    v=json.dumps(v) if isinstance(v, dict) else v).rowcount:
+                raise LookupError
+        dbt.commit()
+    except:
+        dbt.rollback()
+        raise
+
+
+def endpoint_delete(endpoint_id):
+    if not get_db().execute(
+            sql("""
+            DELETE FROM endpoint WHERE id=:id
+            """),
+            id=endpoint_id,
+    ).rowcount:
+        raise LookupError
