@@ -19,15 +19,14 @@ PROPERTY_MAP_SCHEMA = {
     'properties': {
         'rcpt': {
             'type': 'string',
-            'format': 'idn-email'
+            'format': 'email'
         },
     },
-    'additionalProperties': False,
-    'required': ['rcpt']
+    'additionalProperties': False
 }
 
 
-def load(config):
+def load(config, **kwargs):
     smtp = config.get('smtp-server')
     if smtp:
         _cfg.host, _cfg.port = parse_host_port(smtp, 25)
@@ -67,5 +66,5 @@ def send(config, event_id, msg, formatted_subject, level, location, tag, sender,
         logger.error(f'{__name__} {event_id} ignored, not active')
 
 
-def validate_config(config):
+def validate_config(config, **kwargs):
     validate(config, schema=PROPERTY_MAP_SCHEMA)

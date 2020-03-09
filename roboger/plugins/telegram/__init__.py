@@ -20,12 +20,11 @@ PROPERTY_MAP_SCHEMA = {
             'type': 'string'
         }
     },
-    'additionalProperties': False,
-    'required': ['chat_id']
+    'additionalProperties': False
 }
 
 
-def load(config):
+def load(config, **kwargs):
     token = config['token']
     bot.set_token(config['token'])
     _d.ce = Rioja(token)
@@ -96,5 +95,5 @@ def send(config, event_id, msg, sender, formatted_subject, media, level_id,
         logger.warning(f'{__name__} {event_id} ignored, chat id is not set')
 
 
-def validate_config(config):
+def validate_config(config, **kwargs):
     validate(config, schema=PROPERTY_MAP_SCHEMA)

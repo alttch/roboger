@@ -19,8 +19,7 @@ PROPERTY_MAP_SCHEMA = {
             'type': 'string'
         }
     },
-    'additionalProperties': False,
-    'required': ['url']
+    'additionalProperties': False
 }
 
 
@@ -49,7 +48,7 @@ def send(config, **kwargs):
         raise RuntimeError(f'{__name__} server {url} status {r.status_code}')
 
 
-def validate_config(config):
+def validate_config(config, **kwargs):
     validate(config, schema=PROPERTY_MAP_SCHEMA)
     if config.get('template'):
         json.loads(config['template'])
