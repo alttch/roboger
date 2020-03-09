@@ -20,6 +20,8 @@ from .core import addr_set_active, addr_change
 
 from functools import wraps
 
+from pyaltt2.network import netacl_match
+
 success = {'ok': True}
 
 
@@ -32,14 +34,30 @@ def public_method(f):
     return do
 
 
+def http_real_ip():
+    return request.remote_addr
+
+
 def admin_method(f):
 
     @wraps(f)
     def do():
+        ip = http_real_ip()
         key = request.headers.get('X-Auth-Key', request.json.get('k'))
         if key is None:
+            logger.warning(
+                f'API unauthorized access to admin functions from {ip}:'
+                ' no key provided')
             abort(401)
         if key != core_config['master']['key']:
+            logger.warning(
+                f'API unauthorized access to admin functions from {ip}:'
+                ' invalid key provided')
+            abort(403)
+        if core_config['_acl'] and not netacl_match(ip, core_config['_acl']):
+            logger.warning(
+                f'API unauthorized access to admin functions from {ip}:'
+                ' ACL doesn\'t match')
             abort(403)
         return jsonify(f(**request.json))
 

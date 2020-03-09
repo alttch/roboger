@@ -23,6 +23,7 @@ from pathlib import Path
 from neotasker import g
 
 from pyaltt2.crypto import gen_random_str
+from netaddr import IPNetwork
 
 logging.getLogger('requests').setLevel(logging.CRITICAL)
 logging.getLogger('urllib3').setLevel(logging.CRITICAL)
@@ -111,6 +112,8 @@ def load(fname=None):
         config.update(yaml.load(fh.read())['roboger'])
     init_log()
     if config.get('debug'): debug_on()
+    config['_acl'] = [IPNetwork(h) for h in config['master']['allow']] if \
+            config.get('master', {}).get('allow') else None
     for plugin in config.get('plugins', []):
         plugin_name = plugin['name']
         try:
