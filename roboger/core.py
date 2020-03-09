@@ -261,7 +261,7 @@ def addr_change(addr_id=None, addr=None):
                         new_a=new_addr,
                         id=addr_id,
                         a=addr).rowcount:
-        return addr_get(addr_id=addr_id, addr=new_addr)
+        return new_addr
     else:
         raise LookupError
 

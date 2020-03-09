@@ -28,8 +28,8 @@ success = {'ok': True}
 def public_method(f):
 
     @wraps(f)
-    def do():
-        return jsonify(f(**request.json))
+    def do(*args):
+        return jsonify(f(*args, **request.json))
 
     return do
 
@@ -41,9 +41,10 @@ def http_real_ip():
 def admin_method(f):
 
     @wraps(f)
-    def do():
+    def do(*args, **kwargs):
         ip = http_real_ip()
-        key = request.headers.get('X-Auth-Key', request.json.get('k'))
+        payload = request.json if request.json else {}
+        key = request.headers.get('X-Auth-Key', payload.get('k'))
         if key is None:
             logger.warning(
                 f'API unauthorized access to admin functions from {ip}:'
@@ -59,7 +60,7 @@ def admin_method(f):
                 f'API unauthorized access to admin functions from {ip}:'
                 ' ACL doesn\'t match')
             abort(403)
-        return jsonify(f(**request.json))
+        return f(*args, **{**kwargs, **payload})
 
     return do
 
@@ -146,46 +147,163 @@ def push(**kwargs):
         abort(503)
 
 
+api_uri = '/manage'
+
+api_uri_rest = f'{api_uri}/v2'
+
+
 def init():
     app = get_app()
     app.add_url_rule('/ping', 'ping', ping, methods=['GET'])
     app.add_url_rule('/push', 'push', push, methods=['POST'])
-    app.add_url_rule('/manage/test', 'test', test, methods=['GET', 'POST'])
-    app.add_url_rule('/manage/addr_list',
+    # legacy
+    app.add_url_rule(f'{api_uri}/test', 'test', test, methods=['GET', 'POST'])
+    app.add_url_rule(f'{api_uri}/addr_list',
                      'm_addr_list',
                      m_addr_list,
                      methods=['POST'])
-    app.add_url_rule('/manage/addr_create',
+    app.add_url_rule(f'{api_uri}/addr_create',
                      'm_addr_create',
                      m_addr_create,
                      methods=['POST'])
-    app.add_url_rule('/manage/addr_change',
+    app.add_url_rule(f'{api_uri}/addr_change',
                      'm_addr_change',
                      m_addr_change,
                      methods=['POST'])
-    app.add_url_rule('/manage/addr_set_active',
+    app.add_url_rule(f'{api_uri}/addr_set_active',
                      'm_addr_set_active',
                      m_addr_set_active,
                      methods=['POST'])
-    app.add_url_rule('/manage/addr_enable',
+    app.add_url_rule(f'{api_uri}/addr_enable',
                      'm_addr_enable',
                      m_addr_enable,
                      methods=['POST'])
-    app.add_url_rule('/manage/addr_disable',
+    app.add_url_rule(f'{api_uri}/addr_disable',
                      'm_addr_disable',
                      m_addr_disable,
                      methods=['POST'])
-    app.add_url_rule('/manage/addr_delete',
+    app.add_url_rule(f'{api_uri}/addr_delete',
                      'm_addr_delete',
                      m_addr_delete,
                      methods=['POST'])
+    # v2 (RESTful)
+    app.add_url_rule(f'{api_uri_rest}/core', 'test', test, methods=['GET'])
+    app.add_url_rule(f'{api_uri_rest}/addr',
+                     'addr.list',
+                     r_addr_list,
+                     methods=['GET'])
+    app.add_url_rule(f'{api_uri_rest}/addr/<a>',
+                     'addr.post',
+                     r_addr_cmd,
+                     methods=['POST'])
+    app.add_url_rule(f'{api_uri_rest}/addr/<a>',
+                     'addr.get',
+                     r_addr_get,
+                     methods=['GET'])
+    app.add_url_rule(f'{api_uri_rest}/addr',
+                     'addr.create',
+                     r_addr_create,
+                     methods=['POST'])
+    app.add_url_rule(f'{api_uri_rest}/addr/<a>',
+                     'addr.modify',
+                     r_addr_modify,
+                     methods=['PATCH'])
+    app.add_url_rule(f'{api_uri_rest}/addr/<a>',
+                     'addr.delete',
+                     r_addr_delete,
+                     methods=['DELETE'])
+
+
+def _process_addr(a):
+    try:
+        return (int(a), None)
+        addr_id = int(a)
+        addr = None
+    except:
+        return (None, a if isinstance(a, str) else None)
+
+
+def _response_new_location(payload, code, new_id, resource):
+    r = jsonify(payload) if payload else Response()
+    r.status_code = code
+    r.headers['Location'] = f'{api_uri_rest}/{resource}/{new_id}'
+    r.autocorrect_location_header = False
+    return r
+
+
+def _response_created(payload, id_field, resource):
+    return _response_new_location(payload, 201, id_field, resource)
+
+
+def _response_moved(payload, id_field, resource):
+    return _response_new_location(payload, 301, id_field, resource)
+
+
+def _response_empty():
+    return Response(status=204)
+
+
+@admin_method
+def r_addr_list(**kwargs):
+    return jsonify(addr_get_list())
+
+
+@admin_method
+def r_addr_get(a, **kwargs):
+    addr_id, addr = _process_addr(a)
+    try:
+        return jsonify(addr_get(addr_id=addr_id, addr=addr))
+    except LookupError:
+        abort(404)
+
+
+@admin_method
+def r_addr_cmd(a, cmd, **kwargs):
+    addr_id, addr = _process_addr(a)
+    if cmd == 'change':
+        new_addr = addr_change(addr_id=addr_id, addr=addr)
+        return _response_moved(None, new_addr, 'addr')
+    else:
+        abort(404)
+
+
+@admin_method
+def r_addr_create(**kwargs):
+    result = addr_create()
+    return _response_created(result, result['a'], 'addr')
+
+
+@admin_method
+def r_addr_modify(a, **kwargs):
+    if kwargs:
+        addr_id, addr = _process_addr(a)
+        if 'active' in kwargs:
+            addr_set_active(addr_id=addr_id,
+                            addr=addr,
+                            active=int(kwargs['active']))
+        return addr_get(addr_id=addr_id, addr=addr)
+    else:
+        return _response_empty()
+
+
+@admin_method
+def r_addr_delete(a, **kwargs):
+    addr_id, addr = _process_addr(a)
+    try:
+        addr_delete(addr_id=addr_id, addr=addr)
+        return _response_empty()
+    except LookupError:
+        abort(404)
+
+
+# LEGACY
 
 
 @admin_method
 def test(**kwargs):
     result = success.copy()
     result.update({'version': product.version, 'build': product.build})
-    return result
+    return jsonify(result)
 
 
 @admin_method
@@ -196,18 +314,19 @@ def m_addr_list(addr_id=None, addr=None, **kwargs):
         except LookupError:
             abort(404)
     else:
-        return addr_get_list()
+        return jsonify(addr_get_list())
 
 
 @admin_method
 def m_addr_create(**kwargs):
-    return addr_create()
+    return jsonify(addr_create())
 
 
 @admin_method
 def m_addr_change(addr_id=None, addr=None, **kwargs):
     try:
-        return addr_change(addr_id=addr_id, addr=addr)
+        new_addr = addr_change(addr_id=addr_id, addr=addr)
+        return jsonify(addr_get(addr=new_addr))
     except LookupError:
         abort(404)
 
@@ -215,7 +334,8 @@ def m_addr_change(addr_id=None, addr=None, **kwargs):
 @admin_method
 def m_addr_set_active(addr_id=None, addr=None, active=1, **kwargs):
     try:
-        return addr_set_active(addr_id=addr_id, addr=addr, active=int(active))
+        return jsonify(
+            addr_set_active(addr_id=addr_id, addr=addr, active=int(active)))
     except LookupError:
         abort(404)
 
@@ -223,7 +343,7 @@ def m_addr_set_active(addr_id=None, addr=None, active=1, **kwargs):
 @admin_method
 def m_addr_enable(addr_id=None, addr=None, active=1, **kwargs):
     try:
-        return addr_set_active(addr_id=addr_id, addr=addr, active=1)
+        return jsonify(addr_set_active(addr_id=addr_id, addr=addr, active=1))
     except LookupError:
         abort(404)
 
@@ -231,7 +351,7 @@ def m_addr_enable(addr_id=None, addr=None, active=1, **kwargs):
 @admin_method
 def m_addr_disable(addr_id=None, addr=None, active=1, **kwargs):
     try:
-        return addr_set_active(addr_id=addr_id, addr=addr, active=0)
+        return jsonify(addr_set_active(addr_id=addr_id, addr=addr, active=0))
     except LookupError:
         abort(404)
 
@@ -240,6 +360,6 @@ def m_addr_disable(addr_id=None, addr=None, active=1, **kwargs):
 def m_addr_delete(addr_id=None, addr=None, **kwargs):
     try:
         addr_delete(addr_id=addr_id, addr=addr)
-        return success
+        return jsonify(success)
     except LookupError:
         abort(404)
