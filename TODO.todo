@@ -1,11 +1,10 @@
 - [ ] legacy API methods for
-  - [ ] endpoint
   - [ ] subscription
   - [ ] duplicate / copy subscription
 - [ ] according to migration
 - [ ] dynamic data
 - [ ] new API (RESTful)
-- [ ] check secure mode
+- [ ] check secure mode (set on by default)
 - [ ] migrate CLI
 - [ ] test with mysql and sqlite3
 - [ ] start with start/stop
