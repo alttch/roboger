@@ -13,10 +13,12 @@ from functools import wraps
 from sqlalchemy import text as sql
 
 from .core import logger, convert_level, log_traceback, config as core_config
-from .core import get_app, get_db, send, product
+from .core import get_app, get_db, send, product, is_secure_mode
 
-from .core import addr_get, addr_get_list, addr_create, addr_delete
+from .core import addr_get, addr_list, addr_create, addr_delete
 from .core import addr_set_active, addr_change
+
+from .core import endpoint_get, endpoint_list, endpoint_create
 
 from functools import wraps
 
@@ -211,6 +213,18 @@ def init():
                      'm_addr_delete',
                      m_addr_delete,
                      methods=['POST'])
+    app.add_url_rule(f'{api_uri}/endpoint_types',
+                     'm_endpoint_types',
+                     m_endpoint_types,
+                     methods=['POST'])
+    app.add_url_rule(f'{api_uri}/endpoint_list',
+                     'm_endpoint_list',
+                     m_endpoint_list,
+                     methods=['POST'])
+    app.add_url_rule(f'{api_uri}/endpoint_create',
+                     'm_endpoint_create',
+                     m_endpoint_create,
+                     methods=['POST'])
     # v2 (RESTful)
     app.add_url_rule(f'{api_uri_rest}/core', 'test', test, methods=['GET'])
     app.add_url_rule(f'{api_uri_rest}/addr',
@@ -250,7 +264,7 @@ def _process_addr(a):
 
 @admin_method
 def r_addr_list(**kwargs):
-    return jsonify(addr_get_list())
+    return jsonify(addr_list())
 
 
 @admin_method
@@ -303,6 +317,16 @@ def r_addr_delete(a, **kwargs):
 
 # LEGACY
 
+_legacy_endpoint_types = {
+    1: 'android',
+    2: 'email',
+    4: 'webhook',
+    100: 'slack',
+    101: 'telegram'
+}
+
+_legacy_endpoint_ids = {v: k for k, v in _legacy_endpoint_types.items()}
+
 
 @admin_method
 def test(**kwargs):
@@ -319,7 +343,7 @@ def m_addr_list(addr_id=None, addr=None, **kwargs):
         except LookupError:
             abort(404)
     else:
-        return jsonify(addr_get_list())
+        return jsonify(addr_list())
 
 
 @admin_method
@@ -368,3 +392,106 @@ def m_addr_delete(addr_id=None, addr=None, **kwargs):
         return jsonify(success)
     except LookupError:
         abort(404)
+
+
+@admin_method
+def m_endpoint_types(**kwargs):
+    return jsonify(_legacy_endpoint_types)
+
+
+def _format_legacy_endpoint(e):
+    e['type'] = e['plugin_name']
+    del e['plugin_name']
+    e['type_id'] = _legacy_endpoint_ids.get(e['type'])
+    e['data'] = ''
+    e['data2'] = ''
+    e['data3'] = ''
+    if e['type'] == 'email':
+        e['data'] = e['config'].get('rcpt', '')
+        e['rcpt'] = e['data']
+    elif e['type'] == 'slack':
+        e['data'] = e['config'].get('url', '')
+        e['rich_fmt'] = e['config'].get('rich') is True
+        if e['rich_fmt']:
+            e['data2'] = 'rich'
+    elif e['type'] == 'telegram':
+        e['data'] = e['config'].get('chat_id', '')
+        e['chat_id'] = e['data']
+    del e['config']
+    e['skip_dups'] = 0
+    return e
+
+
+@admin_method
+def m_endpoint_list(endpoint_id=None, addr_id=None, addr=None, **kwargs):
+    if endpoint_id:
+        try:
+            e = endpoint_get(endpoint_id=endpoint_id)
+            if is_secure_mode():
+                try:
+                    addr = addr_get(addr_id=addr_id, addr=addr)
+                except LookupError:
+                    abort(404)
+                if addr['id'] != e['addr_id']:
+                    abort(403)
+            return _format_legacy_endpoint(e)
+        except LookupError:
+            abort(404)
+    else:
+        return jsonify([
+            _format_legacy_endpoint(e)
+            for e in endpoint_list(addr_id=addr_id, addr=addr)
+        ])
+
+
+@admin_method
+def m_endpoint_create(**kwargs):
+    if 'et' in kwargs:
+        plugin_name = _legacy_endpoint_types[int(kwargs['et'])]
+        del kwargs['et']
+    else:
+        plugin_name = kwargs['type']
+        del kwargs['type']
+    del kwargs['k']
+    cfg = kwargs.get('config')
+    if not isinstance(cfg, dict):
+        cfg = {}
+    if plugin_name == 'email':
+        print(11111111111111111)
+        if 'rcpt' not in cfg:
+            rcpt = kwargs.get('data')
+            print('FOUND')
+            print(rcpt)
+            if rcpt:
+                cfg['rcpt'] = rcpt
+    elif plugin_name == 'slack':
+        if 'url' not in cfg:
+            url = cfg.get('webhook')
+        if not url:
+            url = kwargs.get('data')
+        if url:
+            cfg['url'] = url
+        try:
+            del cfg['webhook']
+        except:
+            pass
+        fmt = cfg.get('fmt')
+        if not fmt:
+            fmt = kwargs.get('data2')
+        try:
+            del cfg['fmt']
+        except:
+            pass
+        cfg['rich'] = fmt != 'plain'
+    elif plugin_name == 'telegram':
+        if 'chat_id' not in cfg:
+            chat_id = kwargs.get('data')
+        if chat_id:
+            cfg['chat_id'] = chat_id
+    kwargs['config'] = cfg
+    for d in ('data', 'data2', 'data3', 'skip_dups'):
+        try:
+            del kwargs[d]
+        except:
+            pass
+    return jsonify(endpoint_create(plugin_name, **kwargs))

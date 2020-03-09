@@ -14,6 +14,10 @@ import traceback
 import sqlalchemy
 import yaml
 import signal
+try:
+    import rapidjson as json
+except:
+    import json
 from types import SimpleNamespace
 from flask import Flask
 from concurrent.futures import ThreadPoolExecutor
@@ -28,7 +32,7 @@ from netaddr import IPNetwork
 logging.getLogger('requests').setLevel(logging.CRITICAL)
 logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 
-_d = SimpleNamespace(db=None, use_lastrowid=False, pool=None)
+_d = SimpleNamespace(db=None, use_lastrowid=False, pool=None, secure_mode=False)
 
 config = {}
 plugins = {}
@@ -185,6 +189,10 @@ def is_use_lastrowid():
     return _d.use_lastrowid
 
 
+def is_secure_mode():
+    return _d.secure_mode
+
+
 def convert_level(level):
     if level in [10, 20, 30, 40, 50]: return level
     elif isinstance(level, str):
@@ -224,8 +232,8 @@ def _safe_send(plugin_name, send_func, event_id, **kwargs):
 # object functions
 
 
-def db_list(query):
-    return [dict(row) for row in get_db().execute(query).fetchall()]
+def db_list(*args, **kwargs):
+    return [dict(row) for row in get_db().execute(*args, **kwargs).fetchall()]
 
 
 def addr_get(addr_id=None, addr=None):
@@ -239,7 +247,7 @@ def addr_get(addr_id=None, addr=None):
         raise LookupError
 
 
-def addr_get_list():
+def addr_list():
     return db_list(sql("""SELECT id, a, active FROM addr ORDER BY id"""))
 
 
@@ -287,3 +295,50 @@ def addr_delete(addr_id=None, addr=None):
         return True
     else:
         raise LookupError
+
+
+def endpoint_get(endpoint_id, addr_id=None, addr=None):
+    result = get_db().execute(
+        sql("""SELECT id, addr_id, plugin_name, config, active,
+                description FROM endpoint WHERE id=:id"""),
+        id=endpoint_id).fetchone()
+    if result:
+        return dict(result)
+    else:
+        raise LookupError
+
+
+def endpoint_list(addr_id=None, addr=None):
+    return db_list(sql("""SELECT endpoint.id as id, addr_id, plugin_name,
+        config, endpoint.active,
+        description FROM endpoint JOIN addr ON addr.id=endpoint.addr_id
+        WHERE addr.id=:addr_id OR addr=:addr"""),
+                   addr_id=addr_id,
+                   addr=addr)
+
+
+def endpoint_create(plugin_name,
+                    addr_id=None,
+                    addr=None,
+                    config=None,
+                    description=None):
+    if plugin_name not in plugins:
+        raise LookupError(f'No such plugin: {plugin_name}')
+    if config is None: config = {}
+    if description is None: description = ''
+    result = get_db().execute(sql("""
+            INSERT INTO endpoint (addr_id, plugin_name, config, description)
+            VALUES (
+                (SELECT id FROM addr where id=:addr_id or a=:addr),
+                :plugin,
+                :config,
+                :description
+            ) {}
+            """.format('' if is_use_lastrowid() else 'RETURNING id')),
+                              addr_id=addr_id,
+                              addr=addr,
+                              plugin=plugin_name,
+                              config=json.dumps(config),
+                              description=description)
+    i = result.lastrowid if is_use_lastrowid() else result.fetchone().id
+    return endpoint_get(endpoint_id=i)
