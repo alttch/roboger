@@ -10,13 +10,16 @@ import os
 import sys
 import argparse
 import json
-import configparser
 import requests
 import re
 import icli
+import yaml
 
 from types import SimpleNamespace
 from neotermcolor import colored
+from pathlib import Path
+
+dir_me = Path(__file__).absolute().parents[1]
 
 _pd_cols = {
     'subscription_list': [
@@ -195,7 +198,6 @@ def deploy_address(k, data):
 
 
 def deploy_config(params):
-    import yaml
     data = yaml.load(open(params['file']).read())
     for k, v in data.items():
         if k.startswith('address_'):
@@ -737,41 +739,21 @@ def dispatcher(a):
         ap.print_usage()
         return 2
 
-    if not apiuri or not apikey:
-        cfg = configparser.ConfigParser(inline_comment_prefixes=';')
-        cfg.read(dir_etc + '/roboger.ini')
+    if not apikey:
+        fname = f'{dir_me}/etc/roboger.yml'
+        if not Path(fname).exists:
+            fname = '/usr/local/etc/roboger.yml'
+        with open(fname) as fh:
+            server_config = yaml.load(fh.read())['roboger']
         if not apikey:
             try:
-                apikey = cfg.get('api', 'masterkey')
+                apikey = server_config['master']['key']
             except:
                 pass
-        if not apiuri:
-            try:
-                l = cfg.get('api', 'listen')
-                proto = 'http'
-            except:
-                try:
-                    l = cfg.get('api', 'ssl_listen')
-                    proto = 'https'
-                except:
-                    l = None
-            if l:
-                try:
-                    host, port = l.split(':')
-                except:
-                    host = l
-                    port = '80'
-                if host == '0.0.0.0': host = '127.0.0.1'
-                apiuri = '%s://%s:%s' % (proto, host, port)
-        try:
-            development = (cfg.get('server', 'development') == 'yes')
-            if development: debug = True
-        except:
-            pass
+        debug = server_config.get('debug')
 
     if not apiuri:
-        print('no API URI specified')
-        return 5
+        apiuri = 'http://localhost:7719'
 
     if not apikey:
         print('no API masterkey specified')
