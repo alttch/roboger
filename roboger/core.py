@@ -19,7 +19,7 @@ try:
 except:
     import json
 from types import SimpleNamespace
-from flask import Flask
+from flask import Flask, request
 from concurrent.futures import ThreadPoolExecutor
 from sqlalchemy import text as sql
 
@@ -37,6 +37,7 @@ _d = SimpleNamespace(db=None,
                      use_lastrowid=False,
                      pool=None,
                      secure_mode=False,
+                     ip_header=None,
                      limits=None,
                      redis_conn=None)
 
@@ -118,6 +119,7 @@ def load(fname=None):
             f'CORE limits feature activated. Redis: {rhost}:{rport} db: {rdb}')
     config['_acl'] = [IPNetwork(h) for h in config['master']['allow']] if \
             config.get('master', {}).get('allow') else None
+    _d.ip_header = config.get('ip-header')
     for plugin in config.get('plugins', []):
         plugin_name = plugin['name']
         try:
@@ -180,6 +182,11 @@ def get_timeout():
 
 def get_app():
     return app
+
+
+def get_real_ip():
+    return request.headers.get(_d.ip_header, request.remote_addr) if \
+            _d.ip_header else request.remote_addr
 
 
 def get_plugin(plugin_name):
@@ -261,6 +268,11 @@ def check_addr_limit(addr, lim, level):
         raise
     except Exception as e:
         logger.error(f'CORE check limit error: {e}')
+
+
+def reset_addr_limits():
+    _d.redis_conn.flushdb()
+    logger.info('CORE address limits reset')
 
 
 # object functions

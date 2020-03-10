@@ -13,8 +13,9 @@ from functools import wraps
 from sqlalchemy import text as sql
 
 from .core import logger, convert_level, log_traceback, config as core_config
+from .core import get_real_ip
 from .core import get_app, get_db, send, product, is_secure_mode, is_use_limits
-from .core import check_addr_limit, OverlimitError
+from .core import check_addr_limit, OverlimitError, reset_addr_limits
 
 from .core import addr_get, addr_list, addr_create, addr_delete
 from .core import addr_set_active, addr_set_limit, addr_change
@@ -95,15 +96,11 @@ def _response_accepted():
     return Response(status=202)
 
 
-def http_real_ip():
-    return request.remote_addr
-
-
 def public_method(f):
 
     @wraps(f)
     def do(*args):
-        logger.debug(f'API call {f.__name__}')
+        logger.debug(f'API call {get_real_ip()} {f.__name__}')
         return f(*args, **(request.json if request.json else {}))
 
     return do
@@ -113,10 +110,11 @@ def admin_method(f):
 
     @wraps(f)
     def do(*args, **kwargs):
-        logger.debug(f'API admin call {f.__name__}, args: {args}, '
-                     f'kwargs: {kwargs}')
-        ip = http_real_ip()
+        ip = get_real_ip()
         payload = request.json if request.json else {}
+        kw = {**kwargs, **payload}
+        logger.debug(f'API admin call {ip} method: {f.__name__}, args: {args}, '
+                     f'kwargs: {kw}')
         key = request.headers.get('X-Auth-Key', payload.get('k'))
         if key is None:
             logger.warning(
@@ -133,7 +131,7 @@ def admin_method(f):
                 f'API unauthorized access to admin functions from {ip}:'
                 ' ACL doesn\'t match')
             abort(403)
-        return f(*args, **{**kwargs, **payload})
+        return f(*args, **kw)
 
     return do
 
@@ -241,6 +239,10 @@ def init():
     app.add_url_rule('/push', 'push', push, methods=['POST'])
     # v2 (RESTful)
     app.add_url_rule(f'{api_uri_rest}/core', 'test', test, methods=['GET'])
+    app.add_url_rule(f'{api_uri_rest}/core',
+                     'core.cmd',
+                     r_core_cmd,
+                     methods=['POST'])
     app.add_url_rule(f'{api_uri_rest}/addr',
                      'addr.list',
                      r_addr_list,
@@ -379,6 +381,22 @@ def _process_addr(a):
         return (int(a), None)
     except:
         return (None, a if isinstance(a, str) else None)
+
+
+@admin_method
+def test(**kwargs):
+    result = success.copy()
+    result.update({'version': product.version, 'build': product.build})
+    return jsonify(result)
+
+
+@admin_method
+def r_core_cmd(cmd=None):
+    if cmd == 'reset-addr-limits':
+        reset_addr_limits()
+    else:
+        abort(405)
+    return _response_empty()
 
 
 @admin_method
@@ -537,13 +555,6 @@ _legacy_endpoint_types = {
 }
 
 _legacy_endpoint_ids = {v: k for k, v in _legacy_endpoint_types.items()}
-
-
-@admin_method
-def test(**kwargs):
-    result = success.copy()
-    result.update({'version': product.version, 'build': product.build})
-    return jsonify(result)
 
 
 @admin_method
