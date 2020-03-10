@@ -395,18 +395,18 @@ def init():
                      'm_subscription_location',
                      m_subscription_location,
                      methods=['POST'])
-    # app.add_url_rule(f'{api_uri}/subscription_keywords',
-    # 'm_subscription_keywords',
-    # m_subscription_keywords,
-    # methods=['POST'])
-    # app.add_url_rule(f'{api_uri}/subscription_senders',
-    # 'm_subscription_senders',
-    # m_subscription_senders,
-    # methods=['POST'])
-    # app.add_url_rule(f'{api_uri}/subscription_level',
-    # 'm_subscription_level',
-    # m_subscription_level,
-    # methods=['POST'])
+    app.add_url_rule(f'{api_uri}/subscription_keywords',
+                     'm_subscription_keywords',
+                     m_subscription_keywords,
+                     methods=['POST'])
+    app.add_url_rule(f'{api_uri}/subscription_senders',
+                     'm_subscription_senders',
+                     m_subscription_senders,
+                     methods=['POST'])
+    app.add_url_rule(f'{api_uri}/subscription_level',
+                     'm_subscription_level',
+                     m_subscription_level,
+                     methods=['POST'])
     app.add_url_rule(f'{api_uri}/subscription_delete',
                      'm_subscription_delete',
                      m_subscription_delete,
@@ -1157,4 +1157,86 @@ def m_subscription_location(subscription_id,
     except LookupError:
         abort(404)
     subscription['location'] = location
+    return jsonify(_format_legacy_subscription(subscription))
+
+
+@admin_method
+def m_subscription_keywords(subscription_id,
+                            addr_id=None,
+                            addr=None,
+                            keywords='',
+                            **kwargs):
+    logger.warning('API DEPRECATED subscription_set_active')
+    if is_secure_mode():
+        subscription = subscription_get(subscription_id)
+        try:
+            addr = addr_get(addr_id=addr_id, addr=addr)
+        except LookupError:
+            abort(404)
+        if addr['id'] != subscription['addr_id']:
+            abort(403)
+    if isinstance(keywords, list):
+        keywords = ''.join(keywords)
+    elif isinstance(keywords, str):
+        keywords = keywords.split(',', 1)[0]
+    try:
+        subscription_update(subscription_id, data={'tag': keywords})
+    except LookupError:
+        abort(404)
+    subscription['tag'] = keywords
+    return jsonify(_format_legacy_subscription(subscription))
+
+
+@admin_method
+def m_subscription_senders(subscription_id,
+                           addr_id=None,
+                           addr=None,
+                           senders='',
+                           **kwargs):
+    logger.warning('API DEPRECATED subscription_set_active')
+    if is_secure_mode():
+        subscription = subscription_get(subscription_id)
+        try:
+            addr = addr_get(addr_id=addr_id, addr=addr)
+        except LookupError:
+            abort(404)
+        if addr['id'] != subscription['addr_id']:
+            abort(403)
+    if isinstance(senders, list):
+        senders = ''.join(senders)
+    elif isinstance(senders, str):
+        senders = senders.split(',', 1)[0]
+    try:
+        subscription_update(subscription_id, data={'sender': senders})
+    except LookupError:
+        abort(404)
+    subscription['sender'] = senders
+    return jsonify(_format_legacy_subscription(subscription))
+
+
+@admin_method
+def m_subscription_level(subscription_id, addr_id=None, addr=None, **kwargs):
+    logger.warning('API DEPRECATED subscription_set_active')
+    if is_secure_mode():
+        subscription = subscription_get(subscription_id)
+        try:
+            addr = addr_get(addr_id=addr_id, addr=addr)
+        except LookupError:
+            abort(404)
+        if addr['id'] != subscription['addr_id']:
+            abort(403)
+    level_id = kwargs.get('level_id')
+    if not level_id:
+        level_id = convert_level(kwargs.get('level'))
+    level_match = kwargs.get('level_match', 'ge')
+    try:
+        subscription_update(subscription_id,
+                            data={
+                                'level_id': level_id,
+                                'level_match': level_match
+                            })
+    except LookupError:
+        abort(404)
+    subscription['level_id'] = level_id
+    subscription['level_match'] = level_match
     return jsonify(_format_legacy_subscription(subscription))
