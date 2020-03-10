@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+
+import redis
+redis.Redis(host='localhost', db=0).flushdb()
