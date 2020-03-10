@@ -1,7 +1,8 @@
 - [ ] legacy API methods for
   - [ ] subscription
   - [ ] duplicate / copy subscription
-- [ ] migrate CLI
+- [ ] migrate CLI (plus debug)
+- [ ] control script
 - [ ] test with mysql and sqlite3
 - [ ] start with start/stop
 - [ ] auto tests
