@@ -12,9 +12,9 @@
   - [ ] legacy API calls for addrs
   - [ ] legacy API calls for endpoints
   - [ ] legacy API calls for subscriptions
-- [ ] reset limits with captcha
 - [ ] pypi module
 - [ ] migrate roboger.com UI
 - [ ] create android plugin
 - [ ] release
 - [ ] remove keywords from pyrpush
+- [ ] reset limits with captcha
