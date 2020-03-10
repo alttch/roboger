@@ -37,17 +37,17 @@ def start_server(daemon=True):
     user = config.get('user', '')
     user_opt = f'-u {user}' if user else ''
     debug = a.debug if a.debug else config.get('debug')
-    debug_opt = '--log-level DEBUG' if debug else ''
+    loglevel_opt = '--log-level {}'.format('DEBUG' if debug else 'INFO')
     daemon_opt = '-D' if daemon else ''
     extra = config.get('extra-gunicorn-options', '')
     if extra is None: extra = ''
     log_opt = ''
-    if not debug:
+    if not debug and daemon:
         log = config.get('log-file', '')
         if log:
             log_opt = f'--log-file {log}'
     if not os.system(f'{gunicorn} {daemon_opt} -b {bind} '
-                     f'-w {workers} {user_opt} {debug_opt} {log_opt}'
+                     f'-w {workers} {user_opt} {loglevel_opt} {log_opt}'
                      f' {extra} roboger.server:app'):
         raise RuntimeError('Failed to start server')
 

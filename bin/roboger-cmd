@@ -750,7 +750,7 @@ def dispatcher(a):
                 apikey = server_config['master']['key']
             except:
                 pass
-        debug = server_config.get('debug')
+        debug = server_config.get('server', {}).get('debug')
 
     if not apiuri:
         apiuri = 'http://localhost:7719'
