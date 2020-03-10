@@ -23,6 +23,9 @@ from .core import addr_set_active, addr_set_limit, addr_change
 from .core import endpoint_get, endpoint_list, endpoint_create
 from .core import endpoint_update, endpoint_delete
 
+from .core import subscription_get, subscription_list, subscription_create
+from .core import subscription_update, subscription_delete
+
 from functools import wraps
 
 from pyaltt2.network import netacl_match
@@ -293,6 +296,7 @@ def init():
                      methods=['DELETE'])
     # legacy
     app.add_url_rule(f'{api_uri}/test', 'test', test, methods=['GET', 'POST'])
+
     app.add_url_rule(f'{api_uri}/addr_list',
                      'm_addr_list',
                      m_addr_list,
@@ -321,6 +325,7 @@ def init():
                      'm_addr_delete',
                      m_addr_delete,
                      methods=['POST'])
+
     app.add_url_rule(f'{api_uri}/endpoint_types',
                      'm_endpoint_types',
                      m_endpoint_types,
@@ -364,6 +369,47 @@ def init():
     app.add_url_rule(f'{api_uri}/endpoint_delete',
                      'm_endpoint_delete',
                      m_endpoint_delete,
+                     methods=['POST'])
+
+    app.add_url_rule(f'{api_uri}/subscription_list',
+                     'm_subscription_list',
+                     m_subscription_list,
+                     methods=['POST'])
+    app.add_url_rule(f'{api_uri}/subscription_create',
+                     'm_subscription_create',
+                     m_subscription_create,
+                     methods=['POST'])
+    app.add_url_rule(f'{api_uri}/subscription_enable',
+                     'm_subscription_enable',
+                     m_subscription_enable,
+                     methods=['POST'])
+    app.add_url_rule(f'{api_uri}/subscription_disable',
+                     'm_subscription_disable',
+                     m_subscription_disable,
+                     methods=['POST'])
+    app.add_url_rule(f'{api_uri}/subscription_set_active',
+                     'm_subscription_set_active',
+                     m_subscription_set_active,
+                     methods=['POST'])
+    app.add_url_rule(f'{api_uri}/subscription_location',
+                     'm_subscription_location',
+                     m_subscription_location,
+                     methods=['POST'])
+    # app.add_url_rule(f'{api_uri}/subscription_keywords',
+    # 'm_subscription_keywords',
+    # m_subscription_keywords,
+    # methods=['POST'])
+    # app.add_url_rule(f'{api_uri}/subscription_senders',
+    # 'm_subscription_senders',
+    # m_subscription_senders,
+    # methods=['POST'])
+    # app.add_url_rule(f'{api_uri}/subscription_level',
+    # 'm_subscription_level',
+    # m_subscription_level,
+    # methods=['POST'])
+    app.add_url_rule(f'{api_uri}/subscription_delete',
+                     'm_subscription_delete',
+                     m_subscription_delete,
                      methods=['POST'])
 
 
@@ -932,3 +978,183 @@ def m_endpoint_delete(endpoint_id, addr_id=None, addr=None, **kwargs):
     except LookupError:
         abort(404)
     return jsonify(success)
+
+
+def _format_legacy_subscription(subscription):
+    subscription['keywords'] = [
+        subscription['tag'] if subscription['tag'] is not None else ''
+    ]
+    subscription['senders'] = [
+        subscription['sender'] if subscription['sender'] is not None else ''
+    ]
+    subscription['level'] = logging.getLevelName(subscription['level_id'])
+    if subscription['location'] is None:
+        subscription['location'] = ''
+    del subscription['tag']
+    del subscription['sender']
+    return subscription
+
+
+@admin_method
+def m_subscription_create(endpoint_id, addr_id=None, addr=None, **kwargs):
+    logger.warning('API DEPRECATED subscription_create')
+    if is_secure_mode():
+        endpoint = endpoint_get(endpoint_id)
+        try:
+            addr = addr_get(addr_id=addr_id, addr=addr)
+        except LookupError:
+            abort(404)
+        if addr['id'] != endpoint['addr_id']:
+            abort(403)
+    if 'senders' in kwargs:
+        senders = kwargs['senders']
+        if isinstance(senders, list):
+            senders = ''.join(senders)
+        elif isinstance(senders, str):
+            senders = senders.split(',', 1)[0]
+        kwargs['sender'] = senders
+        del kwargs['senders']
+    if 'keywords' in kwargs:
+        keywords = kwargs['keywords']
+        if isinstance(keywords, list):
+            keywords = ''.join(keywords)
+        elif isinstance(keywords, str):
+            keywords = keywords.split(',', 1)[0]
+        kwargs['tag'] = keywords
+        del kwargs['keywords']
+    del kwargs['k']
+    return jsonify(
+        _format_legacy_subscription(
+            subscription_get(subscription_create(endpoint_id, **kwargs))))
+
+
+@admin_method
+def m_subscription_list(subscription_id=None,
+                        endpoint_id=None,
+                        addr_id=None,
+                        addr=None,
+                        **kwargs):
+    logger.warning('API DEPRECATED endpoint_list')
+    if is_secure_mode():
+        try:
+            addr = addr_get(addr_id=addr_id, addr=addr)
+        except LookupError:
+            abort(404)
+    if subscription_id:
+        try:
+            subscription = subscription_get(subscription_id=subscription_id)
+            if is_secure_mode():
+                if addr['id'] != subscription['addr_id']:
+                    abort(403)
+            return jsonify(_format_legacy_subscription(subscription))
+        except LookupError:
+            abort(404)
+    else:
+        return jsonify([
+            _format_legacy_subscription(subscription)
+            for subscription in subscription_list(endpoint_id)
+            if not is_secure_mode() or subscription['addr_id'] == addr['id']
+        ])
+
+
+@admin_method
+def m_subscription_delete(subscription_id, addr_id=None, addr=None, **kwargs):
+    logger.warning('API DEPRECATED subscription_delete')
+    if is_secure_mode():
+        subscription = subscription_get(subscription_id)
+        try:
+            addr = addr_get(addr_id=addr_id, addr=addr)
+        except LookupError:
+            abort(404)
+        if addr['id'] != subscription['addr_id']:
+            abort(403)
+    try:
+        subscription_delete(subscription_id)
+    except LookupError:
+        abort(404)
+    return jsonify(success)
+
+
+@admin_method
+def m_subscription_enable(subscription_id, addr_id=None, addr=None, **kwargs):
+    logger.warning('API DEPRECATED subscription_enable')
+    if is_secure_mode():
+        subscription = subscription_get(subscription_id)
+        try:
+            addr = addr_get(addr_id=addr_id, addr=addr)
+        except LookupError:
+            abort(404)
+        if addr['id'] != subscription['addr_id']:
+            abort(403)
+    try:
+        subscription_update(subscription_id, data={'active': 1})
+    except LookupError:
+        abort(404)
+    subscription['active'] = 1
+    return jsonify(_format_legacy_subscription(subscription))
+
+
+@admin_method
+def m_subscription_disable(subscription_id, addr_id=None, addr=None, **kwargs):
+    logger.warning('API DEPRECATED subscription_disable')
+    if is_secure_mode():
+        subscription = subscription_get(subscription_id)
+        try:
+            addr = addr_get(addr_id=addr_id, addr=addr)
+        except LookupError:
+            abort(404)
+        if addr['id'] != subscription['addr_id']:
+            abort(403)
+    try:
+        subscription_update(subscription_id, data={'active': 0})
+    except LookupError:
+        abort(404)
+    subscription['active'] = 0
+    return jsonify(_format_legacy_subscription(subscription))
+
+
+@admin_method
+def m_subscription_set_active(subscription_id,
+                              addr_id=None,
+                              addr=None,
+                              active=1,
+                              **kwargs):
+    logger.warning('API DEPRECATED subscription_set_active')
+    active = int(active)
+    if is_secure_mode():
+        subscription = subscription_get(subscription_id)
+        try:
+            addr = addr_get(addr_id=addr_id, addr=addr)
+        except LookupError:
+            abort(404)
+        if addr['id'] != subscription['addr_id']:
+            abort(403)
+    try:
+        subscription_update(subscription_id, data={'active': active})
+    except LookupError:
+        abort(404)
+    subscription['active'] = active
+    return jsonify(_format_legacy_subscription(subscription))
+
+
+@admin_method
+def m_subscription_location(subscription_id,
+                            addr_id=None,
+                            addr=None,
+                            location='',
+                            **kwargs):
+    logger.warning('API DEPRECATED subscription_set_active')
+    if is_secure_mode():
+        subscription = subscription_get(subscription_id)
+        try:
+            addr = addr_get(addr_id=addr_id, addr=addr)
+        except LookupError:
+            abort(404)
+        if addr['id'] != subscription['addr_id']:
+            abort(403)
+    try:
+        subscription_update(subscription_id, data={'location': location})
+    except LookupError:
+        abort(404)
+    subscription['location'] = location
+    return jsonify(_format_legacy_subscription(subscription))

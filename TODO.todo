@@ -1,18 +1,24 @@
 - [ ] legacy API methods for
   - [ ] subscription
-  - [ ] duplicate / copy subscription
-- [ ] migrate CLI
-- [ ] control script
-- [ ] test with mysql and sqlite3
-- [ ] auto create db
+    - [ ] keywords
+    - [ ] senders
+    - [ ] level
+- [ ] restful
+    - [ ] subscription
+    - [ ] subscription_duplicate
+    - [ ] endpoint_copysub
 - [ ] auto tests
-  - [ ] push
   - [ ] endpoint API calls
   - [ ] subscription API calls
+  - [ ] push
   - [ ] duplicate / copy API calls
   - [ ] legacy API calls for addrs
   - [ ] legacy API calls for endpoints
   - [ ] legacy API calls for subscriptions
+- [ ] migrate CLI
+- [ ] control script
+- [ ] auto create db
+- [ ] test with mysql and sqlite3
 - [ ] pypi module
 - [ ] migrate roboger.com UI
 - [ ] create android plugin

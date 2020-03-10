@@ -370,7 +370,7 @@ def endpoint_get(endpoint_id):
 
 def endpoint_list(addr_id=None, addr=None):
     return db_list(sql("""SELECT endpoint.id as id, addr_id, plugin_name,
-        config, endpoint.active,
+        config, endpoint.active as active,
         description FROM endpoint JOIN addr ON addr.id=endpoint.addr_id
         WHERE addr.id=:addr_id OR addr=:addr ORDER BY id"""),
                    addr_id=addr_id,
@@ -443,5 +443,97 @@ def endpoint_delete(endpoint_id):
             DELETE FROM endpoint WHERE id=:id
             """),
             id=endpoint_id,
+    ).rowcount:
+        raise LookupError
+
+
+def subscription_get(subscription_id):
+    result = get_db().execute(sql("""SELECT
+        subscription.id as id, addr.id as addr_id,
+        endpoint_id, subscription.active as active, location, tag, sender,
+        level_id, level_match
+        FROM subscription
+            JOIN endpoint ON endpoint.id=subscription.endpoint_id
+            JOIN addr ON addr.id=endpoint.addr_id
+        WHERE subscription.id=:subscription_id ORDER BY id"""),
+                              subscription_id=subscription_id).fetchone()
+    if result:
+        return dict(result)
+    else:
+        raise LookupError
+
+
+def subscription_list(endpoint_id):
+    return db_list(sql("""
+        SELECT subscription.id as id, addr.id as addr_id,
+            endpoint_id, subscription.active as active, location, tag,
+            sender, level_id, level_match
+        FROM subscription
+            JOIN endpoint ON endpoint.id=subscription.endpoint_id
+            JOIN addr ON addr.id=endpoint.addr_id
+        WHERE endpoint.id=:endpoint_id ORDER BY id"""),
+                   endpoint_id=endpoint_id)
+
+
+def subscription_create(endpoint_id,
+                        location=None,
+                        tag=None,
+                        sender=None,
+                        level_id=20,
+                        level_match='ge'):
+    if location == '': location = None
+    if tag == '': tag = None
+    if sender == '': sender = None
+    if level_id is None: level_id = 20
+    if level_match is None: level_match = 'ge'
+    result = get_db().execute(sql("""
+            INSERT INTO subscription (endpoint_id, location, tag,
+                    sender, level_id, level_match)
+            VALUES (
+                :endpoint_id,
+                :location,
+                :tag,
+                :sender,
+                :level_id,
+                :level_match
+            ) {}
+            """.format('' if is_use_lastrowid() else 'RETURNING id')),
+                              endpoint_id=endpoint_id,
+                              location=location,
+                              tag=tag,
+                              sender=sender,
+                              level_id=level_id,
+                              level_match=level_match)
+    i = result.lastrowid if is_use_lastrowid() else result.fetchone().id
+    logging.debug(f'CORE created subscription {i} for endpoint {endpoint_id}')
+    return i
+
+
+def subscription_update(subscription_id, data):
+    db = get_db()
+    dbt = db.begin()
+    try:
+        for k, v in data.items():
+            if v == '' and k in ['location', 'tag', 'sender']:
+                v = None
+            if not db.execute(
+                    sql(f"""
+            UPDATE subscription SET {k}=:v WHERE id=:id
+            """),
+                    id=subscription_id,
+                    v=json.dumps(v) if isinstance(v, dict) else v).rowcount:
+                raise LookupError
+        dbt.commit()
+    except:
+        dbt.rollback()
+        raise
+
+
+def subscription_delete(subscription_id):
+    if not get_db().execute(
+            sql("""
+            DELETE FROM subscription WHERE id=:id
+            """),
+            id=subscription_id,
     ).rowcount:
         raise LookupError
