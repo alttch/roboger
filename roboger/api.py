@@ -103,6 +103,7 @@ def public_method(f):
 
     @wraps(f)
     def do(*args):
+        logger.debug(f'API call {f.__name__}')
         return f(*args, **(request.json if request.json else {}))
 
     return do
@@ -112,6 +113,8 @@ def admin_method(f):
 
     @wraps(f)
     def do(*args, **kwargs):
+        logger.debug(f'API admin call {f.__name__}, args: {args}, '
+                     f'kwargs: {kwargs}')
         ip = http_real_ip()
         payload = request.json if request.json else {}
         key = request.headers.get('X-Auth-Key', payload.get('k'))
@@ -374,8 +377,6 @@ def _accept_resource(resource):
 def _process_addr(a):
     try:
         return (int(a), None)
-        addr_id = int(a)
-        addr = None
     except:
         return (None, a if isinstance(a, str) else None)
 

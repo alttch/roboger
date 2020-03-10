@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import sys
 import signal
 import time
 import requests
@@ -14,6 +15,10 @@ test_data = SimpleNamespace()
 
 dir_me = Path(__file__).absolute().parents[1]
 os.chdir(dir_me)
+sys.path.insert(0, dir_me.as_posix())
+
+from roboger.server import product_build
+from roboger.server import __version__ as product_version
 
 test_server_bind = '127.0.0.1'
 test_server_port = random.randint(9900, 9999)
@@ -38,7 +43,8 @@ def start_servers():
                      },
                      daemon=True).start()
     if os.system(f'gunicorn3 -D -b {test_server_bind}:{test_server_port}'
-                 f' --log-file {logfile} --pid {pidfile} roboger.server:app'):
+                 f' --log-file {logfile} --log-level DEBUG'
+                 f' --pid {pidfile} roboger.server:app'):
         raise RuntimeError('Failed to start gunicorn')
     c = 0
     while not os.path.isfile(pidfile):
@@ -75,7 +81,17 @@ def mapi2(uri, method='GET', err=None, timeout=2, **kwargs):
     return result
 
 
-def test001_create_addr():
+def test001_test_server():
+    result = mapi2('/core').json()
+    assert result['ok'] is True
+    assert result['build'] == product_build
+    assert result['version'] == product_version
+    result = requests.get(
+        f'http://{test_server_bind}:{test_server_port}/ping')
+    assert result.status_code == 204
+
+
+def test011_create_addr():
     result = mapi2('/addr', 'POST').json()
     test_data.addr_id = result['id']
     test_data.addr = result['a']
@@ -83,7 +99,7 @@ def test001_create_addr():
     int(result['lim'])
 
 
-def test002_get_addr():
+def test012_get_addr():
     result = mapi2(f'/addr/{test_data.addr}').json()
     assert test_data.addr_id == result['id']
     assert test_data.addr == result['a']
@@ -96,7 +112,7 @@ def test002_get_addr():
     int(result['lim'])
 
 
-def test003_change_addr():
+def test013_change_addr():
     result = mapi2(f'/addr/{test_data.addr}', 'POST', json={
         'cmd': 'change'
     }).json()
@@ -107,7 +123,7 @@ def test003_change_addr():
     int(result['lim'])
 
 
-def test004_disable_addr():
+def test014_disable_addr():
     result = mapi2(f'/addr/{test_data.addr}', 'PATCH', json={
         'active': 0
     }).json()
@@ -116,7 +132,7 @@ def test004_disable_addr():
     assert result['active'] == 0
 
 
-def test005_enable_addr():
+def test015_enable_addr():
     result = mapi2(f'/addr/{test_data.addr}', 'PATCH', json={
         'active': 1
     }).json()

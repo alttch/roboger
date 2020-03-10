@@ -50,7 +50,8 @@ dir_me = Path(__file__).absolute().parents[1].as_posix()
 
 db_lock = threading.RLock()
 
-logger = logging.getLogger('roboger')
+logger = logging.getLogger('gunicorn.error')
+#logging.getLogger('roboger')
 
 default_timeout = 5
 
@@ -88,44 +89,19 @@ def safe_run_method(o, method, *args, **kwargs):
     f(*args, **kwargs)
 
 
-def debug_on():
-    config['debug'] = True
-    logging.basicConfig(level=logging.DEBUG)
-    logger.setLevel(level=logging.DEBUG)
-    logger.info('CORE debug mode ON')
-
-
-def debug_off():
-    config['debug'] = False
-    logging.basicConfig(level=logging.INFO)
-    logger.setLevel(level=logging.INFO)
-    logger.info('CORE debug mode OFF')
-
-
 def log_traceback():
     if config['debug']: logger.debug('CORE ' + traceback.format_exc())
 
 
-def init_log():
-    rl = logging.getLogger()
-    for h in rl.handlers:
-        rl.removeHandler(h)
-    h = logging.StreamHandler(sys.stdout)
-    h.setFormatter(
-        logging.Formatter('%(asctime)s ' + system_name + '  %(levelname)s ' +
-                          '%(name)s' + ' %(message)s'))
-    rl.addHandler(h)
-
-
 def load(fname=None):
+    if not fname:
+        fname = os.environ.get('ROBOGER_CONFIG')
     if not fname:
         fname = f'{dir_me}/etc/roboger.yml'
     if not Path(fname).exists:
         fname = '/usr/local/etc/roboger.yml'
     with open(fname) as fh:
         config.update(yaml.load(fh.read())['roboger'])
-    init_log()
-    if config.get('debug'): debug_on()
     _d.secure_mode = config.get('secure-mode')
     _d.limits = config.get('limits')
     if _d.limits:
@@ -176,7 +152,8 @@ def load(fname=None):
     get_db()
     thread_pool_size = config.get('thread-pool-size', default_thread_pool_size)
     logger.debug(
-        f'CORE initializing thread pool with max size {thread_pool_size}')
+        f'CORE initializing plugin thread pool with max size {thread_pool_size}'
+    )
     _d.pool = ThreadPoolExecutor(max_workers=thread_pool_size)
     from . import api
     api.init()

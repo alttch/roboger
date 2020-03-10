@@ -1,4 +1,4 @@
-from tebot import TeBot
+import tebot.bot
 
 from roboger.core import logger, log_traceback, config as core_config
 from roboger.core import get_app, get_timeout, emoji_code
@@ -9,7 +9,11 @@ from types import SimpleNamespace
 
 from jsonschema import validate
 
-bot = TeBot()
+import logging
+
+tebot.bot.logger = logging.getLogger('gunicorn.error')
+
+bot = tebot.bot.TeBot()
 
 _d = SimpleNamespace(ce=None)
 

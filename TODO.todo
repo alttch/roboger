@@ -5,6 +5,13 @@
 - [ ] test with mysql and sqlite3
 - [ ] start with start/stop
 - [ ] auto tests
+  - [ ] push
+  - [ ] endpoint API calls
+  - [ ] subscription API calls
+  - [ ] duplicate / copy API calls
+  - [ ] legacy API calls for addrs
+  - [ ] legacy API calls for endpoints
+  - [ ] legacy API calls for subscriptions
 - [ ] pypi module
 - [ ] migrate roboger.com UI
 - [ ] create android plugin
