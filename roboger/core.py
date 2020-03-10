@@ -151,6 +151,7 @@ def load(fname=None):
                                          max_overflow=pool_size * 2)
     _d.use_lastrowid = config['db'].startswith(
         'sqlite') or config['db'].startswith('mysql')
+    logger.debug(f'CORE database {_d.db}')
     get_db()
     thread_pool_size = config.get('thread-pool-size', default_thread_pool_size)
     logger.debug(
