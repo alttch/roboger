@@ -27,12 +27,18 @@ from pathlib import Path
 from neotasker import g
 
 from pyaltt2.crypto import gen_random_str
+from pyaltt2.network import parse_host_port
 from netaddr import IPNetwork
 
 logging.getLogger('requests').setLevel(logging.CRITICAL)
 logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 
-_d = SimpleNamespace(db=None, use_lastrowid=False, pool=None, secure_mode=False)
+_d = SimpleNamespace(db=None,
+                     use_lastrowid=False,
+                     pool=None,
+                     secure_mode=False,
+                     limits=None,
+                     redis_conn=None)
 
 config = {}
 plugins = {}
@@ -60,6 +66,10 @@ emoji_code = {
     40: u'\U0000203C',
     50: u'\U0001F170'
 }
+
+
+class OverlimitError(Exception):
+    pass
 
 
 def set_build(build):
@@ -117,6 +127,19 @@ def load(fname=None):
     init_log()
     if config.get('debug'): debug_on()
     _d.secure_mode = config.get('secure-mode')
+    _d.limits = config.get('limits')
+    if _d.limits:
+        import redis
+        rhost, rport = parse_host_port(
+            _d.limits.get('redis', {}).get('host', 'localhost'), 6379)
+        rdb = _d.limits.get('redis', {}).get('db', 0)
+        _d.redis_conn = redis.Redis(host=rhost,
+                                    port=rport,
+                                    db=rdb,
+                                    socket_timeout=get_timeout(),
+                                    socket_keepalive=True)
+        logger.info(
+            f'CORE limits feature activated. Redis: {rhost}:{rport} db: {rdb}')
     config['_acl'] = [IPNetwork(h) for h in config['master']['allow']] if \
             config.get('master', {}).get('allow') else None
     for plugin in config.get('plugins', []):
@@ -194,6 +217,10 @@ def is_secure_mode():
     return _d.secure_mode
 
 
+def is_use_limits():
+    return _d.limits is not None
+
+
 def convert_level(level):
     if level in [10, 20, 30, 40, 50]: return level
     elif isinstance(level, str):
@@ -230,6 +257,33 @@ def _safe_send(plugin_name, send_func, event_id, **kwargs):
         log_traceback()
 
 
+def check_addr_limit(addr, lim, level):
+    key = f'{addr}.limit'
+    try:
+        current = int(_d.redis_conn.get(key))
+    except TypeError:
+        current = 0
+    except Exception as e:
+        logger.error(f'CORE Redis error: {e}')
+        return
+    print(current, lim)
+    if current >= lim:
+        logger.info(f'CORE address overlimit {addr} for all priorities')
+        raise OverlimitError(f'Messages to {addr} are limited by {lim} per '
+                             f'{_d.limits["period"]}. Limit has been reached')
+    elif current >= lim - (lim / 100 * _d.limits['reserve']) and level < 30:
+        logger.info(f'CORE address overlimit {addr} for low-priority')
+        raise OverlimitError(
+            f'Messages to {addr} are limited by {lim} per {_d.limits["period"]}'
+            f', {_d.limits["reserve"]}% are reserved for '
+            'WARNING and higher levels')
+    else:
+        try:
+            _d.redis_conn.incr(key)
+        except Exception as e:
+            logger.error(f'CORE Redis error: {e}')
+
+
 # object functions
 
 
@@ -238,10 +292,11 @@ def db_list(*args, **kwargs):
 
 
 def addr_get(addr_id=None, addr=None):
-    result = get_db().execute(
-        sql("""SELECT id, a, active FROM addr WHERE id=:id or a=:a"""),
-        id=addr_id,
-        a=addr).fetchone()
+    result = get_db().execute(sql(
+        """SELECT id, a, active{} FROM addr WHERE id=:id or a=:a""".format(
+            ',lim' if _d.limits else '')),
+                              id=addr_id,
+                              a=addr).fetchone()
     if result:
         return dict(result)
     else:
@@ -285,6 +340,19 @@ def addr_set_active(addr_id=None, addr=None, active=1):
         return addr_get(addr_id=addr_id, addr=addr)
     else:
         raise LookupError
+
+
+def addr_set_limit(addr_id=None, addr=None, limit=None):
+    if limit:
+        if get_db().execute(sql("""
+                UPDATE addr SET lim=:limit WHERE id=:id or a=:a
+                """),
+                            limit=limit,
+                            id=addr_id,
+                            a=addr).rowcount:
+            return addr_get(addr_id=addr_id, addr=addr)
+        else:
+            raise LookupError
 
 
 def addr_delete(addr_id=None, addr=None):

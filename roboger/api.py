@@ -13,10 +13,11 @@ from functools import wraps
 from sqlalchemy import text as sql
 
 from .core import logger, convert_level, log_traceback, config as core_config
-from .core import get_app, get_db, send, product, is_secure_mode
+from .core import get_app, get_db, send, product, is_secure_mode, is_use_limits
+from .core import check_addr_limit, OverlimitError
 
 from .core import addr_get, addr_list, addr_create, addr_delete
-from .core import addr_set_active, addr_change
+from .core import addr_set_active, addr_set_limit, addr_change
 
 from .core import endpoint_get, endpoint_list, endpoint_create
 from .core import endpoint_update, endpoint_delete
@@ -175,11 +176,14 @@ def push(**kwargs):
         elif location:
             formatted_subject = location
         if subject: formatted_subject += f': {subject}'
+        limit_check = is_use_limits()
         for row in get_db().execute(sql("""
-            SELECT plugin_name, config
-            FROM subscription join endpoint ON
-                endpoint.id = subscription.endpoint_id
-            WHERE addr_id IN (SELECT id FROM addr WHERE a=:addr and active=1)
+            SELECT plugin_name, config{}
+            FROM subscription JOIN endpoint ON
+                endpoint.id = subscription.endpoint_id JOIN addr ON
+                endpoint.addr_id = addr.id WHERE
+                addr.a=:addr
+                AND addr.active=1
                 AND subscription.active = 1
                 AND endpoint.active = 1
                 AND (location=:location or location IS null)
@@ -192,12 +196,18 @@ def push(**kwargs):
                     (level_id>:level and level_match='l') OR
                     (level_id>=:level and level_match='le')
                     )
-                    """),
+                    """.format(', addr.lim as lim' if limit_check else '')),
                                     addr=addr,
                                     location=location,
                                     tag=tag,
                                     sender=sender,
                                     level=level):
+            if limit_check:
+                try:
+                    check_addr_limit(addr, row.lim, level)
+                    limit_check = False
+                except OverlimitError as e:
+                    return Response(str(e), status=429)
             send(row.plugin_name,
                  config=row.config,
                  event_id=event_id,
@@ -403,13 +413,18 @@ def r_addr_create():
 
 
 @admin_method
-def r_addr_modify(a, active=None):
-    if active is not None:
-        addr_id, addr = _process_addr(a)
-        addr_set_active(addr_id=addr_id, addr=addr, active=int(active))
-    return jsonify(addr_get(
-        addr_id=addr_id,
-        addr=addr)) if _accept_resource('roboger.addr') else _response_empty()
+def r_addr_modify(a, active=None, limit=None):
+    addr_id, addr = _process_addr(a)
+    try:
+        if active is not None:
+            addr_set_active(addr_id=addr_id, addr=addr, active=int(active))
+        if limit is not None:
+            addr_set_limit(addr_id=addr_id, addr=addr, limit=int(limit))
+        return jsonify(addr_get(addr_id=addr_id,
+                                addr=addr)) if _accept_resource(
+                                    'roboger.addr') else _response_empty()
+    except LookupError:
+        abort(404)
 
 
 @admin_method
