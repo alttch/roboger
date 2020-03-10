@@ -4,7 +4,7 @@
 - [ ] migrate CLI (plus debug)
 - [ ] control script
 - [ ] test with mysql and sqlite3
-- [ ] start with start/stop
+- [ ] auto create db
 - [ ] auto tests
   - [ ] push
   - [ ] endpoint API calls
