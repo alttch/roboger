@@ -221,7 +221,8 @@ def convert_level(level):
             return 40
         elif level.startswith('c'):
             return 50
-    return 20
+    else:
+        return 20
 
 
 def send(plugin_name, **kwargs):
@@ -447,32 +448,42 @@ def endpoint_delete(endpoint_id):
         raise LookupError
 
 
-def subscription_get(subscription_id):
-    result = get_db().execute(sql("""SELECT
+def subscription_get(subscription_id, endpoint_id=None):
+    xkw = {'subscription_id': subscription_id}
+    if endpoint_id is not None:
+        xkw['endpoint_id'] = endpoint_id
+    result = get_db().execute(
+        sql("""SELECT
         subscription.id as id, addr.id as addr_id,
         endpoint_id, subscription.active as active, location, tag, sender,
         level_id, level_match
         FROM subscription
             JOIN endpoint ON endpoint.id=subscription.endpoint_id
             JOIN addr ON addr.id=endpoint.addr_id
-        WHERE subscription.id=:subscription_id ORDER BY id"""),
-                              subscription_id=subscription_id).fetchone()
+        WHERE subscription.id=:subscription_id {} ORDER BY id""".format(
+            'AND endpoint_id=:endpoint_id' if endpoint_id is not None else '')),
+        **xkw).fetchone()
     if result:
         return dict(result)
     else:
         raise LookupError
 
 
-def subscription_list(endpoint_id):
-    return db_list(sql("""
+def subscription_list(endpoint_id, addr_id=None):
+    xkw = {'endpoint_id': endpoint_id}
+    if addr_id is not None:
+        xkw['addr_id'] = addr_id
+    return db_list(
+        sql("""
         SELECT subscription.id as id, addr.id as addr_id,
             endpoint_id, subscription.active as active, location, tag,
             sender, level_id, level_match
         FROM subscription
             JOIN endpoint ON endpoint.id=subscription.endpoint_id
             JOIN addr ON addr.id=endpoint.addr_id
-        WHERE endpoint.id=:endpoint_id ORDER BY id"""),
-                   endpoint_id=endpoint_id)
+        WHERE endpoint.id=:endpoint_id {}
+        ORDER BY id""".format(
+            'AND addr.id=:addr_id' if addr_id is not None else '')), **xkw)
 
 
 def subscription_create(endpoint_id,

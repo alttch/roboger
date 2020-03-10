@@ -1,5 +1,4 @@
 - [ ] restful
-    - [ ] subscription
     - [ ] subscription_duplicate
     - [ ] endpoint_copysub
 - [ ] auto tests

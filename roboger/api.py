@@ -246,6 +246,7 @@ def init():
                      'core.cmd',
                      r_core_cmd,
                      methods=['POST'])
+
     app.add_url_rule(f'{api_uri_rest}/addr',
                      'addr.list',
                      r_addr_list,
@@ -270,6 +271,7 @@ def init():
                      'addr.delete',
                      r_addr_delete,
                      methods=['DELETE'])
+
     app.add_url_rule(f'{api_uri_rest}/addr/<a>/endpoint',
                      'endpoint.list',
                      r_endpoint_list,
@@ -293,6 +295,31 @@ def init():
     app.add_url_rule(f'{api_uri_rest}/addr/<a>/endpoint/<ep>',
                      'endpoint.delete',
                      r_endpoint_delete,
+                     methods=['DELETE'])
+
+    app.add_url_rule(f'{api_uri_rest}/addr/<a>/endpoint/<ep>/subscription',
+                     'subscription.list',
+                     r_subscription_list,
+                     methods=['GET'])
+    app.add_url_rule(f'{api_uri_rest}/addr/<a>/endpoint/<ep>/subscription/<s>',
+                     'subscription.post',
+                     r_subscription_cmd,
+                     methods=['POST'])
+    app.add_url_rule(f'{api_uri_rest}/addr/<a>/endpoint/<ep>/subscription/<s>',
+                     'subscription.get',
+                     r_subscription_get,
+                     methods=['GET'])
+    app.add_url_rule(f'{api_uri_rest}/addr/<a>/endpoint/<ep>/subscription',
+                     'subscription.create',
+                     r_subscription_create,
+                     methods=['POST'])
+    app.add_url_rule(f'{api_uri_rest}/addr/<a>/endpoint/<ep>/subscription/<s>',
+                     'subscription.modify',
+                     r_subscription_modify,
+                     methods=['PATCH'])
+    app.add_url_rule(f'{api_uri_rest}/addr/<a>/endpoint/<ep>/subscription/<s>',
+                     'subscription.delete',
+                     r_subscription_delete,
                      methods=['DELETE'])
     # legacy
     app.add_url_rule(f'{api_uri}/test', 'test', test, methods=['GET', 'POST'])
@@ -502,6 +529,17 @@ def r_addr_delete(a):
         abort(404)
 
 
+def _get_object_verify_addr(obj_id, a, getfunc, **kwargs):
+    # TODO: move addr verification to get SQL (after removing legacy API)
+    addr_id, addr = _process_addr(a)
+    obj = getfunc(obj_id, **kwargs)
+    addr = addr_get(addr_id=addr_id, addr=addr)
+    if obj['addr_id'] == addr['id']:
+        return obj
+    else:
+        raise LookupError
+
+
 @admin_method
 def r_endpoint_list(a):
     addr_id, addr = _process_addr(a)
@@ -512,20 +550,10 @@ def r_endpoint_list(a):
     return jsonify(endpoint_list(addr_id=addr['id']))
 
 
-def _get_endpoint_verify_addr(ep, a):
-    addr_id, addr = _process_addr(a)
-    endpoint = endpoint_get(ep)
-    addr = addr_get(addr_id=addr_id, addr=addr)
-    if endpoint['addr_id'] == addr['id']:
-        return endpoint
-    else:
-        raise LookupError
-
-
 @admin_method
 def r_endpoint_get(a, ep):
     try:
-        endpoint = _get_endpoint_verify_addr(ep, a)
+        endpoint = _get_object_verify_addr(ep, a, endpoint_get)
         return jsonify(endpoint)
     except LookupError:
         abort(404)
@@ -534,7 +562,7 @@ def r_endpoint_get(a, ep):
 @admin_method
 def r_endpoint_cmd(a, ep, cmd):
     try:
-        endpoint = _get_endpoint_verify_addr(ep, a)
+        endpoint = _get_object_verify_addr(ep, a, endpoint_get)
         abort(405)
     except LookupError:
         abort(404)
@@ -562,7 +590,7 @@ def r_endpoint_create(a, plugin_name, **kwargs):
 @admin_method
 def r_endpoint_modify(a, ep, **kwargs):
     try:
-        endpoint = _get_endpoint_verify_addr(ep, a)
+        endpoint = _get_object_verify_addr(ep, a, endpoint_get)
     except LookupError:
         abort(404)
     if kwargs:
@@ -583,9 +611,105 @@ def r_endpoint_modify(a, ep, **kwargs):
 @admin_method
 def r_endpoint_delete(a, ep):
     try:
-        endpoint = _get_endpoint_verify_addr(ep, a)
+        endpoint = _get_object_verify_addr(ep, a, endpoint_get)
         endpoint_delete(endpoint_id=ep)
         return _response_empty()
+    except LookupError:
+        abort(404)
+
+
+@admin_method
+def r_subscription_list(a, ep):
+    addr_id, addr = _process_addr(a)
+    try:
+        addr = addr_get(addr_id=addr_id, addr=addr)
+    except LookupError:
+        abort(404)
+    return jsonify(subscription_list(ep, addr_id=addr['id']))
+
+
+@admin_method
+def r_subscription_get(a, ep, s):
+    try:
+        subscription = _get_object_verify_addr(ep,
+                                               a,
+                                               subscription_get,
+                                               endpoint_id=ep)
+        if subscription['endpoint_id'] != int(ep):
+            raise LookupError
+        else:
+            return jsonify(subscription)
+    except LookupError:
+        abort(404)
+
+
+@admin_method
+def r_subscription_cmd(a, ep, s, cmd):
+    try:
+        subscription = _get_object_verify_addr(s,
+                                               a,
+                                               subscription_get,
+                                               endpoint_id=ep)
+        if subscription['endpoint_id'] != int(ep):
+            raise LookupError
+        else:
+            pass
+        abort(405)
+    except LookupError:
+        abort(404)
+
+
+@admin_method
+def r_subscription_create(a, ep, **kwargs):
+    addr_id, addr = _process_addr(a)
+    try:
+        endpoint = _get_object_verify_addr(ep, a, endpoint_get)
+        if 'level' in kwargs:
+            kwargs['level_id'] = convert_level(kwargs['level'])
+            del kwargs['level']
+        result = subscription_get(subscription_create(ep, **kwargs))
+    except LookupError:
+        abort(404)
+    except ValueError as e:
+        return Response(str(e), status=400)
+    return _response_created(
+        result if _accept_resource('roboger.subscription') else None,
+        result['id'], f'addr/{a}/subscription')
+
+
+@admin_method
+def r_subscription_modify(a, ep, s, **kwargs):
+    try:
+        subscription = _get_object_verify_addr(s, a, subscription_get)
+        if subscription['endpoint_id'] != int(ep):
+            raise LookupError
+    except LookupError:
+        abort(404)
+    if kwargs:
+        for field in ['id', 'endpoint_id', 'addr_id']:
+            if field in kwargs:
+                return Response(f'Field "{field}" is protected', status=405)
+        try:
+            if 'level' in kwargs:
+                kwargs['level_id'] = convert_level(kwargs['level'])
+                del kwargs['level']
+            subscription_update(s,
+                                kwargs)
+        except ValueError as e:
+            return Response(str(e), status=400)
+    return jsonify(subscription_get(s)) if _accept_resource(
+        'roboger.subscription') else _response_empty()
+
+
+@admin_method
+def r_subscription_delete(a, ep, s):
+    try:
+        subscription = _get_object_verify_addr(ep, a, subscription_get)
+        if subscription['endpoint_id'] != int(ep):
+            raise LookupError
+        else:
+            subscription_delete(subscription_id=s)
+            return _response_empty()
     except LookupError:
         abort(404)
 
@@ -1052,8 +1176,8 @@ def m_subscription_list(subscription_id=None,
     else:
         return jsonify([
             _format_legacy_subscription(subscription)
-            for subscription in subscription_list(endpoint_id)
-            if not is_secure_mode() or subscription['addr_id'] == addr['id']
+            for subscription in subscription_list(
+                endpoint_id, addr_id=addr['id'] if is_secure_mode() else None)
         ])
 
 
