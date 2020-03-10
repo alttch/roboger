@@ -103,7 +103,7 @@ def debug_off():
 
 
 def log_traceback():
-    if config['debug']: logger.error('CORE ' + traceback.format_exc())
+    if config['debug']: logger.debug('CORE ' + traceback.format_exc())
 
 
 def init_log():
@@ -266,22 +266,24 @@ def check_addr_limit(addr, lim, level):
     except Exception as e:
         logger.error(f'CORE Redis error: {e}')
         return
-    print(current, lim)
-    if current >= lim:
-        logger.info(f'CORE address overlimit {addr} for all priorities')
-        raise OverlimitError(f'Messages to {addr} are limited by {lim} per '
-                             f'{_d.limits["period"]}. Limit has been reached')
-    elif current >= lim - (lim / 100 * _d.limits['reserve']) and level < 30:
-        logger.info(f'CORE address overlimit {addr} for low-priority')
-        raise OverlimitError(
-            f'Messages to {addr} are limited by {lim} per {_d.limits["period"]}'
-            f', {_d.limits["reserve"]}% are reserved for '
-            'WARNING and higher levels')
-    else:
-        try:
+    try:
+        if current >= lim:
+            logger.info(f'CORE address overlimit {addr} for all priorities')
+            raise OverlimitError(
+                f'Messages to {addr} are limited by {lim} per '
+                f'{_d.limits["period"]}. Limit has been reached')
+        elif current >= lim - (lim / 100 * _d.limits['reserve']) and level < 30:
+            logger.info(f'CORE address overlimit {addr} for low-priority')
+            raise OverlimitError(f'Messages to {addr} are limited by {lim} per '
+                                 f'{_d.limits["period"]}, '
+                                 f'{_d.limits["reserve"]}% are reserved for '
+                                 'WARNING and higher levels')
+        else:
             _d.redis_conn.incr(key)
-        except Exception as e:
-            logger.error(f'CORE Redis error: {e}')
+    except OverlimitError:
+        raise
+    except Exception as e:
+        logger.error(f'CORE check limit error: {e}')
 
 
 # object functions
