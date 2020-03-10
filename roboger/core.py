@@ -154,9 +154,8 @@ def load(fname=None):
     logger.debug(f'CORE database {_d.db}')
     get_db()
     thread_pool_size = config.get('thread-pool-size', default_thread_pool_size)
-    logger.debug(
-        f'CORE initializing plugin thread pool with max size {thread_pool_size}'
-    )
+    logger.debug('CORE initializing thread pool for plugins '
+                 f'with max size {thread_pool_size}')
     _d.pool = ThreadPoolExecutor(max_workers=thread_pool_size)
     from . import api
     api.init()
