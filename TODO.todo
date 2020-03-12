@@ -10,7 +10,6 @@
   - [ ] legacy API calls for endpoints
   - [ ] legacy API calls for subscriptions
 - [ ] migrate CLI
-- [ ] control script
 - [ ] auto create db
 - [ ] test with mysql and sqlite3
 - [ ] pypi module
