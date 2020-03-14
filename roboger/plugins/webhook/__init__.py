@@ -1,4 +1,5 @@
 import requests
+import re
 
 from jsonschema import validate
 try:
@@ -22,16 +23,20 @@ PROPERTY_MAP_SCHEMA = {
     'additionalProperties': False
 }
 
+_template_fields = [
+    'event_id', 'msg', 'subject', 'formatted_subject', 'level', 'level_name',
+    'location', 'tag', 'sender', 'media'
+]
+
 
 def send(config, **kwargs):
     if config.get('template'):
-        data = config['template']
-        for p in [
-                'event_id', 'msg', 'subject', 'formatted_subject', 'level',
-                'level_name', 'location', 'tag', 'sender'
-        ]:
-            data = data.replace(f'${p}', str(kwargs.get(p, 'null')))
-        data = data.replace('$media', str(kwargs.get('media_encoded', 'null')))
+        data = config['template'].replace('\n', '').replace('\r', '')
+        for p in _template_fields:
+            v = kwargs.get('media_encoded' if p == 'media' else p)
+            if p != 'level':
+                v = 'null' if v is None else f'"{v}"'
+            data = re.sub(fr'\${p}([^_])', fr'{v}\1', data)
     else:
         data = "null"
     url = config['url']
@@ -50,5 +55,10 @@ def send(config, **kwargs):
 
 def validate_config(config, **kwargs):
     validate(config, schema=PROPERTY_MAP_SCHEMA)
-    if config.get('template'):
-        json.loads(config['template'])
+    tpl = config.get('template')
+    if tpl is not None:
+        tpl = tpl.replace('\n', '').replace('\r', '')
+        for p in _template_fields:
+            val = 0 if p == 'level' else '""'
+            tpl = re.sub(fr'\${p}([^_])', fr'{val}\1', tpl)
+        json.loads(tpl)
