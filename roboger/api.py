@@ -594,14 +594,18 @@ def r_endpoint_cmd(a, ep, cmd, **kwargs):
 def r_endpoint_create(a, plugin_name, **kwargs):
     addr_id, addr = _process_addr(a)
     try:
+        addr_get(addr_id=addr_id, addr=addr)
+    except LookupError:
+        return _response_not_found(f'addr {a} not found')
+    try:
         result = endpoint_get(
             endpoint_create(plugin_name,
                             addr_id=addr_id,
                             addr=addr,
                             validate_config=True,
                             **kwargs))
-    except LookupError:
-        return _response_not_found(f'addr {a} not found')
+    except LookupError as e:
+        return _response_not_found(str(e))
     except ValueError as e:
         return Response(str(e), status=400)
     return _response_created(
