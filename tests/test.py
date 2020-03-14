@@ -42,7 +42,7 @@ def start_servers():
                          'port': test_app_port
                      },
                      daemon=True).start()
-    if os.system(f'gunicorn3 -D -b {test_server_bind}:{test_server_port}'
+    if os.system(f'gunicorn -D -b {test_server_bind}:{test_server_port}'
                  f' --log-file {logfile} --log-level DEBUG'
                  f' --pid {pidfile} roboger.server:app'):
         raise RuntimeError('Failed to start gunicorn')
