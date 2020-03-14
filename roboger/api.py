@@ -488,7 +488,7 @@ def r_addr_get(a):
     try:
         return jsonify(addr_get(addr_id=addr_id, addr=addr))
     except LookupError:
-        return _response_not_found(f'address {a} not found')
+        return _response_not_found(f'addr {a} not found')
 
 
 @admin_method
@@ -498,7 +498,7 @@ def r_addr_cmd(a, cmd):
         new_addr = addr_change(addr_id=addr_id, addr=addr)
         return _response_moved(None, new_addr, 'addr')
     else:
-        return _response_not_found(f'address {a} not found')
+        return _response_not_found(f'addr {a} not found')
 
 
 @admin_method
@@ -510,18 +510,18 @@ def r_addr_create():
 
 
 @admin_method
-def r_addr_modify(a, active=None, limit=None):
+def r_addr_modify(a, active=None, lim=None):
     addr_id, addr = _process_addr(a)
     try:
         if active is not None:
             addr_set_active(addr_id=addr_id, addr=addr, active=int(active))
-        if limit is not None:
-            addr_set_limit(addr_id=addr_id, addr=addr, limit=int(limit))
+        if lim is not None:
+            addr_set_limit(addr_id=addr_id, addr=addr, limit=int(lim))
         return jsonify(addr_get(addr_id=addr_id,
                                 addr=addr)) if _accept_resource(
                                     'roboger.addr') else _response_empty()
     except LookupError:
-        return _response_not_found(f'address {a} not found')
+        return _response_not_found(f'addr {a} not found')
 
 
 @admin_method
@@ -531,7 +531,7 @@ def r_addr_delete(a):
         addr_delete(addr_id=addr_id, addr=addr)
         return _response_empty()
     except LookupError:
-        return _response_not_found(f'address {a} not found')
+        return _response_not_found(f'addr {a} not found')
 
 
 def _get_object_verify_addr(obj_id, a, getfunc, **kwargs):
@@ -552,7 +552,7 @@ def r_endpoint_list(a):
         addr = addr_get(addr_id=addr_id, addr=addr)
         return jsonify(endpoint_list(addr_id=addr['id']))
     except LookupError:
-        return _response_not_found(f'address {a} not found')
+        return _response_not_found(f'addr {a} not found')
 
 
 @admin_method
@@ -602,7 +602,7 @@ def r_endpoint_create(a, plugin_name, **kwargs):
                             validate_config=True,
                             **kwargs))
     except LookupError:
-        return _response_not_found(f'address {a} not found')
+        return _response_not_found(f'addr {a} not found')
     except ValueError as e:
         return Response(str(e), status=400)
     return _response_created(
