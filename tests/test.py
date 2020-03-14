@@ -287,6 +287,17 @@ def test20_push():
     push(json=payload)
     time.sleep(0.2)
     assert test_data.webhook_payload['location'] == 'home'
+    s.level_match = 'e'
+    s.save()
+    test_data.webhook_payload = None
+    push(json=payload)
+    time.sleep(0.2)
+    assert not test_data.webhook_payload
+    s.level = roboger.WARNING
+    s.save()
+    push(json=payload)
+    time.sleep(0.2)
+    assert test_data.webhook_payload['event_id']
     addr.delete()
 
 
