@@ -31,13 +31,13 @@ slack_color = {
 }
 
 
-def send(config, event_id, level_id, formatted_subject, subject, msg, sender,
+def send(config, event_id, level, formatted_subject, subject, msg, sender,
          **kwargs):
     url = config['url']
     logger.debug(f'{__name__} {event_id} sending Slack webhook to {url}')
     if config.get('rich'):
         data = {'text': ''}
-        color = slack_color.get(level_id, 'good')
+        color = slack_color.get(level, 'good')
         data['attachments'] = [{
             'fallback':
                 formatted_subject,

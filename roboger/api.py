@@ -199,11 +199,11 @@ def push(**kwargs):
                 AND (tag=:tag or tag IS null)
                 AND (sender=:sender or sender IS null)
                 AND (
-                    (level_id=:level AND level_match='e') OR
-                    (level_id<:level and level_match='g') OR
-                    (level_id<=:level and level_match='ge') OR
-                    (level_id>:level and level_match='l') OR
-                    (level_id>=:level and level_match='le')
+                    (level=:level AND level_match='e') OR
+                    (level<:level and level_match='g') OR
+                    (level<=:level and level_match='ge') OR
+                    (level>:level and level_match='l') OR
+                    (level>=:level and level_match='le')
                     )
                     """.format(', addr.lim as lim' if limit_check else '')),
                                     addr=addr,
@@ -223,8 +223,8 @@ def push(**kwargs):
                  msg=msg,
                  subject=subject,
                  formatted_subject=formatted_subject,
-                 level=level_name,
-                 level_id=level,
+                 level=level,
+                 level_name=level_name,
                  location=location,
                  tag=tag,
                  sender=sender,
@@ -686,9 +686,7 @@ def r_subscription_create(a, ep, **kwargs):
     addr_id, addr = _process_addr(a)
     try:
         endpoint = _get_object_verify_addr(ep, a, endpoint_get)
-        if 'level' in kwargs:
-            kwargs['level_id'] = convert_level(kwargs['level'])
-            del kwargs['level']
+        kwargs['level'] = convert_level(kwargs['level'])
         result = subscription_get(subscription_create(ep, **kwargs))
     except LookupError:
         return _response_not_found(f'endpoint {a}/{ep} not found')
@@ -712,9 +710,7 @@ def r_subscription_modify(a, ep, s, **kwargs):
             if field in kwargs:
                 return Response(f'Field "{field}" is protected', status=405)
         try:
-            if 'level' in kwargs:
-                kwargs['level_id'] = convert_level(kwargs['level'])
-                del kwargs['level']
+            kwargs['level'] = convert_level(kwargs['level'])
             subscription_update(s, kwargs)
         except ValueError as e:
             return Response(str(e), status=400)
@@ -1132,6 +1128,7 @@ def _format_legacy_subscription(subscription):
     subscription['senders'] = [
         subscription['sender'] if subscription['sender'] is not None else ''
     ]
+    subscription['level_id'] = subscription['level']
     subscription['level'] = logging.getLevelName(subscription['level_id'])
     if subscription['location'] is None:
         subscription['location'] = ''
@@ -1288,7 +1285,7 @@ def m_subscription_location(subscription_id,
                             addr=None,
                             location='',
                             **kwargs):
-    logger.warning('API DEPRECATED subscription_set_active')
+    logger.warning('API DEPRECATED subscription_location')
     if is_secure_mode():
         subscription = subscription_get(subscription_id)
         try:
@@ -1311,7 +1308,7 @@ def m_subscription_keywords(subscription_id,
                             addr=None,
                             keywords='',
                             **kwargs):
-    logger.warning('API DEPRECATED subscription_set_active')
+    logger.warning('API DEPRECATED subscription_keywords')
     if is_secure_mode():
         subscription = subscription_get(subscription_id)
         try:
@@ -1361,7 +1358,7 @@ def m_subscription_senders(subscription_id,
 
 @admin_method
 def m_subscription_level(subscription_id, addr_id=None, addr=None, **kwargs):
-    logger.warning('API DEPRECATED subscription_set_active')
+    logger.warning('API DEPRECATED subscription_level')
     if is_secure_mode():
         subscription = subscription_get(subscription_id)
         try:
@@ -1377,11 +1374,11 @@ def m_subscription_level(subscription_id, addr_id=None, addr=None, **kwargs):
     try:
         subscription_update(subscription_id,
                             data={
-                                'level_id': level_id,
+                                'level': level_id,
                                 'level_match': level_match
                             })
     except LookupError:
         abort(404)
-    subscription['level_id'] = level_id
+    subscription['level'] = level_id
     subscription['level_match'] = level_match
     return jsonify(_format_legacy_subscription(subscription))

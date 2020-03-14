@@ -465,7 +465,7 @@ def subscription_get(subscription_id, endpoint_id=None):
         sql("""SELECT
         subscription.id as id, addr.id as addr_id,
         endpoint_id, subscription.active as active, location, tag, sender,
-        level_id, level_match
+        level, level_match
         FROM subscription
             JOIN endpoint ON endpoint.id=subscription.endpoint_id
             JOIN addr ON addr.id=endpoint.addr_id
@@ -486,7 +486,7 @@ def subscription_list(endpoint_id, addr_id=None):
         sql("""
         SELECT subscription.id as id, addr.id as addr_id,
             endpoint_id, subscription.active as active, location, tag,
-            sender, level_id, level_match
+            sender, level, level_match
         FROM subscription
             JOIN endpoint ON endpoint.id=subscription.endpoint_id
             JOIN addr ON addr.id=endpoint.addr_id
@@ -499,22 +499,22 @@ def subscription_create(endpoint_id,
                         location=None,
                         tag=None,
                         sender=None,
-                        level_id=20,
+                        level=20,
                         level_match='ge'):
     if location == '': location = None
     if tag == '': tag = None
     if sender == '': sender = None
-    if level_id is None: level_id = 20
+    if level is None: level = 20
     if level_match is None: level_match = 'ge'
     result = get_db().execute(sql("""
             INSERT INTO subscription (endpoint_id, location, tag,
-                    sender, level_id, level_match)
+                    sender, level, level_match)
             VALUES (
                 :endpoint_id,
                 :location,
                 :tag,
                 :sender,
-                :level_id,
+                :level,
                 :level_match
             ) {}
             """.format('' if is_use_lastrowid() else 'RETURNING id')),
@@ -522,7 +522,7 @@ def subscription_create(endpoint_id,
                               location=location,
                               tag=tag,
                               sender=sender,
-                              level_id=level_id,
+                              level=level,
                               level_match=level_match)
     i = result.lastrowid if is_use_lastrowid() else result.fetchone().id
     logging.debug(f'CORE created subscription {i} for endpoint {endpoint_id}')

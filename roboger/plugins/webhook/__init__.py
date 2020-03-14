@@ -28,7 +28,7 @@ def send(config, **kwargs):
         data = config['template']
         for p in [
                 'event_id', 'msg', 'subject', 'formatted_subject', 'level',
-                'location', 'tag', 'sender'
+                'level_name', 'location', 'tag', 'sender'
         ]:
             data = data.replace(f'${p}', str(kwargs.get(p, 'null')))
         data = data.replace('$media', str(kwargs.get('media_encoded', 'null')))

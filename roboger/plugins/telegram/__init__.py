@@ -73,15 +73,14 @@ def webhook():
     return {'ok': True}
 
 
-def send(config, event_id, msg, sender, formatted_subject, media, level_id,
+def send(config, event_id, msg, sender, formatted_subject, media, level,
          **kwargs):
     if 'chat_id' in config:
         chat_id = _d.ce.decrypt(config['chat_id'])
         if not sender: sender = ''
-        text = (
-            f'<pre>{sender}</pre>\n'
-            f'<b>{emoji_code.get(level_id, "")}{formatted_subject}</b>\n{msg}')
-        quiet = level_id <= 10
+        text = (f'<pre>{sender}</pre>\n'
+                f'<b>{emoji_code.get(level, "")}{formatted_subject}</b>\n{msg}')
+        quiet = level <= 10
         if bot.send_message(chat_id,
                             text,
                             disable_web_page_preview=True,

@@ -35,8 +35,7 @@ def load(config, **kwargs):
         logger.error(f'{__name__} not active, no SMTP server provided')
 
 
-def send(config, event_id, msg, formatted_subject, level, location, tag, sender,
-         media, **kwargs):
+def send(config, event_id, msg, formatted_subject, sender, media, **kwargs):
     if _cfg.host:
         rcpt = config.get('rcpt')
         if rcpt and sender:

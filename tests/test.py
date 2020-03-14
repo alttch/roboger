@@ -18,7 +18,7 @@ sys.path.insert(0, dir_me.as_posix())
 from roboger.server import product_build
 from roboger.server import __version__ as product_version
 
-from roboger.manager import ManagementAPI, Addr
+from roboger.manager import ManagementAPI, Addr, Endpoint, Subscription, subscription_level
 
 test_server_bind = '127.0.0.1'
 test_server_port = random.randint(9900, 9999)
@@ -112,6 +112,118 @@ def test011_addr():
     addr.delete()
     with pytest.raises(LookupError, match=r'addr .* not found'):
         addr2.delete()
+
+
+def test012_endpoint():
+    addr = Addr(api=api)
+    addr.create()
+    with pytest.raises(ValueError):
+        addr.create_endpoint('email', dict(xxx='zzz'))
+    ep = addr.create_endpoint('email', dict(rcpt='some@domain'))
+    assert ep.active
+    x = dict(ep)
+    assert x['id']
+    assert x['addr_id'] == addr.id
+    assert x['active']
+    assert x['plugin_name'] == 'email'
+    assert not x['description']
+    ep2 = Endpoint(id=ep.id, addr_id=addr.id, api=api)
+    ep2.load()
+    assert ep2.id == ep.id
+    assert ep2.addr_id == ep.addr_id
+    assert ep2.plugin_name == ep.plugin_name
+    ep2.description = 'some test'
+    ep2.config = {'rcp': 'xxx@xxx'}
+    with pytest.raises(ValueError):
+        ep2.save()
+    ep2.config = {'rcpt': 'xxx@xxx'}
+    ep2.save()
+    ep2.disable()
+    ep.load()
+    assert ep.config['rcpt'] == 'xxx@xxx'
+    assert not ep.active
+    assert ep.description == 'some test'
+    ep.enable()
+    ep2.load()
+    assert ep.active
+    assert ep2.active
+    ep.delete()
+    with pytest.raises(LookupError, match=r'endpoint .* not found'):
+        ep2.delete()
+    addr.delete()
+    addr.create()
+    ep = addr.create_endpoint('email', dict(rcpt='xxx@xxx'))
+    addr.delete()
+    with pytest.raises(LookupError, match=r'endpoint .* not found'):
+        ep.delete()
+
+
+def test013_subscription():
+    addr = Addr(api=api)
+    addr.create()
+    ep = addr.create_endpoint('email', dict(rcpt='x@x'))
+    with pytest.raises(Exception):
+        s = ep.create_subscription(level=30, level_match='x')
+    s = ep.create_subscription(level=30, level_match='e')
+    s2 = ep.create_subscription()
+    assert s.level == subscription_level.WARNING
+    assert s.level_match == 'e'
+    assert s2.level == subscription_level.INFO
+    assert s2.level_match == 'ge'
+    assert s.active
+    assert s2.active
+    assert not s2.sender
+    assert not s2.location
+    assert not s2.tag
+    s2.delete()
+    s2 = Subscription(id=s.id,
+                      addr_id=s.addr_id,
+                      endpoint_id=s.endpoint_id,
+                      api=api)
+    s.disable()
+    assert not s.active
+    s2.load()
+    assert s.id == s2.id
+    assert not s2.active
+    s2.location = 'lab'
+    s2.sender = 'bot'
+    s2.tag = 'fault'
+    s2.level = subscription_level.ERROR
+    s2.level_match = 'ge'
+    s2.enable()
+    s2.save()
+    s.load()
+    assert s.active
+    assert s.location == 'lab'
+    assert s.sender == 'bot'
+    assert s.tag == 'fault'
+    assert s.level == subscription_level.ERROR
+    assert s.level_match == 'ge'
+    s.delete()
+    addr.delete()
+    with pytest.raises(LookupError, match=r'subscription .* not found'):
+        s2.delete()
+
+
+def test014_endpoint_copysub():
+    addr = Addr(api=api)
+    addr.create()
+    ep = addr.create_endpoint('email', dict(rcpt='x@x'))
+    ep2 = addr.create_endpoint('email', dict(rcpt='x@x2'))
+    ep.create_subscription(level=subscription_level.DEBUG)
+    ep.create_subscription(level=subscription_level.DEBUG)
+    ep.create_subscription(level=subscription_level.DEBUG)
+    assert len(ep.get_subscriptions()) == 3
+    assert len(ep2.get_subscriptions()) == 0
+    ep.copysub(target=ep2)
+    assert len(ep2.get_subscriptions()) == 3
+    ep.copysub(target=ep2)
+    assert len(ep2.get_subscriptions()) == 6
+    for s in ep2.get_subscriptions():
+        assert s.level == subscription_level.DEBUG
+    ep.copysub(target=ep2, replace=True)
+    assert len(ep2.get_subscriptions()) == 3
+    addr.delete()
 
 
 def test999_cleanup():
