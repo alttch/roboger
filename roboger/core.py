@@ -38,7 +38,7 @@ _d = SimpleNamespace(db=None,
                      pool=None,
                      secure_mode=False,
                      ip_header=None,
-                     debug=False,
+                     log_tracebacks=False,
                      limits=None,
                      redis_conn=None)
 
@@ -92,7 +92,7 @@ def safe_run_method(o, method, *args, **kwargs):
 
 
 def log_traceback():
-    if _d.debug: logger.debug('CORE ' + traceback.format_exc())
+    if _d.log_tracebacks: logger.debug('CORE ' + traceback.format_exc())
 
 
 def load(fname=None):
@@ -105,8 +105,8 @@ def load(fname=None):
     with open(fname) as fh:
         config.update(yaml.load(fh.read())['roboger'])
     _d.secure_mode = config.get('secure-mode')
+    _d.log_tracebacks = config.get('log-tracebacks')
     _d.limits = config.get('limits')
-    _d.debug = config.get('server', {}).get('debug')
     if _d.limits:
         import redis
         rhost, rport = parse_host_port(
