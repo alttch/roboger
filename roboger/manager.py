@@ -3,12 +3,6 @@ import logging
 
 from types import SimpleNamespace
 
-subscription_level = SimpleNamespace(DEBUG=10,
-                                     INFO=20,
-                                     WARNING=30,
-                                     ERROR=40,
-                                     CRITICAL=50)
-
 default_timeout = 10
 
 logger = logging.getLogger('roboger')
