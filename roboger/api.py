@@ -22,6 +22,7 @@ from .core import addr_set_active, addr_set_limit, addr_change
 
 from .core import endpoint_get, endpoint_list, endpoint_create
 from .core import endpoint_update, endpoint_delete
+from .core import endpoint_delete_subscriptions
 
 from .core import subscription_get, subscription_list, subscription_create
 from .core import subscription_update, subscription_delete
@@ -93,6 +94,10 @@ def _response_moved(payload, id, resource):
 
 def _response_empty():
     return Response(status=204)
+
+
+def _response_not_found(msg=None):
+    return Response(msg, status=404)
 
 
 def _response_accepted():
@@ -483,7 +488,7 @@ def r_addr_get(a):
     try:
         return jsonify(addr_get(addr_id=addr_id, addr=addr))
     except LookupError:
-        abort(404)
+        return _response_not_found(f'address {a} not found')
 
 
 @admin_method
@@ -493,7 +498,7 @@ def r_addr_cmd(a, cmd):
         new_addr = addr_change(addr_id=addr_id, addr=addr)
         return _response_moved(None, new_addr, 'addr')
     else:
-        abort(404)
+        return _response_not_found(f'address {a} not found')
 
 
 @admin_method
@@ -516,7 +521,7 @@ def r_addr_modify(a, active=None, limit=None):
                                 addr=addr)) if _accept_resource(
                                     'roboger.addr') else _response_empty()
     except LookupError:
-        abort(404)
+        return _response_not_found(f'address {a} not found')
 
 
 @admin_method
@@ -526,7 +531,7 @@ def r_addr_delete(a):
         addr_delete(addr_id=addr_id, addr=addr)
         return _response_empty()
     except LookupError:
-        abort(404)
+        return _response_not_found(f'address {a} not found')
 
 
 def _get_object_verify_addr(obj_id, a, getfunc, **kwargs):
@@ -545,9 +550,9 @@ def r_endpoint_list(a):
     addr_id, addr = _process_addr(a)
     try:
         addr = addr_get(addr_id=addr_id, addr=addr)
+        return jsonify(endpoint_list(addr_id=addr['id']))
     except LookupError:
-        abort(404)
-    return jsonify(endpoint_list(addr_id=addr['id']))
+        return _response_not_found(f'address {a} not found')
 
 
 @admin_method
@@ -556,16 +561,34 @@ def r_endpoint_get(a, ep):
         endpoint = _get_object_verify_addr(ep, a, endpoint_get)
         return jsonify(endpoint)
     except LookupError:
-        abort(404)
+        return _response_not_found(f'endpoint {a}/{ep} not found')
 
 
 @admin_method
-def r_endpoint_cmd(a, ep, cmd):
+def r_endpoint_cmd(a, ep, cmd, **kwargs):
     try:
         endpoint = _get_object_verify_addr(ep, a, endpoint_get)
+        if cmd == 'copysub':
+            try:
+                target = int(kwargs['target'])
+                target_endpoint = _get_object_verify_addr(
+                    target, a, endpoint_get)
+            except:
+                return _response_not_found(
+                    f'target endpoint {a}/{target} not found')
+            subscriptions = subscription_list(endpoint['id'])
+            if kwargs.get('replace'):
+                endpoint_delete_subscriptions(target)
+            for s in subscriptions:
+                del s['id']
+                del s['addr_id']
+                del s['active']
+                del s['endpoint_id']
+                subscription_create(target, **s)
+            return _response_empty()
         abort(405)
     except LookupError:
-        abort(404)
+        return _response_not_found(f'endpoint {a}/{ep} not found')
 
 
 @admin_method
@@ -579,7 +602,7 @@ def r_endpoint_create(a, plugin_name, **kwargs):
                             validate_config=True,
                             **kwargs))
     except LookupError:
-        abort(404)
+        return _response_not_found(f'address {a} not found')
     except ValueError as e:
         return Response(str(e), status=400)
     return _response_created(
@@ -592,7 +615,7 @@ def r_endpoint_modify(a, ep, **kwargs):
     try:
         endpoint = _get_object_verify_addr(ep, a, endpoint_get)
     except LookupError:
-        abort(404)
+        return _response_not_found(f'endpoint {a}/{ep} not found')
     if kwargs:
         for field in ['id', 'addr_id', 'plugin_name']:
             if field in kwargs:
@@ -615,23 +638,22 @@ def r_endpoint_delete(a, ep):
         endpoint_delete(endpoint_id=ep)
         return _response_empty()
     except LookupError:
-        abort(404)
+        return _response_not_found(f'endpoint {a}/{ep} not found')
 
 
 @admin_method
 def r_subscription_list(a, ep):
-    addr_id, addr = _process_addr(a)
     try:
-        addr = addr_get(addr_id=addr_id, addr=addr)
+        endpoint = _get_object_verify_addr(ep, a, endpoint_get)
+        return jsonify(subscription_list(ep))
     except LookupError:
-        abort(404)
-    return jsonify(subscription_list(ep, addr_id=addr['id']))
+        return _response_not_found(f'endpoint {a}/{ep} not found')
 
 
 @admin_method
 def r_subscription_get(a, ep, s):
     try:
-        subscription = _get_object_verify_addr(ep,
+        subscription = _get_object_verify_addr(s,
                                                a,
                                                subscription_get,
                                                endpoint_id=ep)
@@ -640,7 +662,7 @@ def r_subscription_get(a, ep, s):
         else:
             return jsonify(subscription)
     except LookupError:
-        abort(404)
+        return _response_not_found(f'subscription {a}/{ep}/{s} not found')
 
 
 @admin_method
@@ -656,7 +678,7 @@ def r_subscription_cmd(a, ep, s, cmd):
             pass
         abort(405)
     except LookupError:
-        abort(404)
+        return _response_not_found(f'subscription {a}/{ep}/{s} not found')
 
 
 @admin_method
@@ -669,7 +691,7 @@ def r_subscription_create(a, ep, **kwargs):
             del kwargs['level']
         result = subscription_get(subscription_create(ep, **kwargs))
     except LookupError:
-        abort(404)
+        return _response_not_found(f'endpoint {a}/{ep} not found')
     except ValueError as e:
         return Response(str(e), status=400)
     return _response_created(
@@ -684,7 +706,7 @@ def r_subscription_modify(a, ep, s, **kwargs):
         if subscription['endpoint_id'] != int(ep):
             raise LookupError
     except LookupError:
-        abort(404)
+        return _response_not_found(f'subscription {a}/{ep}/{s} not found')
     if kwargs:
         for field in ['id', 'endpoint_id', 'addr_id']:
             if field in kwargs:
@@ -693,8 +715,7 @@ def r_subscription_modify(a, ep, s, **kwargs):
             if 'level' in kwargs:
                 kwargs['level_id'] = convert_level(kwargs['level'])
                 del kwargs['level']
-            subscription_update(s,
-                                kwargs)
+            subscription_update(s, kwargs)
         except ValueError as e:
             return Response(str(e), status=400)
     return jsonify(subscription_get(s)) if _accept_resource(
@@ -704,14 +725,14 @@ def r_subscription_modify(a, ep, s, **kwargs):
 @admin_method
 def r_subscription_delete(a, ep, s):
     try:
-        subscription = _get_object_verify_addr(ep, a, subscription_get)
+        subscription = _get_object_verify_addr(s, a, subscription_get)
         if subscription['endpoint_id'] != int(ep):
             raise LookupError
         else:
             subscription_delete(subscription_id=s)
             return _response_empty()
     except LookupError:
-        abort(404)
+        return _response_not_found(f'subscription {a}/{ep}/{s} not found')
 
 
 # LEGACY

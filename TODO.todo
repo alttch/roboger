@@ -1,6 +1,3 @@
-- [ ] restful
-    - [ ] subscription_duplicate
-    - [ ] endpoint_copysub
 - [ ] auto tests
   - [ ] endpoint API calls
   - [ ] subscription API calls

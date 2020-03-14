@@ -448,6 +448,15 @@ def endpoint_delete(endpoint_id):
         raise LookupError
 
 
+def endpoint_delete_subscriptions(endpoint_id):
+    return get_db().execute(
+        sql("""
+            DELETE FROM subscription WHERE endpoint_id=:id
+            """),
+        id=endpoint_id,
+    ).rowcount
+
+
 def subscription_get(subscription_id, endpoint_id=None):
     xkw = {'subscription_id': subscription_id}
     if endpoint_id is not None:
@@ -460,7 +469,7 @@ def subscription_get(subscription_id, endpoint_id=None):
         FROM subscription
             JOIN endpoint ON endpoint.id=subscription.endpoint_id
             JOIN addr ON addr.id=endpoint.addr_id
-        WHERE subscription.id=:subscription_id {} ORDER BY id""".format(
+        WHERE subscription.id=:subscription_id {}""".format(
             'AND endpoint_id=:endpoint_id' if endpoint_id is not None else '')),
         **xkw).fetchone()
     if result:
