@@ -177,7 +177,6 @@ def push(**kwargs):
                     f'API invalid media file in {event_id} message to {addr}')
         else:
             media = None
-        formatted_subject = ''
         level_name = logging.getLevelName(level)
         formatted_subject = level_name
         if location:
