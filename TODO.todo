@@ -1,6 +1,4 @@
 - [ ] auto tests
-  - [ ] endpoint API calls
-  - [ ] subscription API calls
   - [ ] push
   - [ ] duplicate / copy API calls
   - [ ] legacy API calls for addrs
