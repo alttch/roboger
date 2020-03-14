@@ -7,6 +7,7 @@ import requests
 import random
 import pytest
 import threading
+import yaml
 from functools import partial
 from types import SimpleNamespace
 from flask import Flask, request, Response
@@ -33,6 +34,13 @@ logfile = '/tmp/roboger-test-gunicorn-{}.log'.format(os.getpid())
 test_data = SimpleNamespace()
 
 _test_app = Flask(__name__)
+
+import roboger.manager
+with open(dir_me / 'etc/roboger.yml') as fh:
+    config = yaml.load(fh.read())
+
+if config.get('limits'):
+    roboger.manager.use_limits = True
 
 
 @_test_app.route('/webhook_test', methods=['POST'])
@@ -89,21 +97,21 @@ def test011_addr():
     assert x['id']
     assert x['a']
     assert x['active']
-    int(addr.lim)
+    if roboger.manager.use_limits: int(addr.lim)
     # get addr
     addr2 = Addr(id=addr.id, api=api)
     addr2.load()
     assert addr2.id == addr.id
     assert addr2.a == addr.a
     assert addr2
-    int(addr.lim)
+    if roboger.manager.use_limits: int(addr.lim)
     # get addr by id
     addr2.id = None
     addr2.load()
     assert addr2.id == addr.id
     assert addr2.a == addr.a
     assert addr2
-    int(addr.lim)
+    if roboger.manager.use_limits: int(addr.lim)
     # change addr
     addr.change()
     assert addr2.id == addr.id

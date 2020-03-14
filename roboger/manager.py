@@ -7,6 +7,7 @@ default_timeout = 10
 
 logger = logging.getLogger('roboger')
 
+use_limits = False
 
 class ManagementAPI:
 
@@ -109,7 +110,9 @@ class _RobogerObject:
 class Addr(_RobogerObject):
 
     def __init__(self, **kwargs):
-        self._property_fields = ['id', 'a', 'active', 'lim']
+        self._property_fields = ['id', 'a', 'active']
+        if use_limits:
+            self._property_fields.append('lim')
         self._protected_fields = ['a']
         self._creation_fields = []
         self._resource_class_uri = lambda: '/addr'
