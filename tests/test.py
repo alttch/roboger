@@ -9,7 +9,7 @@ import pytest
 import threading
 from functools import partial
 from types import SimpleNamespace
-from flask import Flask
+from flask import Flask, request, Response
 
 dir_me = Path(__file__).absolute().parents[1]
 os.chdir(dir_me)
@@ -18,7 +18,8 @@ sys.path.insert(0, dir_me.as_posix())
 from roboger.server import product_build
 from roboger.server import __version__ as product_version
 
-from roboger.manager import ManagementAPI, Addr, Endpoint, Subscription, subscription_level
+import roboger
+from roboger.manager import (ManagementAPI, Addr, Endpoint, Subscription)
 
 test_server_bind = '127.0.0.1'
 test_server_port = random.randint(9900, 9999)
@@ -29,7 +30,16 @@ test_app_port = random.randint(9800, 9899)
 pidfile = '/tmp/roboger-test-{}.pid'.format(os.getpid())
 logfile = '/tmp/roboger-test-gunicorn-{}.log'.format(os.getpid())
 
+test_data = SimpleNamespace()
+
 _test_app = Flask(__name__)
+
+
+@_test_app.route('/webhook_test', methods=['POST'])
+def _some_test_webhook():
+    test_data.webhook_payload = request.json
+    return Response(status=204)
+
 
 api = ManagementAPI(f'http://{test_server_bind}:{test_server_port}', '123')
 
@@ -166,9 +176,9 @@ def test013_subscription():
         s = ep.create_subscription(level=30, level_match='x')
     s = ep.create_subscription(level=30, level_match='e')
     s2 = ep.create_subscription()
-    assert s.level == subscription_level.WARNING
+    assert s.level == roboger.WARNING
     assert s.level_match == 'e'
-    assert s2.level == subscription_level.INFO
+    assert s2.level == roboger.INFO
     assert s2.level_match == 'ge'
     assert s.active
     assert s2.active
@@ -188,7 +198,7 @@ def test013_subscription():
     s2.location = 'lab'
     s2.sender = 'bot'
     s2.tag = 'fault'
-    s2.level = subscription_level.ERROR
+    s2.level = roboger.ERROR
     s2.level_match = 'ge'
     s2.enable()
     s2.save()
@@ -197,7 +207,7 @@ def test013_subscription():
     assert s.location == 'lab'
     assert s.sender == 'bot'
     assert s.tag == 'fault'
-    assert s.level == subscription_level.ERROR
+    assert s.level == roboger.ERROR
     assert s.level_match == 'ge'
     s.delete()
     addr.delete()
@@ -210,9 +220,9 @@ def test014_endpoint_copysub():
     addr.create()
     ep = addr.create_endpoint('email', dict(rcpt='x@x'))
     ep2 = addr.create_endpoint('email', dict(rcpt='x@x2'))
-    ep.create_subscription(level=subscription_level.DEBUG)
-    ep.create_subscription(level=subscription_level.DEBUG)
-    ep.create_subscription(level=subscription_level.DEBUG)
+    ep.create_subscription(level=roboger.DEBUG)
+    ep.create_subscription(level=roboger.DEBUG)
+    ep.create_subscription(level=roboger.DEBUG)
     assert len(ep.get_subscriptions()) == 3
     assert len(ep2.get_subscriptions()) == 0
     ep.copysub(target=ep2)
@@ -220,9 +230,63 @@ def test014_endpoint_copysub():
     ep.copysub(target=ep2)
     assert len(ep2.get_subscriptions()) == 6
     for s in ep2.get_subscriptions():
-        assert s.level == subscription_level.DEBUG
+        assert s.level == roboger.DEBUG
     ep.copysub(target=ep2, replace=True)
     assert len(ep2.get_subscriptions()) == 3
+    addr.delete()
+
+
+def test20_push():
+    test_data.webhook_payload = None
+    addr = Addr(api=api)
+    addr.create()
+    ep = addr.create_endpoint(
+        'webhook',
+        dict(url=f'http://{test_app_bind}:{test_app_port}/webhook_test',
+             template="""
+             {
+                 "event_id": $event_id,
+                 "msg": $msg,
+                 "subject": $subject,
+                 "formatted_subject": $formatted_subject,
+                 "level": $level,
+                 "level_name": $level_name,
+                 "location": $location,
+                 "tag": $tag,
+                 "sender": $sender
+             }
+        """))
+    s = ep.create_subscription(level=roboger.CRITICAL)
+    push = partial(requests.post,
+                   f'http://{test_server_bind}:{test_server_port}/push')
+    payload = dict(addr=addr.a,
+                   msg='test message',
+                   subject='test',
+                   level=roboger.WARNING,
+                   location='lab',
+                   tag='fault',
+                   sender='bot')
+    push(json=payload)
+    time.sleep(0.2)
+    assert not test_data.webhook_payload
+    s.level = roboger.INFO
+    s.save()
+    push(json=payload)
+    time.sleep(0.2)
+    assert test_data.webhook_payload['event_id']
+    for k, v in payload.items():
+        if k != 'addr':
+            assert v == test_data.webhook_payload[k]
+    test_data.webhook_payload = None
+    s.location = 'home'
+    s.save()
+    push(json=payload)
+    time.sleep(0.2)
+    assert not test_data.webhook_payload
+    payload['location'] = 'home'
+    push(json=payload)
+    time.sleep(0.2)
+    assert test_data.webhook_payload['location'] == 'home'
     addr.delete()
 
 
