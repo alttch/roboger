@@ -184,8 +184,8 @@ try:
                 raise Exception('Please specify correct resource path: '
                                 'addr_id/endpoint_id/subscription_id')
             s = roboger.manager.Subscription(id=s_id,
-                                         addr_id=addr_id,
-                                         endpoint_id=ep_id)
+                                             addr_id=addr_id,
+                                             endpoint_id=ep_id)
             result = process_obj_func(s)
 except Exception as e:
     print(f'ERROR: {e}', file=sys.stderr)
@@ -198,9 +198,12 @@ if result:
         import json
         print(json.dumps(result, indent=True, sort_keys=True))
     else:
-        if isinstance(result, dict) or isinstance(result, list):
+        if isinstance(result, dict):
             from pprint import pprint
             pprint(result)
+        elif isinstance(result, list):
+            import rapidtables
+            rapidtables.print_table(result)
         else:
             print(result)
 elif result != '' and result != []:
