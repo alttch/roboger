@@ -394,7 +394,6 @@ def endpoint_create(plugin_name,
             safe_run_method(plugins[plugin_name], 'validate_config', config)
         except Exception as e:
             raise ValueError(e)
-    if description is None: description = ''
     result = get_db().execute(sql("""
             INSERT INTO endpoint (addr_id, plugin_name, config, description)
             VALUES (
@@ -541,6 +540,11 @@ def subscription_update(subscription_id, data):
         for k, v in data.items():
             if v == '' and k in ['location', 'tag', 'sender']:
                 v = None
+            elif k == 'level_match':
+                if not v:
+                    v = 'ge'
+                elif v.endswith('t'):
+                    v = v[0]
             if not db.execute(
                     sql(f"""
             UPDATE subscription SET {k}=:v WHERE id=:id
