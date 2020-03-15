@@ -9,6 +9,9 @@ logger = logging.getLogger('roboger')
 
 use_limits = False
 
+default_api = None
+
+
 class ManagementAPI:
 
     def __init__(self, api_uri, api_key, api_version=2,
@@ -57,9 +60,16 @@ class _RobogerObject:
             if k == 'api':
                 self._api = v
             elif k in self._property_fields:
+                if k == 'id':
+                    try:
+                        v = int(v)
+                    except:
+                        pass
                 setattr(self, k, v)
             else:
                 raise ValueError(f'Invalid parameter: {k}')
+        if not hasattr(self, '_api'):
+            self._api = default_api
         for status, status_code in dict(disable=0, enable=1).items():
             setattr(self, status, make_status_method(status_code))
 
@@ -71,11 +81,27 @@ class _RobogerObject:
                     k: getattr(self, k, None) for k in self._creation_fields
                 }))
 
-    def load(self, data=None):
-        if not data:
+    def load(self, data=None, load_protected_fields=True):
+        if data:
+            for k, v in data.items():
+                if load_protected_fields or k not in self._protected_fields:
+                    if k == 'id':
+                        try:
+                            v = int(v)
+                        except:
+                            pass
+                    setattr(self, k, v)
+        else:
             data = self._api.get(self._resource_uri())
-        for k in self._property_fields:
-            setattr(self, k, data[k])
+            for k in self._property_fields:
+                if k == 'id':
+                    try:
+                        v = int(data[k])
+                    except:
+                        v = data[k]
+                else:
+                    v = data[k]
+                setattr(self, k, v)
 
     def save(self):
         self._api.patch(self._resource_uri(),
@@ -89,8 +115,8 @@ class _RobogerObject:
         return {
             k: getattr(self, k, None)
             for k in self._property_fields
-            if not (k == 'id' or k in self._protected_fields) or
-            include_protected_fields
+            if include_protected_fields or
+            not (k == 'id' or k in self._protected_fields)
         }
 
     def delete(self):
@@ -100,9 +126,10 @@ class _RobogerObject:
         return self._api.post(self._resource_uri(), payload=kwargs)
 
     def _set_active(self, status):
-        if hasattr(self, 'active'):
+        if 'active' in self._property_fields:
             self.active = status
-            self.save()
+            self._api.patch(self._resource_uri(),
+                            payload={'active': self.active})
         else:
             raise AttributeError
 
@@ -125,7 +152,7 @@ class Addr(_RobogerObject):
         self.a = result['a']
         return self.a
 
-    def get_endpoints(self):
+    def list_endpoints(self):
         return [
             Endpoint(api=self._api, **ep)
             for ep in self._api.get(f'{self._resource_uri()}/endpoint')
@@ -158,7 +185,7 @@ class Endpoint(_RobogerObject):
                     target=target if isinstance(target, int) else target.id,
                     replace=replace)
 
-    def get_subscriptions(self):
+    def list_subscriptions(self):
         return [
             Subscription(**s)
             for s in self._api.get(f'{self._resource_uri()}/subscription')
@@ -190,3 +217,14 @@ class Subscription(_RobogerObject):
             f'/addr/{self.addr_id}/endpoint/'
             f'{self.endpoint_id}/subscription/{self.id}')
         super().__init__(**kwargs)
+
+
+def create_addr(api=None):
+    addr = Addr(api=api if api else default_api)
+    addr.create()
+    return addr
+
+
+def list_addr(api=None):
+    api = api if api else default_api
+    return api.get('/addr')

@@ -1,807 +1,185 @@
 #!/usr/bin/env python3
-# PYTHON_ARGCOMPLETE_OK
-
-__author__ = "Altertech Group, http://www.altertech.com/"
-__copyright__ = "Copyright (C) 2018 Altertech Group"
-__license__ = "See https://www.roboger.com/"
-__version__ = "1.0.2"
 
 import os
-import sys
-import argparse
-import json
-import requests
-import re
-import icli
 import yaml
-
-from types import SimpleNamespace
-from neotermcolor import colored
+import tempfile
 from pathlib import Path
 
 dir_me = Path(__file__).absolute().parents[1]
 
-_pd_cols = {
-    'subscription_list': [
-        'id', 'active', 'level', 'senders', 'location', 'keywords'
-    ],
-    'endpoint_list': [
-        'id', 'active', 'parameters', 'skip_dups', 'type', 'description'
-    ],
-    'event_list': [
-        'id', 'd', 'delivered', 'sender', 'subject', 'location', 'keywords',
-        'media'
-    ],
-    'addr_list': ['id', 'a', 'active']
-}
-
-arg_sections = ['addr', 'endpoint', 'subscription', 'event']
-
-_level_match_sign = {'g': ' >', 'ge': '>=', 'l': ' <', 'le': '<=', 'e': '='}
-
-current_deploy = SimpleNamespace(a=[], error=False)
-
-
-def format_json(obj, minimal=False):
-    return json.dumps(obj, indent = 4, sort_keys = True) \
-                if not minimal else json.dumps(obj)
-
-
-def print_json(obj):
-    print(format_json(obj))
-
-
-def list_to_str(l):
-    return ', '.join(l) if isinstance(
-        l, list) else (str(l) if l is not None else '')
-
-
-def _prepare_result_data(data, func):
-    skip_cols = ['data', 'data2', 'data3', 'destroyed']
-    j = data.copy()
-    result = []
-    for i in j:
-        try:
-            d = i['description']
-            if d is not None and d != '':
-                i['description'] = '\'' + d + '\''
-        except:
-            pass
-        for sk in skip_cols:
-            try:
-                del i[sk]
-            except:
-                pass
-        if func in ['endpoint_list', 'subscription_list']:
-            try:
-                del i['addr_id']
-                del i['endpoint_id']
-            except:
-                pass
-        if func == 'endpoint_list':
-            if result: result.append({})
-            i['type'] += ' (%r)' % i['type_id']
-            del i['type_id']
-            info = []
-            for k in sorted(i.copy().keys()):
-                if k not in _pd_cols['endpoint_list']:
-                    info.append('%s : %r' % (k, i[k]))
-                    del i[k]
-            i['id'] = str(i['id'])
-            i['active'] = str(i['active'])
-            if info:
-                i['parameters'] = info[0]
-                result.append(i)
-                for x in range(1, len(info)):
-                    ipar = {'parameters': info[x]}
-                    result.append(ipar)
-                continue
-            else:
-                i['parameters'] = ''
-        elif func == 'subscription_list':
-            i['level'] = _level_match_sign[i['level_match']] + ' ' + i['level']
-            i['keywords'] = ','.join(i['keywords'])
-            i['senders'] = ','.join(i['senders'])
-        elif func == 'event_list':
-            if i['media']: i['media'] = 'YES'
-            i['keywords'] = ','.join(i['keywords'])
-        result.append(i)
-    return result
-
-
-def pprint_df(data, func):
-    from collections import OrderedDict
-    import rapidtables
-    table = []
-    for r in _prepare_result_data(data, func):
-        t = OrderedDict()
-        if func in _pd_cols:
-            for c in _pd_cols[func]:
-                t[c] = list_to_str(r.get(c)).replace('\n', ' ')
-        else:
-            for i, c in r.items():
-                t[i] = list_to_str(c).replace('\n', ' ')
-        table.append(t)
-    if table:
-        header, rows = rapidtables.format_table(
-            table,
-            rapidtables.FORMAT_GENERATOR,
-            max_column_width=120 if api_func == 'log_get' else None)
-        print(colored(header, color='blue', attrs=[]))
-        print(colored('-' * len(header), color='grey', attrs=[]))
-        for r, res in zip(rows, table):
-            r = self.format_log_str(r, res) if api_func == 'log_get' else r
-            print(r)
-    else:
-        print('no data')
-
-
-def deploy_subscription(addr_id, endpoint_id, k, data):
-    xparams = data.copy() if data else {}
-    xparams['addr_id'] = addr_id
-    xparams['endpoint_id'] = endpoint_id
-    try:
-        result = json.loads(api_call('subscription_create', xparams).text)
-        print('        + subscription {}'.format(k))
-    except:
-        print('        ! subscription {} not created: server error'.format(k))
-        current_deploy.error = True
-
-
-def deploy_endpoint(addr_id, k, data):
-    if not 'type' in data:
-        print(' [!] endpoint {} not created: type not specified'.format(k))
-        return
-    xparams = {
-        'type': data['type'],
-        'description': data.get('description'),
-        'addr_id': addr_id,
-        'skip_dups': data.get('skip_dups')
-    }
-    _data = data.get('data')
-    _data2 = data.get('data2')
-    _data3 = data.get('data3')
-    if isinstance(_data, dict) or isinstance(_data, list):
-        _data = json.dumps(_data)
-    if isinstance(_data2, dict) or isinstance(_data2, list):
-        _data2 = json.dumps(_data2)
-    if isinstance(_data3, dict) or isinstance(_data3, list):
-        _data3 = json.dumps(_data3)
-    xparams['data'] = _data
-    xparams['data2'] = _data2
-    xparams['data3'] = _data3
-    xparams['config'] = data.get('config')
-    try:
-        result = json.loads(api_call('endpoint_create', xparams).text)
-        print('    + endpoint {}'.format(k))
-        for z, v in data.items():
-            if z.startswith('subscription_'):
-                deploy_subscription(addr_id, result['id'], z, v)
-    except:
-        print('    ! endpoint {} not created: server error'.format(k))
-        current_deploy.error = True
-
-
-def deploy_address(k, data):
-    try:
-        result = json.loads(api_call('addr_create', {}).text)
-        print('+ address {}'.format(k))
-        current_deploy.a.append(result)
-        for z, v in data.items():
-            if z.startswith('endpoint_'):
-                deploy_endpoint(result['id'], z, v)
-            else:
-                print('directive unknown: ' + z)
-    except:
-        print('! address {} not created: server error'.format(k))
-        current_deploy.error = True
-
-
-def deploy_config(params):
-    data = yaml.load(open(params['file']).read())
-    for k, v in data.items():
-        if k.startswith('address_'):
-            deploy_address(k, v)
-        else:
-            print('directive unknown: ' + k)
-    print()
-    if current_deploy.error:
-        print('DEPLOYMENT FINISHED WITH ERRORS')
-    else:
-        print('Deployment completed successfully!')
-    print()
-    for result in current_deploy.a:
-        print('ADDRESS for {}: {} (ID: {})'.format(k, result['a'],
-                                                   result['id']))
-    return not current_deploy.error
-
-
-def api_call(func, params):
-    apiuri_r = apiuri + '/manage/' + func
-    if debug:
-
-        print("API request: %s" % apiuri_r)
-        print("API max timeout: %u sec" % timeout)
-        print("API requsts params:")
-        print_json(params)
-        print()
-    xp = params.copy()
-    xp['k'] = apikey
-    try:
-        r = requests.post(apiuri_r, json=xp, timeout=timeout)
-    except:
-        print('API error: can not connect (%s)' % apiuri)
-        sys.exit(1)
-    if debug: print(r.text)
-    return r
-
-
-local_funcs = {'deploy': deploy_config}
-
-dir_etc = os.path.dirname(os.path.realpath(__file__)) + '/../etc'
-
 default_timeout = 5
-apikey = None
-apiuri = None
 
-debug = False
+import sys
+sys.path.insert(0, dir_me.as_posix())
 
-xparams = {}
+import argparse
 
-_me = 'Roboger client version %s' % __version__
+ap = argparse.ArgumentParser()
 
-ap = icli.ArgumentParser(description=_me,
-                         prog='' if len(sys.argv) < 2 else None)
-ap.add_argument('-U','--api-uri',
-        help='specify API uri (http://host:port), if no uri specified,' + \
-                ' local config will be parsed ', dest='_uri', metavar='URI')
 ap.add_argument('-V',
                 '--version',
-                help='Print version and exit',
-                action='store_true',
-                dest='_ver')
+                help='print version and exit',
+                action='store_true')
 ap.add_argument(
-    '-K',
-    '--api-key',
-    help='Master key, if no key specified, local master key will be used',
-    dest='_key',
-    metavar='KEY')
-ap.add_argument('-T',
-                '--api-timeout',
-                help='API request timeout (in seconds)',
-                type=float,
-                default=default_timeout,
-                dest='_timeout',
-                metavar='TIMEOUT')
-ap.add_argument('-J',
-                '--json',
-                help='Print result as JSON',
-                action='store_true',
-                dest='_json',
-                default=False)
-ap.add_argument('-D',
-                '--debug',
-                help='Enable debug messages',
-                action='store_true',
-                dest='_debug',
-                default=False)
+    '-T',
+    '--timeout',
+    help=f'API request timeout (in seconds, default: {default_timeout})',
+    type=float,
+    default=default_timeout,
+    metavar='SEC')
+ap.add_argument('-F',
+                '--config-file',
+                help='alternative server/client config file',
+                metavar='FILE')
+ap.add_argument('-o',
+                '--output',
+                help='output',
+                choices=['raw', 'json', 'yaml'],
+                default='raw')
 
-sp = ap.add_subparsers(dest='_type',
-                       metavar='command',
-                       help='Command to execute')
+sp = ap.add_subparsers(dest='command', help='command to execute', required=True)
 
-sp_deploy = sp.add_parser('deploy', help='Deploy local YML')
-sp_deploy.add_argument('file',
-                       metavar='FILE',
-                       help='YAML file with deployment configuration')
+sp_test = sp.add_parser('test', help='Test server')
 
-sp_test = sp.add_parser('test', help='test API')
+for i in ['addr', 'endpoint', 'subscription']:
+    iap = sp.add_parser(i, help=f'{i} management')
+    funcs = [
+        'list', 'create', 'describe', 'edit', 'delete', 'disable', 'enable'
+    ]
+    if i == 'addr':
+        funcs.append('change')
+    isp = iap.add_subparsers(dest='func', help=f'{i} commands', required=True)
+    for f in funcs:
+        x = isp.add_parser(f)
+        if i != 'addr' or f not in ['list', 'create']:
+            x.add_argument('resource', help='current/parent resource')
+        if i == 'endpoint' and f == 'create':
+            x.add_argument('plugin_name', help='plugin name')
 
-# address commands
-ap_addr = sp.add_parser('addr', help='Address management')
-sp_addr = ap_addr.add_subparsers(dest='_func',
-                                 metavar='func',
-                                 help='Address commands')
+a = ap.parse_args()
 
-sp_addr_list = sp_addr.add_parser('list', help='List address(es)')
-sp_addr_list.add_argument('_address',
-                          help='Address or address id',
-                          nargs='?',
-                          metavar='ADDRESS')
+import roboger.manager
 
-sp_addr_creage = sp_addr.add_parser('create', help='Create new address')
+client_config = True
 
-sp_addr_change = sp_addr.add_parser('change', help='Change existing address')
-sp_addr_change.add_argument('_address',
-                            help='Address or address id',
-                            metavar='ADDRESS')
-
-sp_addr_enable = sp_addr.add_parser('enable', help='Enable address')
-sp_addr_enable.add_argument('_address',
-                            help='Address or address id',
-                            metavar='ADDRESS')
-
-sp_addr_disable = sp_addr.add_parser('disable', help='Disable address')
-sp_addr_disable.add_argument('_address',
-                             help='Address or address id',
-                             metavar='ADDRESS')
-
-sp_addr_delete = sp_addr.add_parser('delete', help='Delete address')
-sp_addr_delete.add_argument('_address',
-                            help='Address or address id',
-                            metavar='ADDRESS')
-
-# endpoint commands
-ap_endpoint = sp.add_parser('endpoint', help='Endpoint management')
-sp_endpoint = ap_endpoint.add_subparsers(dest='_func',
-                                         metavar='func',
-                                         help='Endpoint commands')
-
-sp_ls_endpoint_types = sp_endpoint.add_parser('types',
-                                              help='List IDs of endpoint types')
-
-sp_ls_endpoints = sp_endpoint.add_parser('list', help='List endpoints')
-sp_ls_endpoints.add_argument('endpoint_id',
-                             help='Endpoint id',
-                             metavar='ID',
-                             type=int,
-                             nargs='?')
-sp_ls_endpoints.add_argument('-a',
-                             '--address',
-                             help='Address or address id',
-                             metavar='ADDRESS',
-                             dest='_address')
-
-sp_mk_endpoint = sp_endpoint.add_parser('create', help='Create new endpoint')
-sp_mk_endpoint.add_argument('_address',
-                            help='Address or address ID',
-                            metavar='ADDRESS')
-sp_mk_endpoint.add_argument('type', help='Endpoint type', metavar='TYPE')
-sp_mk_endpoint.add_argument(
-    '-c', '--config', help='Endpoint config (rcpt, url, webhook, chat id etc.)')
-sp_mk_endpoint.add_argument(
-    '--data', help='Endpoint data (email, url, webhook, chat id etc.)')
-sp_mk_endpoint.add_argument(
-    '--data2',
-    help='Endpoint data 2 ("rich" for slack endpoint to send rich format)')
-sp_mk_endpoint.add_argument('--data3',
-                            help='Endpoint data 3 (params for http endpoints)')
-sp_mk_endpoint.add_argument('-o', '--description', help='Endpoint description')
-sp_mk_endpoint.add_argument('-d',
-                            '--skip-dups',
-                            metavar='SEC',
-                            help='Skip duplicate events for SEC seconds')
-
-sp_endpoint_enable = sp_endpoint.add_parser('enable', help='Enable endpoint')
-sp_endpoint_enable.add_argument('endpoint_id',
-                                help='Endpoint id',
-                                metavar='ID',
-                                type=int)
-sp_endpoint_enable.add_argument('-a',
-                                '--address',
-                                help=argparse.SUPPRESS,
-                                metavar='ADDRESS',
-                                dest='_address')
-
-sp_endpoint_disable = sp_endpoint.add_parser('disable', help='Disable endpoint')
-sp_endpoint_disable.add_argument('endpoint_id',
-                                 help='Endpoint id',
-                                 metavar='ID',
-                                 type=int)
-sp_endpoint_disable.add_argument('-a',
-                                 '--address',
-                                 help=argparse.SUPPRESS,
-                                 metavar='ADDRESS',
-                                 dest='_address')
-
-sp_set_endpoint_config = sp_endpoint.add_parser('config',
-                                                help='Set endpoint config')
-sp_set_endpoint_config.add_argument('endpoint_id',
-                                    help='Endpoint id',
-                                    metavar='ID',
-                                    type=int)
-sp_set_endpoint_config.add_argument('-a',
-                                    '--address',
-                                    help=argparse.SUPPRESS,
-                                    metavar='ADDRESS',
-                                    dest='_address')
-sp_set_endpoint_config.add_argument(
-    'config',
-    help='Config (rcp, url, webhook, chat id etc, separated by "|")',
-    metavar='CONFIG')
-
-sp_set_endpoint_data = sp_endpoint.add_parser('data',
-                                              help='Set endpoint data params')
-sp_set_endpoint_data.add_argument('endpoint_id',
-                                  help='Endpoint id',
-                                  metavar='ID',
-                                  type=int)
-sp_set_endpoint_data.add_argument('-a',
-                                  '--address',
-                                  help=argparse.SUPPRESS,
-                                  metavar='ADDRESS',
-                                  dest='_address')
-sp_set_endpoint_data.add_argument(
-    'data', help='Endpoint data (email, url, webhook, chat id etc.)')
-sp_set_endpoint_data.add_argument(
-    '--data2',
-    help='Endpoint data 2 ("rich" for slack endpoint to send rich format)')
-sp_set_endpoint_data.add_argument(
-    '--data3', help='Endpoint data 3 (params for http endpoints)')
-
-sp_set_endpoint_description = sp_endpoint.add_parser(
-    'description', help='Set endpoint description')
-sp_set_endpoint_description.add_argument('endpoint_id',
-                                         help='Endpoint id',
-                                         metavar='ID',
-                                         type=int)
-sp_set_endpoint_description.add_argument('-a',
-                                         '--address',
-                                         help=argparse.SUPPRESS,
-                                         metavar='ADDRESS',
-                                         dest='_address')
-sp_set_endpoint_description.add_argument('description',
-                                         help='Endpoint description',
-                                         nargs='?')
-
-sp_set_endpoint_skip_dups = sp_endpoint.add_parser(
-    'skipdups', help='Set endpoint skip_dups')
-sp_set_endpoint_skip_dups.add_argument('endpoint_id',
-                                       help='Endpoint id',
-                                       metavar='ID',
-                                       type=int)
-sp_set_endpoint_skip_dups.add_argument(
-    'skip_time',
-    help='Skip duplicate events for SEC seconds',
-    metavar='SEC',
-    type=int)
-sp_set_endpoint_skip_dups.add_argument('-a',
-                                       '--address',
-                                       help=argparse.SUPPRESS,
-                                       metavar='ADDRESS',
-                                       dest='_address')
-
-sp_rm_endpoint = sp_endpoint.add_parser('delete', help='Delete endpoint')
-sp_rm_endpoint.add_argument('endpoint_id',
-                            help='Endpoint id',
-                            metavar='ID',
-                            type=int)
-sp_rm_endpoint.add_argument('-a',
-                            '--address',
-                            help=argparse.SUPPRESS,
-                            metavar='ADDRESS',
-                            dest='_address')
-
-# subscription commands
-ap_subscription = sp.add_parser('subscription', help='Subscription management')
-sp_subscription = ap_subscription.add_subparsers(dest='_func',
-                                                 metavar='func',
-                                                 help='Subscription commands')
-
-sp_ls_subscriptions = sp_subscription.add_parser('list',
-                                                 help='List subscriptions')
-sp_ls_subscriptions.add_argument('endpoint_id',
-                                 help='Endpoint id',
-                                 type=int,
-                                 metavar='ENDPOINT_ID')
-sp_ls_subscriptions.add_argument('subscription_id',
-                                 help='subscription id',
-                                 metavar='ID',
-                                 type=int,
-                                 nargs='?')
-sp_ls_subscriptions.add_argument('-a',
-                                 '--address',
-                                 help=argparse.SUPPRESS,
-                                 metavar='ADDRESS',
-                                 dest='_address')
-
-sp_mk_subscription = sp_subscription.add_parser('create',
-                                                help='Create new subscription')
-sp_mk_subscription.add_argument('endpoint_id',
-                                help='Endpoint id',
-                                metavar='ENDPOINT_ID',
-                                type=int)
-sp_mk_subscription.add_argument('-a',
-                                '--address',
-                                help=argparse.SUPPRESS,
-                                metavar='ADDRESS',
-                                dest='_address')
-sp_mk_subscription.add_argument('-n', '--location', help='Event location')
-sp_mk_subscription.add_argument('-k',
-                                '--keywords',
-                                help='Keywords, comma separated')
-sp_mk_subscription.add_argument('-x',
-                                '--senders',
-                                help='Senders, comma separated')
-sp_mk_subscription.add_argument('-l',
-                                '--level',
-                                help='Subscription level',
-                                dest='_level',
-                                metavar='LEVEL')
-sp_mk_subscription.add_argument(
-    '-m',
-    '--level-match',
-    help=
-    'Subscription level match ' + \
-            '(ge for >=, le for <=, l for <, g for >, e for =)',
-    choices=['ge', 'le', 'l', 'g', 'e'])
-
-sp_subscription_enable = sp_subscription.add_parser('enable',
-                                                    help='Enable subscription')
-sp_subscription_enable.add_argument('subscription_id',
-                                    help='Subscription id',
-                                    metavar='ID',
-                                    type=int)
-sp_subscription_enable.add_argument('-a',
-                                    '--address',
-                                    help=argparse.SUPPRESS,
-                                    metavar='ADDRESS',
-                                    dest='_address')
-
-sp_subscription_disable = sp_subscription.add_parser(
-    'disable', help='Disable subscription')
-sp_subscription_disable.add_argument('subscription_id',
-                                     help='Subscription id',
-                                     metavar='ID',
-                                     type=int)
-sp_subscription_disable.add_argument('-a',
-                                     '--address',
-                                     help=argparse.SUPPRESS,
-                                     metavar='ADDRESS',
-                                     dest='_address')
-
-sp_set_subscription_location = sp_subscription.add_parser(
-    'location', help='Set subscription location')
-sp_set_subscription_location.add_argument('subscription_id',
-                                          help='Subscription id',
-                                          metavar='ID',
-                                          type=int)
-sp_set_subscription_location.add_argument('location',
-                                          help='Event location',
-                                          nargs='?')
-sp_set_subscription_location.add_argument('-a',
-                                          '--address',
-                                          help=argparse.SUPPRESS,
-                                          metavar='ADDRESS',
-                                          dest='_address')
-
-sp_set_subscription_keywords = sp_subscription.add_parser(
-    'keywords', help='Set subscription keywords')
-sp_set_subscription_keywords.add_argument('subscription_id',
-                                          help='Subscription id',
-                                          metavar='ID',
-                                          type=int)
-sp_set_subscription_keywords.add_argument('keywords',
-                                          help='Keywords, comma separated',
-                                          nargs='?')
-sp_set_subscription_keywords.add_argument('-a',
-                                          '--address',
-                                          help=argparse.SUPPRESS,
-                                          metavar='ADDRESS',
-                                          dest='_address')
-
-sp_set_subscription_senders = sp_subscription.add_parser(
-    'senders', help='set subscription senders')
-sp_set_subscription_senders.add_argument('subscription_id',
-                                         help='Subscription id',
-                                         metavar='ID',
-                                         type=int)
-sp_set_subscription_senders.add_argument('senders',
-                                         help='Senders, comma separated',
-                                         nargs='?')
-sp_set_subscription_senders.add_argument('-a',
-                                         '--address',
-                                         help=argparse.SUPPRESS,
-                                         metavar='ADDRESS',
-                                         dest='_address')
-
-sp_set_subscription_level = sp_subscription.add_parser(
-    'level', help='Set subscription level')
-sp_set_subscription_level.add_argument('subscription_id',
-                                       help='Subscription id',
-                                       metavar='ID',
-                                       type=int)
-sp_set_subscription_level.add_argument('_level',
-                                       help='Subscription level',
-                                       nargs='?',
-                                       metavar='level')
-sp_set_subscription_level.add_argument(
-    '-m',
-    '--level-match',
-    help=
-    'Subscription level match ' + \
-            '(ge for >=, le for <=, l for <, g for >, e for =)',
-    choices=['ge', 'le', 'l', 'g', 'e'])
-sp_set_subscription_level.add_argument('-a',
-                                       '--address',
-                                       help=argparse.SUPPRESS,
-                                       metavar='ADDRESS',
-                                       dest='_address')
-
-sp_rm_subscription = sp_subscription.add_parser('delete',
-                                                help='delete subscription')
-sp_rm_subscription.add_argument('subscription_id',
-                                help='Subscription id',
-                                metavar='ID',
-                                type=int)
-sp_rm_subscription.add_argument('-a',
-                                '--address',
-                                help=argparse.SUPPRESS,
-                                metavar='ADDRESS',
-                                dest='_address')
-
-# subscription copy functions
-sp_copy_subscription = sp_subscription.add_parser(
-    'duplicate', help='Copy subsciption to a new one')
-sp_copy_subscription.add_argument('subscription_id',
-                                  help='subscription id',
-                                  metavar='ID',
-                                  type=int)
-sp_copy_subscription.add_argument('-a',
-                                  '--address',
-                                  help=argparse.SUPPRESS,
-                                  metavar='ADDRESS',
-                                  dest='_address')
-
-sp_copy_endpoint_subscriptions = sp_endpoint.add_parser(
-    'copysub',
-    help=
-    'Delete target endpoint subscriptions and copy' + \
-        ' source endpoint subscriptions to it'
-)
-sp_copy_endpoint_subscriptions.add_argument('endpoint_id',
-                                            help='source endpoint id',
-                                            metavar='SOURCE_ENDPOINT_ID',
-                                            type=int)
-sp_copy_endpoint_subscriptions.add_argument('endpoint_id_t',
-                                            help='target endpoint id',
-                                            metavar='TARGET_ENDPOINT_ID',
-                                            type=int)
-sp_copy_endpoint_subscriptions.add_argument('-a',
-                                            '--address',
-                                            help=argparse.SUPPRESS,
-                                            metavar='ADDRESS',
-                                            dest='_address')
-
-# ls events
-ap_event = sp.add_parser('event', help='Event management')
-sp_event = ap_event.add_subparsers(dest='_func',
-                                   metavar='func',
-                                   help='Event commands')
-
-sp_ls_events = sp_event.add_parser('list', help='List events (if stored)')
-sp_ls_events.add_argument('-a',
-                          '--address',
-                          dest='_address',
-                          help='Address or address id',
-                          metavar='ADDRESS')
-sp_ls_events.add_argument('-n',
-                          '--limit',
-                          help='limit output to N events',
-                          metavar='N',
-                          type=int)
-
-ap.sections = ['addr', 'event', 'endpoint', 'subscription']
-
-ap.send_args_as_dict = False
-
-
-def error():
-    import traceback
-    traceback.print_exc()
-
-
-def dispatcher(a):
-
-    if a._ver:
-        print(_me)
-        return
-
-    global apiuri, apikey, debug, itype, timeout, api_func
-
-    apiuri = a._uri
-    apikey = a._key
-
-    debug = a._debug
-
-    itype = a._type
-    if hasattr(a, '_func'):
-        func = a._func
-    else:
-        func = None
-
-    timeout = a._timeout
-
-    xparams.clear()
-
-    for k, v in vars(a).items():
-        if k and k[0] != '_' and v is not None:
-            xparams[k] = v
-
-    if hasattr(a, '_address') and a._address:
-        try:
-            xparams['addr_id'] = int(a._address)
-        except:
-            xparams['addr'] = a._address
-
-    if hasattr(a, '_level') and a._level is not None:
-        try:
-            xparams['level_id'] = int(a._level)
-        except:
-            xparams['level'] = a._level
-
-    if itype in arg_sections and not func:
-        ap.parse_args([itype, '--help'])
-
-    api_func = (itype if itype else '') + ('_' + func if func else '')
-
-    if not api_func:
-        ap.print_usage()
-        return 2
-
-    if not apikey:
-        fname = f'{dir_me}/etc/roboger.yml'
-        if not Path(fname).exists:
-            fname = '/usr/local/etc/roboger.yml'
-        with open(fname) as fh:
-            server_config = yaml.load(fh.read())['roboger']
-        if not apikey:
-            try:
-                apikey = server_config['master']['key']
-            except:
-                pass
-        debug = server_config.get('server', {}).get('debug')
-
-    if not apiuri:
-        apiuri = 'http://localhost:7719'
-
-    if not apikey:
-        print('no API masterkey specified')
-        return 6
-
-    if api_func in local_funcs:
-        f = local_funcs.get(api_func)
-        return None if f(xparams) else 1
-    else:
-        r = api_call(api_func, xparams)
-
-    if debug:
-        print("API response code: %s" % r.status_code)
-    if r.status_code == 200:
-        try:
-            j = r.json()
-        except:
-            print('API error: invalid json response')
-            return 3
-        if a._json:
-            print_json(j)
-        else:
-            if isinstance(j, dict):
-                rprinted = False
-                for v in sorted(j.keys()):
-                    if v != 'result':
-                        print(
-                            ("{:>%u} : {}" % max(map(len, j))).format(v, j[v]))
-                        rprinted = True
-                if not rprinted:
-                    print('OK')
-            elif isinstance(j, list):
-                if j:
-                    pprint_df(j, api_func)
-                else:
-                    print('no data')
-            else:
-                print(j)
-    else:
-        print("API error %u" % (r.status_code))
-        if debug: print(r.text)
-        return 2
-
-
-ap.run = dispatcher
-ap.handle_interactive_exception = error
-
-if len(sys.argv) > 1:
-    ap.launch()
+if a.config_file:
+    fname = ap.config_file
 else:
-    ap.interactive()
+    fname = os.path.expanduser('~/.roboger-cmd.yml')
+    if not Path(fname).exists():
+        client_config = False
+        fname = dir_me / 'etc/roboger.yml'
+    if not Path(fname).exists():
+        fname = '/usr/local/etc/roboger.yml'
+with open(fname) as fh:
+    config = yaml.load(fh.read())
+
+format_uri = lambda uri: 'http://{}'.format(uri.replace('0.0.0.0', '127.0.0.1'))
+
+if client_config:
+    api = roboger.manager.ManagementAPI(api_uri=config['uri'],
+                                        api_key=config['key'],
+                                        timeout=a.timeout)
+    limits = config.get('limits')
+else:
+    api = roboger.manager.ManagementAPI(
+        api_uri=format_uri(config['roboger']['gunicorn']['listen']),
+        api_key=config['roboger']['master']['key'],
+        timeout=a.timeout)
+    limits = config['roboger'].get('limits')
+
+if limits:
+    roboger.manager.use_limits = True
+
+roboger.manager.default_api = api
+
+result = None
+
+editor = os.environ.get('EDITOR', 'vi')
+
+
+def edit_obj(obj):
+    obj.load()
+    fd, fname = tempfile.mkstemp('.yaml')
+    try:
+        with os.fdopen(fd, 'w') as tmp:
+            fc = yaml.dump(obj.serialize(include_protected_fields=False),
+                           default_flow_style=False)
+            tmp.write(fc)
+        from hashlib import sha256
+        oldhash = sha256(fc.encode()).digest()
+        os.system(f'{editor} {fname}')
+        with open(fname) as tmp:
+            fc = tmp.read()
+            newhash = sha256(fc.encode()).digest()
+        if oldhash == newhash:
+            return ''
+        else:
+            obj.load(data=yaml.load(fc), load_protected_fields=False)
+            obj.save()
+    finally:
+        os.unlink(fname)
+
+
+def process_obj_func(obj):
+    if a.func == 'delete':
+        obj.delete()
+    elif a.func == 'describe':
+        obj.load()
+        return dict(obj)
+    elif a.func == 'edit':
+        return edit_obj(obj)
+    elif a.func == 'disable':
+        obj.disable()
+    elif a.func == 'enable':
+        obj.enable()
+
+
+try:
+    if a.command == 'test':
+        result = api.test()
+    elif a.command == 'addr':
+        if a.func == 'list':
+            result = roboger.manager.list_addr()
+        elif a.func == 'create':
+            result = dict(roboger.manager.create_addr())
+        else:
+            addr = roboger.manager.Addr(id=a.resource)
+            if a.func == 'change':
+                addr.change()
+                result = addr.a
+            else:
+                result = process_obj_func(addr)
+    elif a.command == 'endpoint':
+        if a.func == 'list':
+            addr = roboger.manager.Addr(id=a.resource)
+            result = [dict(ep) for ep in addr.list_endpoints()]
+        elif a.func == 'create':
+            addr = roboger.manager.Addr(id=a.resource)
+            result = dict(addr.create_endpoint(plugin_name=a.plugin_name))
+        else:
+            try:
+                addr_id, ep_id = a.resource.split('/', 1)
+            except ValueError:
+                raise Exception(
+                    'Please specify correct resource path: addr_id/endpoint_id')
+            ep = roboger.manager.Endpoint(id=ep_id, addr_id=addr_id)
+            result = process_obj_func(ep)
+except Exception as e:
+    print(f'ERROR: {e}', file=sys.stderr)
+    sys.exit(1)
+
+if result:
+    if a.output == 'yaml':
+        print(yaml.dump(result, default_flow_style=False))
+    elif a.output == 'json':
+        import json
+        print(json.dumps(result, indent=True, sort_keys=True))
+    else:
+        if isinstance(result, dict) or isinstance(result, list):
+            from pprint import pprint
+            pprint(result)
+        else:
+            print(result)
+elif result != '' and result != []:
+    print('OK')

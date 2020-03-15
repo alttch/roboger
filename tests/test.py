@@ -135,9 +135,11 @@ def test011_addr():
 def test012_endpoint():
     addr = Addr(api=api)
     addr.create()
+    assert len(addr.list_endpoints()) == 0
     with pytest.raises(ValueError):
         addr.create_endpoint('email', dict(xxx='zzz'))
     ep = addr.create_endpoint('email', dict(rcpt='some@domain'))
+    assert len(addr.list_endpoints()) == 1
     assert ep.active
     x = dict(ep)
     assert x['id']
@@ -231,16 +233,16 @@ def test014_endpoint_copysub():
     ep.create_subscription(level=roboger.DEBUG)
     ep.create_subscription(level=roboger.DEBUG)
     ep.create_subscription(level=roboger.DEBUG)
-    assert len(ep.get_subscriptions()) == 3
-    assert len(ep2.get_subscriptions()) == 0
+    assert len(ep.list_subscriptions()) == 3
+    assert len(ep2.list_subscriptions()) == 0
     ep.copysub(target=ep2)
-    assert len(ep2.get_subscriptions()) == 3
+    assert len(ep2.list_subscriptions()) == 3
     ep.copysub(target=ep2)
-    assert len(ep2.get_subscriptions()) == 6
-    for s in ep2.get_subscriptions():
+    assert len(ep2.list_subscriptions()) == 6
+    for s in ep2.list_subscriptions():
         assert s.level == roboger.DEBUG
     ep.copysub(target=ep2, replace=True)
-    assert len(ep2.get_subscriptions()) == 3
+    assert len(ep2.list_subscriptions()) == 3
     addr.delete()
 
 

@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import core
 
-product_build = 2020030701
+product_build = 'stable'
 
 core.set_build(product_build)
 core.load()

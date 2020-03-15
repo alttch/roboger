@@ -298,7 +298,9 @@ def addr_get(addr_id=None, addr=None):
 
 
 def addr_list():
-    return db_list(sql("""SELECT id, a, active FROM addr ORDER BY id"""))
+    return db_list(
+        sql("""SELECT id, a, active{} FROM addr ORDER BY id""".format(
+            ',lim' if _d.limits else '')))
 
 
 def addr_create():
@@ -420,8 +422,11 @@ def endpoint_update(endpoint_id, data, validate_config=False, plugin_name=None):
             try:
                 if plugin_name is None:
                     plugin_name = endpoint_get(endpoint_id)['plugin_name']
-                safe_run_method(plugins[plugin_name], 'validate_config',
-                                data['config'])
+                plugin = plugins[plugin_name]
+            except KeyError:
+                raise ValueError(f'plugin {plugin_name} not found')
+            try:
+                safe_run_method(plugin, 'validate_config', data['config'])
             except Exception as e:
                 raise ValueError(e)
         for k, v in data.items():

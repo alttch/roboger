@@ -629,6 +629,7 @@ def r_endpoint_modify(a, ep, **kwargs):
                             validate_config=True,
                             plugin_name=endpoint['plugin_name'])
         except ValueError as e:
+            log_traceback()
             return Response(str(e), status=400)
     return jsonify(endpoint_get(ep)) if _accept_resource(
         'roboger.endpoint') else _response_empty()
@@ -713,7 +714,8 @@ def r_subscription_modify(a, ep, s, **kwargs):
             if field in kwargs:
                 return Response(f'Field "{field}" is protected', status=405)
         try:
-            kwargs['level'] = convert_level(kwargs['level'])
+            if 'level' in kwargs:
+                kwargs['level'] = convert_level(kwargs['level'])
             subscription_update(s, kwargs)
         except ValueError as e:
             return Response(str(e), status=400)
