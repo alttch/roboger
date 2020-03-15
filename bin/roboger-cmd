@@ -39,7 +39,13 @@ ap.add_argument('-o',
 
 sp = ap.add_subparsers(dest='command', help='command to execute', required=True)
 
-sp_test = sp.add_parser('test', help='Test server')
+sp_test = sp.add_parser('test', help='test server')
+sp_deploy = sp.add_parser('deploy', help='deploy configuration')
+reqn = sp_deploy.add_argument_group('required named arguments')
+reqn.add_argument('-f',
+                  '--input-file',
+                  help='input file ("stdin" for stdin)',
+                  required=True)
 
 for prs in [('addr', 'a'), ('endpoint', 'e', 'ep', 'end'),
             ('subscription', 's', 'sub')]:
@@ -222,6 +228,48 @@ def split_res(res, amnt):
 try:
     if a.command == 'test':
         result = api.test()
+    elif a.command == 'deploy':
+        if a.input_file == 'stdin':
+            fc = sys.stdin.read()
+        else:
+            with open(a.input_file) as fh:
+                fc = fh.read()
+        data = yaml.load(fc)
+        result = []
+        try:
+            for acfg in data.get('addresses', []):
+                addr = roboger.manager.create_addr()
+                result.append(addr)
+                addr_config = acfg.copy()
+                try:
+                    del addr_config['endpoints']
+                except:
+                    pass
+                addr.load(data=addr_config, load_protected_fields=False)
+                addr.save()
+                for ecfg in acfg.get('endpoints', []):
+                    ep = addr.create_endpoint(plugin_name=ecfg['plugin_name'])
+                    ep_config = ecfg.copy()
+                    del ep_config['plugin_name']
+                    try:
+                        del ep_config['subscriptions']
+                    except:
+                        pass
+                    ep.load(data=ep_config, load_protected_fields=False)
+                    ep.save()
+                    for scfg in ecfg.get('subscriptions', []):
+                        s = ep.create_subscription()
+                        s.load(data=scfg, load_protected_fields=False)
+                        s.save()
+            result = {'deployed': [(a.id) for a in result]}
+        except Exception as e:
+            for addr in result:
+                try:
+                    addr.delete()
+                except:
+                    pass
+            result = None
+            raise
     elif a.command in ['addr', 'a']:
         if a.func in ['list', 'ls', 'l']:
             result = [
@@ -262,9 +310,8 @@ try:
                 try:
                     addr2_id, ep2_id = split_res(a.target_resource, 1)
                 except ValueError:
-                    raise Exception(
-                        'Please specify correct target resource path: addr_id.endpoint_id'
-                    )
+                    raise Exception('Please specify correct target '
+                                    'resource path: addr_id.endpoint_id')
                 ep2 = roboger.manager.Endpoint(id=ep2_id, addr_id=addr2_id)
                 ep.copysub(target=ep2, replace=a.replace)
             else:
@@ -299,6 +346,8 @@ try:
             result = process_obj_func(s, format_subscription)
 except Exception as e:
     print(f'ERROR: {e}', file=sys.stderr)
+    if a.debug:
+        raise
     sys.exit(1)
 
 if result:

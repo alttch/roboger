@@ -14,10 +14,10 @@ addresses:
             sender: admin
           - level: critical
             level_match: e
-      - plugin-name: webhook
+      - plugin_name: webhook
         config:
           url: http://pbx.server/v1/call
-          template: '{ "params": "phone": "+000199939", "event_id": $event_id, "sender": $sender }'
+          template: '{ "params": { "phone": "+000199939" }, "event_id": $event_id, "sender": $sender }'
         subscriptions:
           - level: info
       - plugin_name: slack
