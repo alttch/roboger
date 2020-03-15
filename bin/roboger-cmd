@@ -165,6 +165,28 @@ try:
                     'Please specify correct resource path: addr_id/endpoint_id')
             ep = roboger.manager.Endpoint(id=ep_id, addr_id=addr_id)
             result = process_obj_func(ep)
+    elif a.command == 'subscription':
+        if a.func in ['list', 'create']:
+            try:
+                addr_id, ep_id = a.resource.split('/', 1)
+            except ValueError:
+                raise Exception(
+                    'Please specify correct resource path: addr_id/endpoint_id')
+            ep = roboger.manager.Endpoint(id=ep_id, addr_id=addr_id)
+            if a.func == 'list':
+                result = [dict(s) for s in ep.list_subscriptions()]
+            elif a.func == 'create':
+                result = dict(ep.create_subscription())
+        else:
+            try:
+                addr_id, ep_id, s_id = a.resource.split('/', 2)
+            except ValueError:
+                raise Exception('Please specify correct resource path: '
+                                'addr_id/endpoint_id/subscription_id')
+            s = roboger.manager.Subscription(id=s_id,
+                                         addr_id=addr_id,
+                                         endpoint_id=ep_id)
+            result = process_obj_func(s)
 except Exception as e:
     print(f'ERROR: {e}', file=sys.stderr)
     sys.exit(1)
