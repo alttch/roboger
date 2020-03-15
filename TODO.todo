@@ -1,8 +1,24 @@
-- [ ] auto tests
-  - [ ] legacy API calls for addrs
-  - [ ] legacy API calls for endpoints
-  - [ ] legacy API calls for subscriptions
 - [ ] migrate CLI
+  - [ ] addr
+    - [ ] list
+    - [ ] create
+    - [ ] describe
+    - [ ] edit
+    - [ ] change
+    - [ ] delete
+  - [ ] endpoint
+    - [ ] list
+    - [ ] create
+    - [ ] describe
+    - [ ] edit
+    - [ ] disable/enable
+  - [ ] subscription
+    - [ ] list
+    - [ ] create
+    - [ ] describe
+    - [ ] edit
+    - [ ] delete
+  - [ ] deploy
 - [ ] auto create db
 - [ ] test with mysql and sqlite3
 - [ ] pypi module
