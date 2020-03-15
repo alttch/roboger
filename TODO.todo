@@ -1,23 +1,13 @@
 - [ ] migrate CLI
-  - [ ] addr
-    - [ ] list
-    - [ ] create
-    - [ ] describe
-    - [ ] edit
-    - [ ] change
-    - [ ] delete
   - [ ] endpoint
-    - [ ] list
-    - [ ] create
-    - [ ] describe
-    - [ ] edit
-    - [ ] disable/enable
+    - [ ] copysub
   - [ ] subscription
     - [ ] list
     - [ ] create
     - [ ] describe
     - [ ] edit
     - [ ] delete
+  - [ ] apply
   - [ ] deploy
 - [ ] auto create db
 - [ ] test with mysql and sqlite3
