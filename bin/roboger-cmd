@@ -16,10 +16,6 @@ import argparse
 
 ap = argparse.ArgumentParser()
 
-ap.add_argument('-V',
-                '--version',
-                help='print version and exit',
-                action='store_true')
 ap.add_argument(
     '-T',
     '--timeout',
@@ -41,20 +37,29 @@ sp = ap.add_subparsers(dest='command', help='command to execute', required=True)
 
 sp_test = sp.add_parser('test', help='Test server')
 
-for i in ['addr', 'endpoint', 'subscription']:
-    iap = sp.add_parser(i, help=f'{i} management')
-    funcs = [
-        'list', 'create', 'describe', 'edit', 'delete', 'disable', 'enable'
-    ]
+for prs in [('addr', 'a'), ('endpoint', 'e', 'ep'),
+            ('subscription', 's', 'sub')]:
+    i = prs[0]
+    iap = sp.add_parser(i, help=f'{i} management', aliases=prs[1:])
+    funcs = [('list', 'ls', 'l'), ('create', 'cr'), ('describe', 'des', 'ds'),
+             ('edit', 'ed', 'e'), ('delete', 'del'), ('disable', 'dis'),
+             ('enable', 'en'), ('apply', 'apl')]
     if i == 'addr':
-        funcs.append('change')
+        funcs.append(('change', 'ch'))
     isp = iap.add_subparsers(dest='func', help=f'{i} commands', required=True)
-    for f in funcs:
-        x = isp.add_parser(f)
+    for fs in funcs:
+        f = fs[0]
+        x = isp.add_parser(f, aliases=fs[1:])
+        reqn = x.add_argument_group('required named arguments')
         if i != 'addr' or f not in ['list', 'create']:
             x.add_argument('resource', help='current/parent resource')
         if i == 'endpoint' and f == 'create':
             x.add_argument('plugin_name', help='plugin name')
+        if f == 'apply':
+            reqn.add_argument('-f',
+                              '--input-file',
+                              help='input file ("stdin" for stdin)',
+                              required=True)
 
 a = ap.parse_args()
 
@@ -63,7 +68,7 @@ import roboger.manager
 client_config = True
 
 if a.config_file:
-    fname = ap.config_file
+    fname = a.config_file
 else:
     fname = os.path.expanduser('~/.roboger-cmd.yml')
     if not Path(fname).exists():
@@ -98,6 +103,18 @@ result = None
 editor = os.environ.get('EDITOR', 'vi')
 
 
+def format_dict(d, fields, xtra={}):
+    from collections import OrderedDict
+    d = dict(d)
+    result = OrderedDict()
+    for f in fields:
+        if f in d.keys():
+            result[f] = d[f]
+        elif f in xtra.keys():
+            result[f] = xtra[f]
+    return result
+
+
 def edit_obj(obj):
     obj.load()
     fd, fname = tempfile.mkstemp('.yaml')
@@ -121,72 +138,119 @@ def edit_obj(obj):
         os.unlink(fname)
 
 
-def process_obj_func(obj):
-    if a.func == 'delete':
+def process_obj_func(obj, format_func):
+    if a.func in ['delete', 'del']:
         obj.delete()
-    elif a.func == 'describe':
+    elif a.func in ['describe', 'des', 'ds']:
         obj.load()
-        return dict(obj)
-    elif a.func == 'edit':
+        return format_func(obj)
+    elif a.func in ['edit', 'ed']:
         return edit_obj(obj)
-    elif a.func == 'disable':
+    elif a.func in ['disable', 'dis']:
         obj.disable()
-    elif a.func == 'enable':
+    elif a.func in ['enable', 'en']:
         obj.enable()
+    elif a.func in ['apply', 'apl']:
+        if a.input_file == 'stdin':
+            fc = sys.stdin.read()
+        else:
+            with open(a.input_file) as fh:
+                fc = fh.read()
+        obj.load(data=yaml.load(fc), load_protected_fields=False)
+        obj.save()
+
+
+def format_addr(obj):
+    d = dict(obj)
+    d['res'] = d['id']
+    del d['id']
+    return d
+
+
+def format_endpoint(obj):
+    d = dict(obj)
+    d['res'] = f'{d["addr_id"]}.{d["id"]}'
+    del d['id']
+    del d['addr_id']
+    return d
+
+
+def format_subscription(obj):
+    d = dict(obj)
+    d['res'] = (f'{d["addr_id"]}.' f'{d["endpoint_id"]}.{d["id"]}')
+    del d['id']
+    del d['addr_id']
+    return d
 
 
 try:
     if a.command == 'test':
         result = api.test()
-    elif a.command == 'addr':
-        if a.func == 'list':
-            result = roboger.manager.list_addr()
-        elif a.func == 'create':
-            result = dict(roboger.manager.create_addr())
+    elif a.command in ['addr', 'a']:
+        if a.func in ['list', 'ls', 'l']:
+            result = [
+                format_dict(d, ['res', 'a', 'active', 'lim'], {'res': d['id']})
+                for d in roboger.manager.list_addr()
+            ]
+        elif a.func in ['create', 'cr']:
+            result = format_addr(roboger.manager.create_addr())
         else:
             addr = roboger.manager.Addr(id=a.resource)
-            if a.func == 'change':
+            if a.func in ['change', 'ch']:
                 addr.change()
                 result = addr.a
             else:
-                result = process_obj_func(addr)
-    elif a.command == 'endpoint':
-        if a.func == 'list':
+                result = process_obj_func(addr, format_addr)
+    elif a.command in ['endpoint', 'e', 'ep']:
+        if a.func in ['list', 'ls', 'l']:
             addr = roboger.manager.Addr(id=a.resource)
-            result = [dict(ep) for ep in addr.list_endpoints()]
-        elif a.func == 'create':
+            result = [
+                format_dict(
+                    ep,
+                    ['res', 'active', 'plugin_name', 'config', 'description'],
+                    {'res': f'{ep.addr_id}.{ep.id}'})
+                for ep in addr.list_endpoints()
+            ]
+        elif a.func in ['create', 'cr']:
             addr = roboger.manager.Addr(id=a.resource)
-            result = dict(addr.create_endpoint(plugin_name=a.plugin_name))
+            result = format_endpoint(
+                addr.create_endpoint(plugin_name=a.plugin_name))
         else:
             try:
-                addr_id, ep_id = a.resource.split('/', 1)
+                addr_id, ep_id = a.resource.split('.', 1)
             except ValueError:
                 raise Exception(
-                    'Please specify correct resource path: addr_id/endpoint_id')
+                    'Please specify correct resource path: addr_id.endpoint_id')
             ep = roboger.manager.Endpoint(id=ep_id, addr_id=addr_id)
-            result = process_obj_func(ep)
-    elif a.command == 'subscription':
-        if a.func in ['list', 'create']:
+            result = process_obj_func(ep, format_endpoint)
+    elif a.command in ['subscription', 's', 'sub']:
+        if a.func in ['list', 'create', 'ls', 'l', 'cr']:
             try:
-                addr_id, ep_id = a.resource.split('/', 1)
+                addr_id, ep_id = a.resource.split('.', 1)
             except ValueError:
                 raise Exception(
-                    'Please specify correct resource path: addr_id/endpoint_id')
+                    'Please specify correct resource path: addr_id.endpoint_id')
             ep = roboger.manager.Endpoint(id=ep_id, addr_id=addr_id)
-            if a.func == 'list':
-                result = [dict(s) for s in ep.list_subscriptions()]
-            elif a.func == 'create':
-                result = dict(ep.create_subscription())
+            if a.func in ['list', 'ls', 'l']:
+                result = [
+                    format_dict(s, [
+                        'res', 'active', 'location', 'tag', 'sender', 'level',
+                        'level_match'
+                    ], {'res': f'{s.addr_id}.{s.endpoint_id}.{s.id}'})
+                    for s in ep.list_subscriptions()
+                ]
+            elif a.func in ['create', 'cr']:
+                result = format_subscription(ep.create_subscription())
         else:
             try:
-                addr_id, ep_id, s_id = a.resource.split('/', 2)
+                addr_id, ep_id, s_id = a.resource.split('.', 2)
             except ValueError:
                 raise Exception('Please specify correct resource path: '
-                                'addr_id/endpoint_id/subscription_id')
+                                'addr_id.endpoint_id.subscription_id')
             s = roboger.manager.Subscription(id=s_id,
                                              addr_id=addr_id,
                                              endpoint_id=ep_id)
-            result = process_obj_func(s)
+            result = process_obj_func(s, format_subscription)
 except Exception as e:
     print(f'ERROR: {e}', file=sys.stderr)
     sys.exit(1)
@@ -199,8 +263,15 @@ if result:
         print(json.dumps(result, indent=True, sort_keys=True))
     else:
         if isinstance(result, dict):
-            from pprint import pprint
-            pprint(result)
+            import rapidtables
+            tbl = [
+                dict(attr=k, value=result[k])
+                for k in sorted(result.keys())
+                if k != 'res'
+            ]
+            if 'res' in result.keys():
+                tbl.insert(0, dict(attr='res', value=result['res']))
+            rapidtables.print_table(tbl)
         elif isinstance(result, list):
             import rapidtables
             rapidtables.print_table(result)
