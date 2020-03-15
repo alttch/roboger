@@ -161,7 +161,8 @@ def push(**kwargs):
         level = convert_level(kwargs.get('level'))
         location = kwargs.get('location')
         if location == '': location = None
-        tag = kwargs.get('tag')
+        # TODO: remove keywords when removing legacy
+        tag = kwargs.get('keywords', kwargs.get('tag'))
         if tag == '': tag = None
         sender = kwargs.get('sender')
         if sender == '': sender = None
