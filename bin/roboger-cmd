@@ -3,6 +3,7 @@
 import os
 import yaml
 import tempfile
+import logging
 from pathlib import Path
 
 dir_me = Path(__file__).absolute().parents[1]
@@ -14,8 +15,11 @@ sys.path.insert(0, dir_me.as_posix())
 
 import argparse
 
+logger = logging.getLogger('roboger')
+
 ap = argparse.ArgumentParser()
 
+ap.add_argument('--debug', help=f'client debug mode', action='store_true')
 ap.add_argument(
     '-T',
     '--timeout',
@@ -37,15 +41,18 @@ sp = ap.add_subparsers(dest='command', help='command to execute', required=True)
 
 sp_test = sp.add_parser('test', help='Test server')
 
-for prs in [('addr', 'a'), ('endpoint', 'e', 'ep'),
+for prs in [('addr', 'a'), ('endpoint', 'e', 'ep', 'end'),
             ('subscription', 's', 'sub')]:
     i = prs[0]
     iap = sp.add_parser(i, help=f'{i} management', aliases=prs[1:])
-    funcs = [('list', 'ls', 'l'), ('create', 'cr'), ('describe', 'des', 'ds'),
-             ('edit', 'ed', 'e'), ('delete', 'del'), ('disable', 'dis'),
-             ('enable', 'en'), ('apply', 'apl')]
+    funcs = [('list', 'ls', 'l'), ('create', 'cr'),
+             ('describe', 'des', 'desc', 'ds'), ('edit', 'ed', 'e'),
+             ('delete', 'del'), ('disable', 'dis'), ('enable', 'en'),
+             ('apply', 'apl')]
     if i == 'addr':
         funcs.append(('change', 'ch'))
+    elif i == 'endpoint':
+        funcs.append(('copysub',))
     isp = iap.add_subparsers(dest='func', help=f'{i} commands', required=True)
     for fs in funcs:
         f = fs[0]
@@ -55,6 +62,12 @@ for prs in [('addr', 'a'), ('endpoint', 'e', 'ep'),
             x.add_argument('resource', help='current/parent resource')
         if i == 'endpoint' and f == 'create':
             x.add_argument('plugin_name', help='plugin name')
+        if i == 'endpoint' and f == 'copysub':
+            x.add_argument('target_resource', help='current/parent resource')
+            x.add_argument(
+                '--replace',
+                help='Replace (remove existing) target subscriptions',
+                action='store_true')
         if f == 'apply':
             reqn.add_argument('-f',
                               '--input-file',
@@ -62,6 +75,10 @@ for prs in [('addr', 'a'), ('endpoint', 'e', 'ep'),
                               required=True)
 
 a = ap.parse_args()
+
+if a.debug:
+    logger.setLevel(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
 
 import roboger.manager
 
@@ -76,6 +93,7 @@ else:
         fname = dir_me / 'etc/roboger.yml'
     if not Path(fname).exists():
         fname = '/usr/local/etc/roboger.yml'
+logger.debug(f'Client using config file {fname}')
 with open(fname) as fh:
     config = yaml.load(fh.read())
 
@@ -141,7 +159,7 @@ def edit_obj(obj):
 def process_obj_func(obj, format_func):
     if a.func in ['delete', 'del']:
         obj.delete()
-    elif a.func in ['describe', 'des', 'ds']:
+    elif a.func in ['describe', 'des', 'desc', 'ds']:
         obj.load()
         return format_func(obj)
     elif a.func in ['edit', 'ed']:
@@ -183,6 +201,16 @@ def format_subscription(obj):
     return d
 
 
+def split_res(res, amnt):
+    if res.count('.') != amnt:
+        raise ValueError
+    result = res.split('.', amnt)
+    for x in result:
+        if not x:
+            raise ValueError
+    return result
+
+
 try:
     if a.command == 'test':
         result = api.test()
@@ -201,7 +229,7 @@ try:
                 result = addr.a
             else:
                 result = process_obj_func(addr, format_addr)
-    elif a.command in ['endpoint', 'e', 'ep']:
+    elif a.command in ['endpoint', 'e', 'ep', 'end']:
         if a.func in ['list', 'ls', 'l']:
             addr = roboger.manager.Addr(id=a.resource)
             result = [
@@ -217,16 +245,26 @@ try:
                 addr.create_endpoint(plugin_name=a.plugin_name))
         else:
             try:
-                addr_id, ep_id = a.resource.split('.', 1)
+                addr_id, ep_id = split_res(a.resource, 1)
             except ValueError:
                 raise Exception(
                     'Please specify correct resource path: addr_id.endpoint_id')
             ep = roboger.manager.Endpoint(id=ep_id, addr_id=addr_id)
-            result = process_obj_func(ep, format_endpoint)
+            if a.func in ['copysub']:
+                try:
+                    addr2_id, ep2_id = split_res(a.target_resource, 1)
+                except ValueError:
+                    raise Exception(
+                        'Please specify correct target resource path: addr_id.endpoint_id'
+                    )
+                ep2 = roboger.manager.Endpoint(id=ep2_id, addr_id=addr2_id)
+                ep.copysub(target=ep2, replace=a.replace)
+            else:
+                result = process_obj_func(ep, format_endpoint)
     elif a.command in ['subscription', 's', 'sub']:
         if a.func in ['list', 'create', 'ls', 'l', 'cr']:
             try:
-                addr_id, ep_id = a.resource.split('.', 1)
+                addr_id, ep_id = split_res(a.resource, 1)
             except ValueError:
                 raise Exception(
                     'Please specify correct resource path: addr_id.endpoint_id')
@@ -243,7 +281,7 @@ try:
                 result = format_subscription(ep.create_subscription())
         else:
             try:
-                addr_id, ep_id, s_id = a.resource.split('.', 2)
+                addr_id, ep_id, s_id = split_res(a.resource, 2)
             except ValueError:
                 raise Exception('Please specify correct resource path: '
                                 'addr_id.endpoint_id.subscription_id')

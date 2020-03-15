@@ -1,6 +1,4 @@
 - [ ] migrate CLI
-  - [ ] endpoint
-    - [ ] copysub
   - [ ] deploy
 - [ ] auto create db
 - [ ] test with mysql and sqlite3
