@@ -45,18 +45,26 @@ for prs in [('addr', 'a'), ('endpoint', 'e', 'ep', 'end'),
             ('subscription', 's', 'sub')]:
     i = prs[0]
     iap = sp.add_parser(i, help=f'{i} management', aliases=prs[1:])
-    funcs = [('list', 'ls', 'l'), ('create', 'cr'),
-             ('describe', 'des', 'desc', 'ds'), ('edit', 'ed', 'e'),
-             ('delete', 'del'), ('disable', 'dis'), ('enable', 'en'),
-             ('apply', 'apl')]
+    funcs = [('list resources', 'list', 'ls', 'l'),
+             ('create new sub-resource', 'create', 'cr'),
+             ('describe resource', 'describe', 'des', 'desc', 'ds'),
+             ('edit resource', 'edit', 'ed', 'e'),
+             ('delete resource', 'delete', 'del'),
+             ('disable resource', 'disable', 'dis'),
+             ('enable resource', 'enable', 'en'),
+             ('apply resource properties from JSON or YAML file', 'apply',
+              'apl')]
     if i == 'addr':
-        funcs.append(('change', 'ch'))
+        funcs.append(('re-generate address', 'change', 'ch'))
     elif i == 'endpoint':
-        funcs.append(('copysub',))
+        funcs.append((
+            'copy subscriptions',
+            'copysub',
+        ))
     isp = iap.add_subparsers(dest='func', help=f'{i} commands', required=True)
     for fs in funcs:
-        f = fs[0]
-        x = isp.add_parser(f, aliases=fs[1:])
+        f = fs[1]
+        x = isp.add_parser(f, help=fs[0], aliases=fs[2:])
         reqn = x.add_argument_group('required named arguments')
         if i != 'addr' or f not in ['list', 'create']:
             x.add_argument('resource', help='current/parent resource')
