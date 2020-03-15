@@ -429,6 +429,8 @@ def endpoint_update(endpoint_id, data, validate_config=False, plugin_name=None):
             except Exception as e:
                 raise ValueError(e)
         for k, v in data.items():
+            if k == 'active':
+                v = int(v)
             if not db.execute(
                     sql(f"""
             UPDATE endpoint SET {k}=:v WHERE id=:id
@@ -545,6 +547,8 @@ def subscription_update(subscription_id, data):
                     v = 'ge'
                 elif v.endswith('t'):
                     v = v[0]
+            elif k == 'active':
+                v = int(v)
             if not db.execute(
                     sql(f"""
             UPDATE subscription SET {k}=:v WHERE id=:id
