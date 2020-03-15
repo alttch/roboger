@@ -1,6 +1,7 @@
 - [ ] migrate CLI
   - [ ] endpoint
     - [ ] copysub
+  - [ ] fancy print tables
   - [ ] apply
   - [ ] deploy
 - [ ] auto create db
