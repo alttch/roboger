@@ -303,9 +303,14 @@ def test20_push():
     assert not test_data.webhook_payload
     s.level = roboger.WARNING
     s.save()
+    del payload['sender']
+    del payload['tag']
     push(json=payload)
     time.sleep(0.2)
     assert test_data.webhook_payload['event_id']
+    assert test_data.webhook_payload['sender'] is None
+    assert test_data.webhook_payload['tag'] is None
+    assert test_data.webhook_payload['location'] == 'home'
     addr.delete()
 
 
