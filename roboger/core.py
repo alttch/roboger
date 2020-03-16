@@ -1,7 +1,7 @@
 __author__ = 'Altertech, http://www.altertech.com/'
 __copyright__ = 'Copyright (C) 2018-2020 Altertech Group'
 __license__ = 'Apache License 2.0'
-__version__ = '2.0.5'
+__version__ = '2.0.6'
 
 import platform
 import os
@@ -145,7 +145,7 @@ def load(fname=None):
         except:
             try:
                 mod = importlib.import_module(
-                    'roboger-plugin-{}'.format(plugin_name))
+                    'robogercontrib-{}'.format(plugin_name))
             except:
                 logger.error(f'CORE unable to load plugin: {plugin_name}')
                 log_traceback()
