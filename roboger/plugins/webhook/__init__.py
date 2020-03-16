@@ -1,3 +1,6 @@
+__version__ = '1.0.0'
+__description__ = 'sends event via custom webhook'
+
 import requests
 import re
 

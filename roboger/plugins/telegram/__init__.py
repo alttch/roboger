@@ -1,3 +1,6 @@
+__version__ = '1.0.0'
+__description__ = 'sends event via Telegram bot'
+
 import tebot.bot
 
 from roboger.core import logger, log_traceback, config as core_config

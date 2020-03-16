@@ -1,3 +1,6 @@
+__version__ = '1.0.0'
+__description__ = 'sends event to Slack'
+
 import requests
 
 from jsonschema import validate
