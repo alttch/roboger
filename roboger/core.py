@@ -1,7 +1,7 @@
 __author__ = 'Altertech, http://www.altertech.com/'
 __copyright__ = 'Copyright (C) 2018-2020 Altertech Group'
 __license__ = 'Apache License 2.0'
-__version__ = '1.5.0'
+__version__ = '2.0.0'
 
 import platform
 import os
@@ -105,12 +105,14 @@ def load(fname=None):
             except:
                 pass
 
+    logger.info(f'CORE Roboger server {__version__} {product.build}')
     if not fname:
         fname = os.environ.get('ROBOGER_CONFIG')
     if not fname:
         fname = f'{dir_me}/etc/roboger.yml'
     if not Path(fname).exists:
         fname = '/usr/local/etc/roboger.yml'
+    logger.debug(f'CORE using config file {fname}')
     with open(fname) as fh:
         config.update(yaml.load(fh.read())['roboger'])
     _d.secure_mode = config.get('secure-mode')

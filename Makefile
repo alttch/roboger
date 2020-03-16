@@ -1,5 +1,11 @@
+VERSION=2.0.0
+
 all:
 	@echo "Select target"
+
+ver:
+	find . -type f -name "*.py" -exec sed -i "s/^__version__ = .*/__version__ = '${VERSION}'/g" {} \;
+	find ./bin -type f -exec sed -i "s/^__version__ = .*/__version__ = '${VERSION}'/g" {} \;
 
 test: test-sqlite test-mysql test-postgresql
 

@@ -1,7 +1,7 @@
 __author__ = 'Altertech, http://www.altertech.com/'
 __copyright__ = 'Copyright (C) 2018-2020 Altertech Group'
 __license__ = 'Apache License 2.0'
-__version__ = '1.5.0'
+__version__ = '2.0.0'
 
 import sys
 import os
