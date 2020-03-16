@@ -1,0 +1,14 @@
+[Unit]
+Description=Roboger
+After=network.target
+
+[Service]
+Type=forking
+User=root
+ExecStart=/usr/local/bin/roboger-control start
+ExecStop=/usr/local/bin/roboger-control stop
+Restart=no
+TimeoutStartSec=10
+
+[Install]
+WantedBy=multi-user.target
