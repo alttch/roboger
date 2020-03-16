@@ -9,3 +9,4 @@ etc/roboger_push.ini
 lib/_test.py
 data
 .idea/
+roboger.egg-info
