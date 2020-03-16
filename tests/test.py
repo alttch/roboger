@@ -31,6 +31,8 @@ pidfile = '/tmp/roboger-test-{}.pid'.format(os.getpid())
 logfile = '/tmp/roboger-test-gunicorn-{}.log'.format(os.getpid())
 configfile = '/tmp/roboger-test-{}.yml'.format(os.getpid())
 
+gunicorn = os.getenv('GUNICORN', 'gunicorn')
+
 dbconn = os.environ['DBCONN']
 engine = sqlalchemy.create_engine(dbconn)
 c = engine.connect()
@@ -73,6 +75,7 @@ with open(configfile, 'w') as fh:
             - name: slack
         gunicorn:
             listen: {test_server_bind}:{test_server_port}
+            gunicorn: {gunicorn}
             start-failed-after: 5
             force-stop-after: 10
             launch-debug: true
@@ -107,7 +110,7 @@ def start_servers():
                      },
                      daemon=True).start()
     if os.system(f'ROBOGER_CONFIG={configfile} ROBOGER_MASTERKEY=123 '
-                 f'gunicorn -D -b {test_server_bind}:{test_server_port}'
+                 f'{gunicorn} -D -b {test_server_bind}:{test_server_port}'
                  f' --log-file {logfile} --log-level DEBUG'
                  f' --pid {pidfile} roboger.server:app'):
         raise RuntimeError('Failed to start gunicorn')
