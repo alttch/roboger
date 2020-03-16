@@ -23,12 +23,12 @@ PROPERTY_MAP_SCHEMA = {
     'additionalProperties': False
 }
 
-_copy_fields = ['msg', 'subject', 'level', 'location', 'tag', 'sender']
+_copy_fields = ['addr', 'msg', 'subject', 'level', 'location', 'tag', 'sender']
 
 
 def send(config, **kwargs):
     url = config['url']
-    data = {k: kwargs.get(k) for k in kwargs}
+    data = {k: kwargs.get(k) for k in _copy_fields}
     data['media'] = kwargs.get('media_encoded')
     logger.debug(
         f'{__name__} {kwargs["event_id"]} sending Roboger chain event to {url}')
