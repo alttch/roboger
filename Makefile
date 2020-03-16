@@ -28,7 +28,10 @@ test-postgresql:
 clean:
 	rm -rf dist build roboger.egg-info
 
-d: test build
+d: clean test sdist
+
+sdist:
+	python3 setup.py sdist
 
 build: clean build-packages
 
