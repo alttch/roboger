@@ -18,20 +18,25 @@ PROPERTY_MAP_SCHEMA = {
         'url': {
             'type': 'string',
             'format': 'uri'
+        },
+        'addr': {
+            'type': 'string'
         }
     },
     'additionalProperties': False
 }
 
-_copy_fields = ['addr', 'msg', 'subject', 'level', 'location', 'tag', 'sender']
+_copy_fields = ['msg', 'subject', 'level', 'location', 'tag', 'sender']
 
 
 def send(config, **kwargs):
     url = config['url']
+    addr = config['addr']
     data = {k: kwargs.get(k) for k in _copy_fields}
     data['media'] = kwargs.get('media_encoded')
-    logger.debug(
-        f'{__name__} {kwargs["event_id"]} sending Roboger chain event to {url}')
+    data['addr'] = addr
+    logger.debug(f'{__name__} {kwargs["event_id"]} '
+                 f'sending Roboger chain event to {url} {addr}')
     r = requests.post(url,
                       headers={'User-Agent': product.user_agent},
                       json=data,
