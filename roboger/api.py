@@ -160,8 +160,8 @@ def ping(**kwargs):
 def push(**kwargs):
     try:
         event_id = str(uuid.uuid4())
-        addr = kwargs.get('addr')
-        logger.info(f'API message to {addr}')
+        a = kwargs.get('addr', kwargs.get('a'))
+        logger.info(f'API message to {a}')
         msg = kwargs.get('msg', '')
         subject = kwargs.get('subject', '')
         level = convert_level(kwargs.get('level'))
@@ -191,13 +191,23 @@ def push(**kwargs):
         elif location:
             formatted_subject = location
         if subject: formatted_subject += f': {subject}'
-        limit_check = is_use_limits()
+        try:
+            addr = addr_get(addr=a)
+            if addr['active'] < 1:
+                return Response(f'addr {a} is disabled', status=406)
+            if is_use_limits():
+                check_addr_limit(addr, level=level, size=request.content_length)
+        except LookupError:
+            logger.info(f'API no such address: {a}')
+            return _response_not_found(f'addr {a} not found')
+        except OverlimitError as e:
+            return Response(str(e), status=429)
         for row in get_db().execute(sql("""
-            SELECT plugin_name, config{}
+            SELECT plugin_name, config
             FROM subscription JOIN endpoint ON
                 endpoint.id = subscription.endpoint_id JOIN addr ON
                 endpoint.addr_id = addr.id WHERE
-                addr.a=:addr
+                addr.a=:a
                 AND addr.active=1
                 AND subscription.active = 1
                 AND endpoint.active = 1
@@ -211,18 +221,12 @@ def push(**kwargs):
                     (level>:level and level_match='l') OR
                     (level>=:level and level_match='le')
                     )
-                    """.format(', addr.lim as lim' if limit_check else '')),
-                                    addr=addr,
+                    """),
+                                    a=a,
                                     location=location,
                                     tag=tag,
                                     sender=sender,
                                     level=level):
-            if limit_check:
-                try:
-                    check_addr_limit(addr, row.lim, level)
-                    limit_check = False
-                except OverlimitError as e:
-                    return Response(str(e), status=429)
             send(row.plugin_name,
                  config=json.loads(row.config)
                  if is_parse_db_json() else row.config,
@@ -525,13 +529,16 @@ def r_addr_create():
 
 
 @admin_method
-def r_addr_modify(a, active=None, lim=None):
+def r_addr_modify(a, active=None, lim_c=None, lim_s=None):
     addr_id, addr = _process_addr(a)
     try:
         if active is not None:
             addr_set_active(addr_id=addr_id, addr=addr, active=int(active))
-        if lim is not None:
-            addr_set_limit(addr_id=addr_id, addr=addr, limit=int(lim))
+        if lim_c is not None or lim_s is not None:
+            addr_set_limit(addr_id=addr_id,
+                           addr=addr,
+                           lim_c=int(lim_c),
+                           lim_s=int(lim_s))
         return jsonify(addr_get(addr_id=addr_id,
                                 addr=addr)) if _accept_resource(
                                     'roboger.addr') else _response_empty()

@@ -44,6 +44,8 @@ sp_deploy = sp.add_parser('deploy', help='deploy configuration')
 sp_deploy.add_argument('--delete-everything',
                        help='DELETE ALL RESOURCES on server before deployment',
                        action='store_true')
+sp_test = sp.add_parser('reset-addr-limits',
+                        help='reset address limits (if used)')
 reqn = sp_deploy.add_argument_group('required named arguments')
 reqn.add_argument('-f',
                   '--input-file',
@@ -233,6 +235,8 @@ def split_res(res, amnt):
 try:
     if a.command == 'test':
         result = api.test()
+    if a.command == 'reset-addr-limits':
+        result = api.reset_addr_limits()
     elif a.command == 'deploy':
         if a.input_file == 'stdin':
             fc = sys.stdin.read()
@@ -282,7 +286,8 @@ try:
     elif a.command in ['addr', 'a']:
         if a.func in ['list', 'ls', 'l']:
             result = [
-                format_dict(d, ['res', 'a', 'active', 'lim'], {'res': d['id']})
+                format_dict(d, ['res', 'a', 'active', 'lim_c', 'lim_s'],
+                            {'res': d['id']})
                 for d in roboger.manager.list_addr()
             ]
         elif a.func in ['create', 'cr']:

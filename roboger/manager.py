@@ -152,7 +152,8 @@ class Addr(_RobogerObject):
     def __init__(self, **kwargs):
         self._property_fields = ['id', 'a', 'active']
         if use_limits:
-            self._property_fields.append('lim')
+            self._property_fields.append('lim_c')
+            self._property_fields.append('lim_s')
         self._protected_fields = ['a']
         self._creation_fields = []
         self._resource_class_uri = lambda: '/addr'

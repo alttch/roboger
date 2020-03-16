@@ -150,21 +150,27 @@ def test011_addr():
     assert x['id']
     assert x['a']
     assert x['active']
-    if roboger.manager.use_limits: int(addr.lim)
+    if roboger.manager.use_limits:
+        int(addr.lim_c)
+        int(addr.lim_s)
     # get addr
     addr2 = Addr(id=addr.id, api=api)
     addr2.load()
     assert addr2.id == addr.id
     assert addr2.a == addr.a
     assert addr2
-    if roboger.manager.use_limits: int(addr.lim)
+    if roboger.manager.use_limits:
+        int(addr.lim_c)
+        int(addr.lim_s)
     # get addr by id
     addr2.id = None
     addr2.load()
     assert addr2.id == addr.id
     assert addr2.a == addr.a
     assert addr2
-    if roboger.manager.use_limits: int(addr.lim)
+    if roboger.manager.use_limits:
+        int(addr.lim_c)
+        int(addr.lim_s)
     # change addr
     addr.change()
     assert addr2.id == addr.id

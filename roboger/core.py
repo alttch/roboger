@@ -8,7 +8,6 @@ import os
 import sys
 import importlib
 import logging
-import logging.handlers
 import threading
 import traceback
 import sqlalchemy
@@ -205,14 +204,19 @@ def init_db():
                         primary_key=True,
                         autoincrement=True),
                  Column('a', CHAR(64), nullable=False, unique=True),
+                 Index('addr_a', 'a'),
                  Column('active',
                         Numeric(1, 0),
                         nullable=False,
                         server_default='1'),
-                 Column('lim',
+                 Column('lim_c',
                         Numeric(8, 0),
                         nullable=False,
                         server_default='100'),
+                 Column('lim_s',
+                        Numeric(12, 0),
+                        nullable=False,
+                        server_default='10000000'),
                  mysql_engine='InnoDB',
                  mysql_charset='latin1')
     endpoint = Table('endpoint',
@@ -233,7 +237,7 @@ def init_db():
                             server_default='1'),
                      Column('description', VARCHAR(255), nullable=True),
                      mysql_engine='InnoDB',
-                     mysql_charset='latin1')
+                     mysql_charset='utf8mb4')
     subscription = Table('subscription',
                          meta,
                          Column('id',
@@ -260,7 +264,7 @@ def init_db():
                                 nullable=False,
                                 server_default='ge'),
                          mysql_engine='InnoDB',
-                         mysql_charset='latin1')
+                         mysql_charset='utf8mb4')
     meta.create_all(_d.db)
 
 
@@ -322,6 +326,8 @@ def convert_level(level):
             return 40
         elif level.startswith('c'):
             return 50
+        else:
+            return 20
     else:
         return 20
 
@@ -345,33 +351,59 @@ def _safe_send(plugin_name, send_func, event_id, **kwargs):
         log_traceback()
 
 
-def check_addr_limit(addr, lim, level):
-    key = f'{addr}.limit'
+def check_addr_limit(addr, level, size):
+    a = addr['a']
+    lim_c = addr['lim_c']
+    lim_s = addr['lim_s']
+    key_c = f'{a}.lim_c'
+    key_s = f'{a}.lim_s'
     try:
-        current = int(_d.redis_conn.get(key))
-    except TypeError:
-        current = 0
+        try:
+            current_c = int(_d.redis_conn.get(key_c))
+        except TypeError:
+            current_c = 0
+        try:
+            current_s = int(_d.redis_conn.get(key_s))
+        except TypeError:
+            current_s = 0
     except Exception as e:
         logger.error(f'CORE Redis error: {e}')
         return
+    logger.debug(f'checking limits for {a}, current: '
+                 f'{current_c}, size: {current_s}, current msg level: {level}')
     try:
-        if current >= lim:
-            logger.info(f'CORE address overlimit {addr} for all priorities')
+        if current_c >= lim_c:
+            logger.info(f'CORE address count overlimit {a} for all priorities')
             raise OverlimitError(
-                f'Messages to {addr} are limited by {lim} per '
+                f'Messages to {a} are limited by {lim_c} per '
                 f'{_d.limits["period"]}. Limit has been reached')
-        elif current >= lim - (lim / 100 * _d.limits['reserve']) and level < 30:
-            logger.info(f'CORE address overlimit {addr} for low-priority')
-            raise OverlimitError(f'Messages to {addr} are limited by {lim} per '
+        elif current_c >= lim_c - (lim_c / 100 *
+                                   _d.limits['reserve']) and level < 30:
+            logger.info(f'CORE address count overlimit {a} for low-priority')
+            raise OverlimitError(f'Messages to {a} are limited by {lim_c} per '
                                  f'{_d.limits["period"]}, '
                                  f'{_d.limits["reserve"]}% are reserved for '
                                  'WARNING and higher levels')
-        else:
-            _d.redis_conn.incr(key)
+        if current_s >= lim_s + size:
+            logger.info(f'CORE address size overlimit {a} for all priorities')
+            raise OverlimitError(
+                f'Messages to {a} are limited by {lim_s} bytes per '
+                f'{_d.limits["period"]}. Limit has been reached')
+        elif current_s >= lim_s - (lim_s / 100 *
+                                   _d.limits['reserve']) and level < 30:
+            logger.info(f'CORE address size overlimit {a} for low-priority')
+            raise OverlimitError(
+                f'Messages to {a} are limited by {lim_s} bytes per '
+                f'{_d.limits["period"]}, '
+                f'{_d.limits["reserve"]}% are reserved for '
+                'WARNING and higher levels')
+        _d.redis_conn.incr(key_c)
+        _d.redis_conn.incr(key_s, size)
     except OverlimitError:
         raise
     except Exception as e:
         logger.error(f'CORE check limit error: {e}')
+        log_traceback()
 
 
 def reset_addr_limits():
@@ -395,7 +427,7 @@ def delete_everything():
 def addr_get(addr_id=None, addr=None):
     result = get_db().execute(sql(
         """SELECT id, a, active{} FROM addr WHERE id=:id or a=:a""".format(
-            ',lim' if _d.limits else '')),
+            ',lim_c,lim_s' if _d.limits else '')),
                               id=addr_id,
                               a=addr).fetchone()
     if result:
@@ -407,7 +439,7 @@ def addr_get(addr_id=None, addr=None):
 def addr_list():
     return db_list(
         sql("""SELECT id, a, active{} FROM addr ORDER BY id""".format(
-            ',lim' if _d.limits else '')))
+            ',lim_c, lim_s' if _d.limits else '')))
 
 
 def addr_create():
@@ -449,17 +481,24 @@ def addr_set_active(addr_id=None, addr=None, active=1):
         raise LookupError
 
 
-def addr_set_limit(addr_id=None, addr=None, limit=None):
-    if limit:
-        if get_db().execute(sql("""
-                UPDATE addr SET lim=:limit WHERE id=:id or a=:a
+def addr_set_limit(addr_id=None, addr=None, lim_c=None, lim_s=None):
+    if lim_c is not None:
+        if not get_db().execute(sql("""
+                UPDATE addr SET lim_c=:lim_c WHERE id=:id or a=:a
                 """),
-                            limit=limit,
-                            id=addr_id,
-                            a=addr).rowcount:
-            return addr_get(addr_id=addr_id, addr=addr)
-        else:
+                                lim_c=lim_c,
+                                id=addr_id,
+                                a=addr).rowcount:
             raise LookupError
+    if lim_s is not None:
+        if not get_db().execute(sql("""
+                UPDATE addr SET lim_s=:lim_s WHERE id=:id or a=:a
+                """),
+                                lim_s=lim_s,
+                                id=addr_id,
+                                a=addr).rowcount:
+            raise LookupError
+    return addr_get(addr_id=addr_id, addr=addr)
 
 
 def addr_delete(addr_id=None, addr=None):
