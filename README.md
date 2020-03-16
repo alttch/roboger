@@ -68,12 +68,22 @@ Note: if you want to send media attachments with roboger-push, you should have
 local *openssl* CLI installed (it's actually installed everywhere by default,
 we just warn you about that)
 
+# Managing
+
+Use *roboger-cmd* to manage the server. Install CLI-only:
+
+```
+pip3 install roboger-cmd
+```
+
 # Python client module
 
 Client module for Python 3: https://github.com/alttch/pyrpush. The module can
 be installed with pip3:
 
-    pip3 install pyrpush
+```
+pip3 install pyrpush
+```
     
 Usage example:
  
@@ -94,7 +104,7 @@ can remove *roboger-push* script after the installation)
 
 ## On the local machine
 
-Install module
+Install with pip:
 
 ```
 pip3 install roboger
@@ -132,14 +142,97 @@ prints everything to stdout)
 
 # Endpoint plugins
 
-* **email** sends email notifications. Config: *rcpt=mail_address* (requires
-  SMTP server on localhost or point to the right one in ./etc/roboger.ini)
-* *webhook* sends HTTP/POST request. Config: *url=url*, *template=JSON_template_string*
-* **slack** sends notification in Slack. Config: *url=slack_webhook_url*,
-  *rich=true* (for rich text notifications)
-* **telegram** sends notifications in Telegram. Config: *chat_id=your_chat_id*
+## email
 
-# How it works with Telegram
+Sends email notifications
+
+endpoint config:
+
+```json
+{
+  "rcpt" : "some@mail_address"
+}
+```
+
+server config:
+
+```yaml
+- name: email
+  config:
+    smtp-server: your-smtp-server:port
+```
+
+**Note: plugin always requires "sender" field in event push payload.**
+
+## webhook
+
+Sends event web hook HTTP/POST request.
+
+endpoint config:
+
+```json
+{
+  "url" : "http://some.domain/some-webhook-url",
+  "template": "{ "event_id" : $event_id, "name": "value", "name2": "value2" }"
+}
+```
+
+You may use the following variables in template (quotes for variables are not
+required, plugin quotes variables automatically, if necesseary):
+
+* **$event_id** event uuid
+* **$msg** message text
+* **$subject** subject
+* **$formatted_subject** pre-formatted extended subject
+* **$level** level number (10 = DEBUG, 20 = INFO, 30 = WARNING, 40 = ERROR, 50
+  = CRITICAL)
+* **$level_name** level name
+* **$location** event location (if specified)
+* **$tag** event tag (if specified)
+* **$sender** event sender (if specified)
+* **$media** base64-encoded media, if attached
+
+server config: not required
+
+## slack
+
+Sends notification in Slack.
+
+endpoint config:
+
+```json
+{
+  "url" : "http://some-slack-web-hook.domain/your-webhook-url",
+  "rich": true
+}
+```
+
+If "rich" is true, rich text notification will be sent. Note that this plugin
+doesn't support attachments.
+
+server config: not required
+
+## telegram
+
+sends notifications in Telegram
+
+endpoint config:
+
+```json
+{
+  "chat_id" : "encrypted chat id, obtained from roboger bot"
+}
+```
+
+server config:
+
+```yaml
+- name: telegram
+  config:
+    token: your-telegram-bot-token
+```
+
+How it works with Telegram:
 
 * Firstly you need to register your own bot and obtain bot token
   (https://core.telegram.org/bots#6-botfather)
@@ -147,8 +240,7 @@ prints everything to stdout)
   Telegram plugin uses this param to process and register web hooks.
 * Put bot token to plugin configuration in server config and restart roboger server
 * Find your bot in Telegram and write something to chat
-* Bot will instantly report you your Chat ID. Use it for *chat_id=chat_id*
-  config param when creating endpoint.
+* Bot will instantly report your encrypted Chat ID.
 
 Note: roboger Chat ID is different from integer Telegram Chat ID. Actually it's
 encrypted with your bot token to avoid people brute forcing chat IDs of shared
