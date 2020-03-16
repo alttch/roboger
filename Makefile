@@ -1,4 +1,4 @@
-VERSION=2.0.4
+VERSION=2.0.5
 
 DOCKER_TEST_DB=172.16.99.254
 DOCKER_TEST_NETWORK=testnet
@@ -56,7 +56,7 @@ docker-build:
 	docker tag altertech/roboger:${VERSION}-${BUILD_NUMBER} altertech/roboger:latest
 
 docker-test:
-	docker run --network ${DOCKER_TEST_NETWORK} test env GUNICORN=/opt/venv/bin/gunicorn \
+	docker run --network ${DOCKER_TEST_NETWORK} altertech/roboger:latest env GUNICORN=/opt/venv/bin/gunicorn \
 		DBCONN=postgresql://roboger:123@${DOCKER_TEST_DB}/roboger \
 		/opt/venv/bin/pytest -x /usr/local/roboger-test.py
 
