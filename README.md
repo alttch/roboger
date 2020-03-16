@@ -142,17 +142,6 @@ from scratch, for the existing resources use auto-deployment.
 
 * customize /usr/local/etc/roboger_push.ini if required
 
-# Launching with supervisord
-
-(if working with supervisord, log rotation is not required because roboger
-prints everything to stdout)
-
-* install superlance httpok (pip install superlance)
-* copy etc/supervisor/conf.d/roboger.conf to /etc/supervisor/conf.d
-* put a string to etc/roboger.ini [server] section:
-
-    supervisord_program = roboger
-
 # Endpoint plugins
 
 ## email
@@ -191,9 +180,10 @@ endpoint config:
 ```
 
 You may use the following variables in template (quotes for variables are not
-required, plugin quotes variables automatically, if necesseary):
+required, plugin quotes variables automatically, if necessary):
 
 * **$event_id** event uuid
+* **$addr** event recipient address
 * **$msg** message text
 * **$subject** subject
 * **$formatted_subject** pre-formatted extended subject
@@ -204,6 +194,22 @@ required, plugin quotes variables automatically, if necesseary):
 * **$tag** event tag (if specified)
 * **$sender** event sender (if specified)
 * **$media** base64-encoded media, if attached
+
+server config: not required
+
+## chain
+
+Allows to forward event to another Roboger server. Be careful to avoid event
+loops!
+
+endpoint config:
+
+```json
+{
+  "url" : "http://another-roboger-server/push",
+  "addr" : "roboger address on target server"
+}
+```
 
 server config: not required
 
