@@ -17,7 +17,8 @@ setuptools.setup(name='roboger',
                  license='Apache License 2.0',
                  install_requires=[
                      'requests', 'pyyaml', 'sqlalchemy', 'pyaltt2', 'flask',
-                     'jsonschema', 'python-rapidjson', 'netaddr'
+                     'jsonschema', 'python-rapidjson', 'netaddr', 'filetype',
+                     'tebot'
                  ],
                  classifiers=(
                      'Programming Language :: Python :: 3',
