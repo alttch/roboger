@@ -1,4 +1,7 @@
-VERSION=2.0.2
+VERSION=2.0.4
+
+DOCKER_TEST_DB=172.16.99.254
+DOCKER_TEST_NETWORK=testnet
 
 all:
 	@echo "Select target"
@@ -6,6 +9,7 @@ all:
 ver:
 	find . -type f -name "*.py" -exec sed -i "s/^__version__ = .*/__version__ = '${VERSION}'/g" {} \;
 	find ./bin -type f -exec sed -i "s/^__version__ = .*/__version__ = '${VERSION}'/g" {} \;
+	sed -i "s/roboger==.*/roboger==${VERSION}/" Dockerfile
 
 test: test-sqlite test-mysql test-postgresql
 
@@ -43,3 +47,19 @@ pub:
 
 pub-pypi:
 	twine upload dist/*
+	sleep 30
+
+docker: docker-build docker-test
+
+docker-build:
+	docker build -t altertech/roboger:${VERSION}-${BUILD_NUMBER} .
+	docker tag altertech/roboger:${VERSION}-${BUILD_NUMBER} altertech/roboger:latest
+
+docker-test:
+	docker run --network ${DOCKER_TEST_NETWORK} test env GUNICORN=/opt/venv/bin/gunicorn \
+		DBCONN=postgresql://roboger:123@${DOCKER_TEST_DB}/roboger \
+		/opt/venv/bin/pytest -x /usr/local/roboger-test.py
+
+docker-pub:
+	docker push altertech/roboger:${VERSION}-${BUILD_NUMBER}
+	docker push altertech/roboger:latest

@@ -8,7 +8,6 @@ import requests
 import random
 import pytest
 import threading
-import yaml
 from functools import partial
 from types import SimpleNamespace
 from flask import Flask, request, Response
@@ -75,7 +74,7 @@ with open(configfile, 'w') as fh:
             - name: slack
         gunicorn:
             listen: {test_server_bind}:{test_server_port}
-            gunicorn: {gunicorn}
+            path: {gunicorn}
             start-failed-after: 5
             force-stop-after: 10
             launch-debug: true
