@@ -21,10 +21,9 @@ _EX=1
 
 SENDER=""
 LOCATION=""
-KEYWORDS=""
+TAG=""
 LEVEL=""
 SUBJECT=""
-EXPIRES=""
 MSG=""
 MEDIA=""
 MEDIA_FILE=""
@@ -127,7 +126,7 @@ function sendPush() {
     if [ "${ADDR}" ] && [ "$PUSH" ]; then
         for ((i=1; i<=RETRIES; i+=1))
         do
-            local _data="{ \"msg\": \"${MSG}\", \"subject\": \"${SUBJECT}\", \"location\": \"${_LOCATION}\", \"keywords\": \"${KEYWORDS}\", \"expires\": \"${EXPIRES}\", \"level\": \"${LEVEL}\", \"sender\" : \"${FROM}\", \"addr\":\"${ADDR}\", \"media\": \"${MEDIA}\" }"
+            local _data="{ \"msg\": \"${MSG}\", \"subject\": \"${SUBJECT}\", \"location\": \"${_LOCATION}\", \"tag\": \"${TAG}\", \"level\": \"${LEVEL}\", \"sender\" : \"${FROM}\", \"addr\":\"${ADDR}\", \"media\": \"${MEDIA}\" }"
             local VERB=""
             if [ ${VERBOSE} == "2" ]; then
                 VERB="-v"
@@ -171,7 +170,7 @@ function sendPush() {
 function showHelp() {
 cat <<EOF
 Usage: roboger-push [-f config] [-s subject] [-l level] [-x sender]
-  [-n location] [-k keywords] [-m message] [-a file] [-v]
+  [-n location] [-t tag] [-m message] [-a file] [-v]
 
     -l  event level: debug, info(default), warning, error or critical
         you may use a single letter, i.e. 'e' for 'error'
@@ -179,7 +178,7 @@ Usage: roboger-push [-f config] [-s subject] [-l level] [-x sender]
     -s  event subject
     -x  event sender (default: user @ hostname)
     -n  event location
-    -k  event keywords (comma separated)
+    -t  event tag
     -m  event message (will be read from stdin if not specified)
     -a  attach file to message
 
@@ -208,7 +207,11 @@ do
             shift
             shift
         ;;
-        -k) KEYWORDS="$2"
+        -k) TAG="$2"
+            shift
+            shift
+        ;;
+        -t) TAG="$2"
             shift
             shift
         ;;

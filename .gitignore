@@ -1,13 +1,12 @@
-__pycache__/
-Makefile
+__pycache__
+*.pyc
 TODO
 bak.sql
 dev
 dist
-etc/roboger.ini
+etc/roboger.yml
 etc/roboger_push.ini
 lib/_test.py
 data
-var
-log
 .idea/
+roboger.egg-info

@@ -1,0 +1,35 @@
+roboger:
+  # supoorts: sqlite, mysql, postgresql
+  # for mysql requires mysql or pymsql module (pip3 install pymysql)
+  # for postgresql requires psycopg2
+  #db: postgresql://roboger:4i823h5u45Sqer@10.90.1.7/robo
+  db: mysql://roboger:password@localhost/roboger
+  # log-tracebacks: true
+  # external url, used by some plugins
+  # url: https://roboger.com
+  # real ip header
+  # ip-header: CF-Connecting-IP
+  db-pool-size: 2 # database pool size
+  thread-pool-size: 20 # plugin thread executor pool size
+  timeout: 5 # timeout for various tasks
+  master:
+    # specify masterkey in config or ROBOGER_MASTERKEY env variable
+    key: "123"
+    # specify host range for master key
+    allow:
+    - 127.0.0.1
+  plugins:
+    - name: webhook
+    - name: email
+      config:
+        smtp-server: 10.90.1.8
+    - name: slack
+    #- name: telegram # requires url set in primary section to receive web hooks
+      #config:
+        #token: your-bot-token
+  gunicorn:
+    listen: 0.0.0.0:7719
+    start-failed-after: 5
+    force-stop-after: 10
+    launch-debug: true
+    extra-options: -w 1 --log-level INFO

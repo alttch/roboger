@@ -1,5 +1,4 @@
-What is Roboger?
-----------------
+# What is Roboger?
 
 * Do you like the old good "echo alarm | sendmail me@mydomain" trick in crontab?
 * Does your software or servers send you mail/sms alerts when something is
@@ -15,8 +14,7 @@ specifically for robots.
 
 ![How Roboger works](roboger-scheme.png?raw=true "How Roboger works")
 
-What can Roboger do?
---------------------
+# What can Roboger do?
 
 * It can get notifications and forward them to specified endpoints
 * It supports endpoint types: email, http/post, http/json, Slack, Telegram and
@@ -25,8 +23,7 @@ What can Roboger do?
   don't want to use https://roboger.com/, want to have a backup alternative or
   want to use custom http web hooks.
 
-Real life example
------------------
+# Real life example
 
 You get information messages from your server to Slack, warnings to Slack and
 Telegram, errors to messengers and by mail and on critical events you want to
@@ -39,11 +36,18 @@ you.
 Now you can use Roboger, where everything is already coded, organized and can
 be set up with a couple of commands.
 
-How to use
-----------
+# How to use
 
-Firstly - set up Roboger server, create address, endpoints and subscriptions
-with **./bin/roboger-cmd**
+Start Roboger server
+
+```
+roboger-control start
+# launch in front for debugging
+roboger-control launch
+```
+
+Then create address, endpoints and subscriptions with
+[robogerctl](https://github.com/alttch/robogerctl)
 
 Then use Roboger API to send event notifications:
 
@@ -52,7 +56,7 @@ Then use Roboger API to send event notifications:
         'addr': 'towhere',
         'sender': 'from (e.g. from robot1)',
         'location': 'where something is happened',
-        'keywords': 'comma, separated, eg, serverfail, alarm, achtung',
+        'tag': 'event tag, eg, serverfail, alarm, achtung',
         'subject': 'what we are talking about',
         'msg': 'message body',
         'level': 'alarm level (debug, info, warning, error or critical)',
@@ -74,13 +78,22 @@ Note: if you want to send media attachments with roboger-push, you should have
 local *openssl* CLI installed (it's actually installed everywhere by default,
 we just warn you about that)
 
-Python client module
-----------------------
+# Managing
+
+Install robogerctl (not included in server):
+
+```
+pip3 install robogerctl
+```
+
+# Python client module
 
 Client module for Python 3: https://github.com/alttch/pyrpush. The module can
 be installed with pip3:
 
-    pip3 install pyrpush
+```
+pip3 install pyrpush
+```
     
 Usage example:
  
@@ -97,38 +110,30 @@ r.push(msg='sending you image', media_file='1.jpg', level='warning')
 The module requires **roboger-push** client installed (uses its config only, you
 can remove *roboger-push* script after the installation)
 
-Limitations
------------
+# Installation
 
-* until the launch of https://roboger.com/, stability is very limited,
-  management API can be changed at any time. Use at your own risk
+## On the local machine
 
-Installation
-------------
+Install with pip:
 
-* put roboger to */opt/roboger* (recommended)
-* install realpath and pip3
-* python3 module python3-cryptography has problems installing via pip3, install
-  it rather manually
-* run install.sh to make required dirs and install missing python3 mods
-* use sqlite database (default) or:
-  * install pymysql module (pip3 install pymysql)
-  * create mysql database 'roboger' (or set any other name you wish)
-  * create mysql user for roboger db
-  * run *mysql roboger < roboger-mysql.sql*
-* copy etc/roboger.ini.dist to etc/roboger.ini, edit required fields
-* obtain Telegram bot token for your private bot if you plan to use
-  Telegram endpoints and put it to roboger.ini as well
-* run *./sbin/roboger-control start*
-* test it: *./bin/roboger-cmd test*
-* append '/opt/roboger/sbin/roboger-control start' to /etc/rc.local or any other
-  startup place (or use *supervisord*, see below)
-* copy *./etc/logrotate.d/roboger* to */etc/logrotate.d/roboger* (not required
-  if you run roboger with supervisord)
-* that's it :)
+```
+pip3 install roboger
+```
 
-Installing roboger-push only
-----------------------------
+Get sample configuration file from github repo, put it either to
+*/opt/roboger/etc/ or to */usr/local/etc/roboger.yml* or wherever you want and
+point there ROBOGER_CONFIG env variable.
+
+Note: Roboger database v2 is not compatible with v1. Please reinstall Roboger
+from scratch, for the existing resources use auto-deployment.
+
+## Docker/Kubernetes
+
+* Pre-built image available at https://hub.docker.com/r/altertech/roboger
+* Mount server configuration somewhere and point there ROBOGER_CONFIG env
+  variable
+
+# Installing roboger-push
 
 * log in as root
 * execute the following command: 
@@ -137,14 +142,7 @@ Installing roboger-push only
 
 * customize /usr/local/etc/roboger_push.ini if required
 
-Docker image
-------------
-
-* Pre-built image available at https://hub.docker.com/r/altertech/roboger
-* Use provided sample *docker-compose.yml* to set initial params
-
-Launching with supervisord
---------------------------
+# Launching with supervisord
 
 (if working with supervisord, log rotation is not required because roboger
 prints everything to stdout)
@@ -155,36 +153,121 @@ prints everything to stdout)
 
     supervisord_program = roboger
 
-Endpoint types
---------------
+# Endpoint plugins
 
-* **email** sends email notifications. Config: *rcpt=mail_address* (requires
-  SMTP server on localhost or point to the right one in ./etc/roboger.ini)
-* **http/post** sends HTTP/POST request. Config: *url=url*, *params=request
-  variables (JSON string)*
-* **http/json** sends HTTP/POST request with JSON body. Config: *url=url*,
-  *params=request_variables (JSON string)*
-* **slack** sends notification in Slack. Config: *url=slack_webhook_url*,
-  *fmt=rich* (for rich text notifications)
-* **telegram** sends notifications in Telegram. Config: *chat_id=your_chat_id*
+## email
 
-How it works with Telegram
---------------------------
+Sends email notifications
+
+endpoint config:
+
+```json
+{
+  "rcpt" : "some@mail_address"
+}
+```
+
+server config:
+
+```yaml
+- name: email
+  config:
+    smtp-server: your-smtp-server:port
+```
+
+**Note: plugin always requires "sender" field in event push payload.**
+
+## webhook
+
+Sends event web hook HTTP/POST request.
+
+endpoint config:
+
+```json
+{
+  "url" : "http://some.domain/some-webhook-url",
+  "template": "{ "event_id" : $event_id, "name": "value", "name2": "value2" }"
+}
+```
+
+You may use the following variables in template (quotes for variables are not
+required, plugin quotes variables automatically, if necesseary):
+
+* **$event_id** event uuid
+* **$msg** message text
+* **$subject** subject
+* **$formatted_subject** pre-formatted extended subject
+* **$level** level number (10 = DEBUG, 20 = INFO, 30 = WARNING, 40 = ERROR, 50
+  = CRITICAL)
+* **$level_name** level name
+* **$location** event location (if specified)
+* **$tag** event tag (if specified)
+* **$sender** event sender (if specified)
+* **$media** base64-encoded media, if attached
+
+server config: not required
+
+## slack
+
+Sends notification in Slack.
+
+endpoint config:
+
+```json
+{
+  "url" : "http://some-slack-web-hook.domain/your-webhook-url",
+  "rich": true
+}
+```
+
+If "rich" is true, rich text notification will be sent. Note that this plugin
+doesn't support attachments.
+
+server config: not required
+
+## telegram
+
+sends notifications in Telegram
+
+endpoint config:
+
+```json
+{
+  "chat_id" : "encrypted chat id, obtained from roboger bot"
+}
+```
+
+server config:
+
+```yaml
+- name: telegram
+  config:
+    token: your-telegram-bot-token
+```
+
+How it works with Telegram:
 
 * Firstly you need to register your own bot and obtain bot token
   (https://core.telegram.org/bots#6-botfather)
-* Put bot token to etc/roboger.ini and restart roboger server
+* Make sure you have "url" param in "roboger" section of server config.
+  Telegram plugin uses this param to process and register web hooks.
+* Put bot token to plugin configuration in server config and restart roboger server
 * Find your bot in Telegram and write something to chat
-* Bot will instantly report you your Chat ID. Use it for *chat_id=chat_id*
-  config param when creating endpoint.
+* Bot will instantly report your encrypted Chat ID.
 
 Note: roboger Chat ID is different from integer Telegram Chat ID. Actually it's
 encrypted with your bot token to avoid people brute forcing chat IDs of shared
 bots.
 
-Configuration deployment
-------------------------
+# Server resources-as-a-code
 
-**./bin/roboger-cmd** does the job, but if you want to deploy in batch, use
-*roboger-cmd deploy file.yml* command. Look *sample-deploy.yml* for deployment
-example.
+## Single resource
+
+Use *robogerctl <addr|endpoint|subscription> apply -f file.yml* to apply
+resource configuration.
+
+## Batch
+
+**robogerctl** does the job, but if you want to deploy in batch, use
+*robogerctl deploy -f file.yml* command. Look *sample-deploy.yml* for
+deployment example.

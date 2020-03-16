@@ -1,38 +1,27 @@
-address_1:
-
-  endpoint_1:
-    type: email
-    config:
-      rcpt: me@my.domain
-    description: test mail
-    subscription_1:
-      location: office
-      keywords: serverfail, firealarm
-      level: warning
-      level_match: ge
-      senders: robot1, root, admin
-    subscription_2:
-      level: critical
-
-  endpoint_2:
-    type: http/json
-    config:
-        url: http://pbx.server/v1/call
-        params: { "params": [ "xxxx", "yyyy", "zzzzz" ], "phone": "+000199939" }
-    skip_dups: 600
-    subscription_1:
-
-  endpoint_3:
-    type: slack
-    config:
-      url: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
-      fmt: rich
-
-  endpoint_4:
-    type: http/post
-    config:
-        url: http://pbx2.server2/api/call
-        params: { "params": [ "xxxx", "yyyy", "zzzzz" ], "phone": "+000199939" }
-    skip_dups: 600
-    subscription_1:
-
+version: 1.5
+addrs:
+  - active: 1
+    a: gNYt41IPfm3tMuSOzv0ybVpTDu3buLX8jyrNejO2kaFoKlTF7mBVGDZy5DVpV1Ns
+    endpoints:
+      - plugin_name: email
+        config:
+          rcpt: me@my.domain
+        description: test mail
+        subscriptions:
+          - level: warning
+            level_match: ge
+            location: office
+            tag: serverfail
+            sender: admin
+          - level: critical
+            level_match: e
+      - plugin_name: webhook
+        config:
+          url: http://pbx.server/v1/call
+          template: '{ "params": { "phone": "+000199939" }, "event_id": $event_id, "sender": $sender }'
+        subscriptions:
+          - level: info
+      - plugin_name: slack
+        config:
+          url: https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
+          rich: true
