@@ -18,9 +18,6 @@ dir_me = Path(__file__).absolute().parents[1]
 os.chdir(dir_me)
 sys.path.insert(0, dir_me.as_posix())
 
-from roboger.server import product_build
-from roboger.server import __version__ as product_version
-
 import roboger
 from roboger_manager import (ManagementAPI, Addr, Endpoint, Subscription)
 
@@ -135,8 +132,8 @@ def start_servers():
 
 def test001_test_server():
     result = api.test()
-    assert result['build'] == product_build
-    assert result['version'] == product_version
+    assert result['build']
+    assert result['version']
     result = requests.get(f'http://{test_server_bind}:{test_server_port}/ping')
     assert result.status_code == 204
 
