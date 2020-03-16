@@ -330,6 +330,7 @@ def test020_push():
              template="""
              {
                  "event_id": $event_id,
+                 "addr": $addr,
                  "msg": $msg,
                  "subject": $subject,
                  "formatted_subject": $formatted_subject,
@@ -358,6 +359,7 @@ def test020_push():
     push(json=payload)
     time.sleep(0.2)
     assert test_data.webhook_payload['event_id']
+    assert test_data.webhook_payload['addr'] == addr.a
     for k, v in payload.items():
         if k != 'addr':
             assert v == test_data.webhook_payload[k]
@@ -371,6 +373,7 @@ def test020_push():
     push(json=payload)
     time.sleep(0.2)
     assert test_data.webhook_payload['location'] == 'home'
+    assert test_data.webhook_payload['addr'] == addr.a
     s.level_match = 'e'
     s.save()
     test_data.webhook_payload = None
@@ -387,6 +390,7 @@ def test020_push():
     assert test_data.webhook_payload['sender'] is None
     assert test_data.webhook_payload['tag'] is None
     assert test_data.webhook_payload['location'] == 'home'
+    assert test_data.webhook_payload['addr'] == addr.a
     addr.delete()
 
 
