@@ -68,10 +68,6 @@ with open(configfile, 'w') as fh:
         db-pool-size: 2
         thread-pool-size: 20
         timeout: 5
-        master:
-            key: "123"
-            allow:
-                - 127.0.0.1
         plugins:
             - name: webhook
             - name: email
@@ -113,7 +109,7 @@ def start_servers():
                          'port': test_app_port
                      },
                      daemon=True).start()
-    if os.system(f'ROBOGER_CONFIG={configfile} '
+    if os.system(f'ROBOGER_CONFIG={configfile} ROBOGER_MASTERKEY=123 '
                  f'gunicorn -D -b {test_server_bind}:{test_server_port}'
                  f' --log-file {logfile} --log-level DEBUG'
                  f' --pid {pidfile} roboger.server:app'):

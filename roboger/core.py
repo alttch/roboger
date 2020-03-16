@@ -131,6 +131,9 @@ def load(fname=None):
             f'CORE limits feature activated. Redis: {rhost}:{rport} db: {rdb}')
     config['_acl'] = [IPNetwork(h) for h in config['master']['allow']] if \
             config.get('master', {}).get('allow') else None
+    masterkey = os.getenv('ROBOGER_MASTERKEY')
+    if masterkey:
+        config.setdefault('master', {})['key'] = masterkey
     _d.ip_header = config.get('ip-header')
     for plugin in config.get('plugins', []):
         plugin_name = plugin['name']
