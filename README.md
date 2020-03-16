@@ -17,11 +17,11 @@ specifically for robots.
 # What can Roboger do?
 
 * It can get notifications and forward them to specified endpoints
-* It supports endpoint types: email, http/post, http/json, Slack, Telegram and
+* It supports endpoint types: email, JSON webhooks, Slack, Telegram and
   Roboger Smartphone App (only via https://roboger.com/)
+* It can be easily extended with endpoint plugins
 * This software actually allows you to run your own Roboger server, in case you
-  don't want to use https://roboger.com/, want to have a backup alternative or
-  want to use custom http web hooks.
+  don't want to use https://roboger.com/, want to have a backup alternative
 
 # Real life example
 
