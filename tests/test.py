@@ -78,7 +78,7 @@ with open(configfile, 'w') as fh:
             start-failed-after: 5
             force-stop-after: 10
             launch-debug: true
-            extra-options: -w 1 --log-level INFO
+            extra-options: -w 1 --log-level INFO -u nobody
     """))
 
 test_data = SimpleNamespace()

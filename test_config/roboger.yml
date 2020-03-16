@@ -18,4 +18,4 @@ roboger:
     start-failed-after: 5
     force-stop-after: 10
     launch-debug: false
-    extra-options: -w 2 --log-level DEBUG
+    extra-options: -w 2 --log-level DEBUG -u nobody
