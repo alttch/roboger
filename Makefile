@@ -24,3 +24,18 @@ test-mysql:
 test-postgresql:
 	cd tests && DBCONN=postgresql://roboger:123@localhost/roboger CLEANUP=1 pytest -x test.py --log-level DEBUG
 	cd tests && DBCONN=postgresql://roboger:123@localhost/roboger CLEANUP=1 LIMITS=1 pytest -x test.py --log-level DEBUG
+
+clean:
+	rm -rf dist build roboger.egg-info
+
+d: test build
+
+build: clean build-packages
+
+build-packages:
+	python3 setup.py build
+
+pub: d pub-pypi
+
+pub-pypi:
+	twine upload dist/*

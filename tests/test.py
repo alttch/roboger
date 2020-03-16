@@ -22,7 +22,7 @@ from roboger.server import product_build
 from roboger.server import __version__ as product_version
 
 import roboger
-from roboger.manager import (ManagementAPI, Addr, Endpoint, Subscription)
+from roboger_manager import (ManagementAPI, Addr, Endpoint, Subscription)
 
 test_server_bind = '127.0.0.1'
 test_server_port = random.randint(9900, 9999)
@@ -86,10 +86,10 @@ test_data = SimpleNamespace()
 
 _test_app = Flask(__name__)
 
-import roboger.manager
+import roboger_manager
 
 if limits:
-    roboger.manager.use_limits = True
+    roboger_manager.use_limits = True
 
 
 @_test_app.route('/webhook_test', methods=['POST'])
@@ -150,7 +150,7 @@ def test011_addr():
     assert x['id']
     assert x['a']
     assert x['active']
-    if roboger.manager.use_limits:
+    if roboger_manager.use_limits:
         int(addr.lim_c)
         int(addr.lim_s)
     # get addr
@@ -159,7 +159,7 @@ def test011_addr():
     assert addr2.id == addr.id
     assert addr2.a == addr.a
     assert addr2
-    if roboger.manager.use_limits:
+    if roboger_manager.use_limits:
         int(addr.lim_c)
         int(addr.lim_s)
     # get addr by id
@@ -168,7 +168,7 @@ def test011_addr():
     assert addr2.id == addr.id
     assert addr2.a == addr.a
     assert addr2
-    if roboger.manager.use_limits:
+    if roboger_manager.use_limits:
         int(addr.lim_c)
         int(addr.lim_s)
     # change addr
@@ -316,7 +316,7 @@ def test014_endpoint_copysub():
 
 def test020_push():
     if limits:
-        roboger.manager.reset_addr_limits(api=api)
+        roboger_manager.reset_addr_limits(api=api)
     test_data.webhook_payload = None
     addr = Addr(api=api)
     addr.create()
@@ -387,9 +387,9 @@ def test020_push():
 
 
 def test999_cleanup():
-    addr = roboger.manager.create_addr(api=api)
-    addr2 = roboger.manager.create_addr(api=api)
-    roboger.manager.delete_everything(api=api, confirm='YES')
+    addr = roboger_manager.create_addr(api=api)
+    addr2 = roboger_manager.create_addr(api=api)
+    roboger_manager.delete_everything(api=api, confirm='YES')
     with pytest.raises(LookupError, match=r'addr .* not found'):
         addr.delete()
     with pytest.raises(LookupError, match=r'addr .* not found'):

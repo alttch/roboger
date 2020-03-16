@@ -23,7 +23,6 @@ from concurrent.futures import ThreadPoolExecutor
 from sqlalchemy import text as sql
 
 from pathlib import Path
-from neotasker import g
 
 from pyaltt2.crypto import gen_random_str
 from pyaltt2.network import parse_host_port
@@ -62,6 +61,8 @@ default_db_pool_size = 1
 default_thread_pool_size = 10
 
 app = Flask('roboger')
+
+g = threading.local()
 
 emoji_code = {
     20: u'\U00002139',

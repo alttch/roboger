@@ -38,8 +38,15 @@ be set up with a couple of commands.
 
 # How to use
 
-Firstly - set up Roboger server, create address, endpoints and subscriptions
-with **./bin/robogerctl**
+Start Roboger server
+
+```
+roboger-control start
+# launch in front for debugging
+roboger-control launch
+```
+
+Then create address, endpoints and subscriptions with **robogerctl**
 
 Then use Roboger API to send event notifications:
 
@@ -70,7 +77,7 @@ we just warn you about that)
 
 # Managing
 
-Use *robogerctl* to manage the server. Install CLI-only:
+Install robogerctl (not included in server):
 
 ```
 pip3 install robogerctl
