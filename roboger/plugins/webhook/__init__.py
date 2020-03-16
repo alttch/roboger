@@ -27,8 +27,8 @@ PROPERTY_MAP_SCHEMA = {
 }
 
 _template_fields = [
-    'event_id', 'msg', 'subject', 'formatted_subject', 'level', 'level_name',
-    'location', 'tag', 'sender', 'media'
+    'event_id', 'addr', 'msg', 'subject', 'formatted_subject', 'level',
+    'level_name', 'location', 'tag', 'sender', 'media'
 ]
 
 
