@@ -46,7 +46,8 @@ roboger-control start
 roboger-control launch
 ```
 
-Then create address, endpoints and subscriptions with **robogerctl**
+Then create address, endpoints and subscriptions with
+[robogerctl](https://github.com/alttch/robogerctl)
 
 Then use Roboger API to send event notifications:
 
