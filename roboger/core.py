@@ -145,7 +145,7 @@ def load(fname=None):
         except:
             try:
                 mod = importlib.import_module(
-                    'robogercontrib-{}'.format(plugin_name))
+                    'robogercontrib.{}'.format(plugin_name))
             except:
                 logger.error(f'CORE unable to load plugin: {plugin_name}')
                 log_traceback()
