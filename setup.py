@@ -18,7 +18,7 @@ setuptools.setup(name='roboger',
                  install_requires=[
                      'requests', 'pyyaml', 'sqlalchemy', 'pyaltt2', 'flask',
                      'jsonschema', 'python-rapidjson', 'netaddr', 'filetype',
-                     'tebot'
+                     'tebot', 'simplejson'
                  ],
                  classifiers=(
                      'Programming Language :: Python :: 3',
