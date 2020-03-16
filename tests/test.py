@@ -139,6 +139,10 @@ def test001_test_server():
     result = requests.get(f'http://{test_server_bind}:{test_server_port}/ping')
     assert result.status_code == 204
     api.core_cleanup()
+    plugins = roboger_manager.list_plugins(api=api)
+    assert len(plugins) == 3
+    for p in plugins:
+        assert p['plugin_name'] in ['webhook', 'email', 'slack']
 
 
 def test011_addr():

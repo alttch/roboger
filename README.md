@@ -59,7 +59,7 @@ Then use Roboger API to send event notifications:
         'tag': 'event tag, eg, serverfail, alarm, achtung',
         'subject': 'what we are talking about',
         'msg': 'message body',
-        'level': 'alarm level (debug, info, warning, error or critical)',
+        'level': 'event level (debug, info, warning, error or critical)',
         'media': 'base64-encoded binary eg. photo from surveillance camera')
     }
     (all fields except address are optional, default level is "info")

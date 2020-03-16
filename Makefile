@@ -1,4 +1,4 @@
-VERSION=2.0.9
+VERSION=2.0.10
 
 DOCKER_TEST_DB=172.16.99.254
 DOCKER_TEST_NETWORK=testnet
@@ -7,7 +7,8 @@ all:
 	@echo "Select target"
 
 ver:
-	find . -type f -name "*.py" -exec sed -i "s/^__version__ = .*/__version__ = '${VERSION}'/g" {} \;
+	find . -not -path "./roboger/plugins/*" -type f -name "*.py" -exec \
+			sed -i "s/^__version__ = .*/__version__ = '${VERSION}'/g" {} \;
 	find ./bin -type f -exec sed -i "s/^__version__ = .*/__version__ = '${VERSION}'/g" {} \;
 	sed -i "s/roboger==.*/roboger==${VERSION}/" Dockerfile
 

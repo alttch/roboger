@@ -1,7 +1,7 @@
 __author__ = 'Altertech, http://www.altertech.com/'
 __copyright__ = 'Copyright (C) 2018-2020 Altertech Group'
 __license__ = 'Apache License 2.0'
-__version__ = '2.0.9'
+__version__ = '2.0.10'
 
 from flask import request, jsonify, Response, abort
 
@@ -32,7 +32,7 @@ from .core import endpoint_delete_subscriptions
 
 from .core import subscription_get, subscription_list, subscription_create
 from .core import subscription_update, subscription_delete
-from .core import cleanup as core_cleanup
+from .core import cleanup as core_cleanup, plugin_list
 
 from .core import json, is_parse_db_json, delete_everything
 
@@ -270,6 +270,11 @@ def init():
                      r_core_cmd,
                      methods=['POST'])
 
+    app.add_url_rule(f'{api_uri_rest}/plugin',
+                     'plugin.list',
+                     r_plugin_list,
+                     methods=['GET'])
+
     app.add_url_rule(f'{api_uri_rest}/addr',
                      'addr.list',
                      r_addr_list,
@@ -497,6 +502,19 @@ def r_core_cmd(cmd=None):
     else:
         abort(405)
     return _response_empty()
+
+
+@admin_method
+def r_plugin_list():
+    result = []
+    for k, v in plugin_list().items():
+        result.append({
+            'plugin_name': k,
+            'version': getattr(v, '__version__', None),
+            'description': getattr(v, '__description__', None),
+            'url': getattr(v, '__url__', None)
+        })
+    return jsonify(sorted(result, key=lambda k: k['plugin_name']))
 
 
 @admin_method

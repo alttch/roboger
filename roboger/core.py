@@ -1,7 +1,7 @@
 __author__ = 'Altertech, http://www.altertech.com/'
 __copyright__ = 'Copyright (C) 2018-2020 Altertech Group'
 __license__ = 'Apache License 2.0'
-__version__ = '2.0.9'
+__version__ = '2.0.10'
 
 import platform
 import os
@@ -418,6 +418,10 @@ def cleanup():
     logger.debug('CORE cleanup')
     for k, v in plugins.items():
         safe_run_method(v, 'cleanup')
+
+
+def plugin_list():
+    return plugins
 
 
 # object functions
