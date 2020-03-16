@@ -54,8 +54,6 @@ if limits:
                 host: localhost:6379
                 db: 3
     """
-    import redis
-    redis.Redis(host='localhost', db=3).flushdb()
 else:
     limits_config = ''
 
@@ -308,7 +306,9 @@ def test014_endpoint_copysub():
     addr.delete()
 
 
-def test20_push():
+def test020_push():
+    if limits:
+        roboger.manager.reset_addr_limits(api=api)
     test_data.webhook_payload = None
     addr = Addr(api=api)
     addr.create()
@@ -376,3 +376,13 @@ def test20_push():
     assert test_data.webhook_payload['tag'] is None
     assert test_data.webhook_payload['location'] == 'home'
     addr.delete()
+
+
+def test999_cleanup():
+    addr = roboger.manager.create_addr(api=api)
+    addr2 = roboger.manager.create_addr(api=api)
+    roboger.manager.delete_everything(api=api, confirm='YES')
+    with pytest.raises(LookupError, match=r'addr .* not found'):
+        addr.delete()
+    with pytest.raises(LookupError, match=r'addr .* not found'):
+        addr2.delete()

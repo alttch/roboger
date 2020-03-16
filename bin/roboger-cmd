@@ -41,6 +41,9 @@ sp = ap.add_subparsers(dest='command', help='command to execute', required=True)
 
 sp_test = sp.add_parser('test', help='test server')
 sp_deploy = sp.add_parser('deploy', help='deploy configuration')
+sp_deploy.add_argument('--delete-everything',
+                       help='DELETE ALL RESOURCES on server before deployment',
+                       action='store_true')
 reqn = sp_deploy.add_argument_group('required named arguments')
 reqn.add_argument('-f',
                   '--input-file',
@@ -236,8 +239,10 @@ try:
                 fc = fh.read()
         data = yaml.load(fc)
         result = []
+        if a.delete_everything:
+            roboger.manager.delete_everything(confirm='YES')
         try:
-            for acfg in data.get('addresses', []):
+            for acfg in data.get('addrs', []):
                 addr = roboger.manager.create_addr()
                 result.append(addr)
                 addr_config = acfg.copy()

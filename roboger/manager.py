@@ -28,9 +28,18 @@ class ManagementAPI:
             setattr(self, method, make_api_method(method))
 
     def test(self):
-        result = self._call('/core')
+        result = self.get('/core')
         del result['ok']
         return result
+
+    def reset_addr_limits(self):
+        self.post('/core', payload={'cmd': 'reset-addr-limits'})
+
+    def delete_everything(self, confirm=None):
+        if confirm == 'YES':
+            self.post('/core', payload={'cmd': 'delete-everything'})
+        else:
+            raise RuntimeError("""not confirm='YES', aborted""")
 
     def _call(self, resource, method='get', payload=None):
         uri = f'{self.__uri}{resource}'
@@ -228,3 +237,13 @@ def create_addr(api=None):
 def list_addr(api=None):
     api = api if api else default_api
     return api.get('/addr')
+
+
+def reset_addr_limits(api=None):
+    api = api if api else default_api
+    return api.reset_addr_limits()
+
+
+def delete_everything(api=None, confirm=None):
+    api = api if api else default_api
+    return api.delete_everything(confirm=confirm)

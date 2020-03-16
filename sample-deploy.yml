@@ -1,5 +1,5 @@
 version: 1.5
-addresses:
+addrs:
   - active: 1
     endpoints:
       - plugin_name: email

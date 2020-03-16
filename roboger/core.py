@@ -383,6 +383,12 @@ def db_list(*args, **kwargs):
     return [dict(row) for row in get_db().execute(*args, **kwargs).fetchall()]
 
 
+def delete_everything():
+    get_db().execute(sql("""
+            DELETE FROM addr
+            """))
+
+
 def addr_get(addr_id=None, addr=None):
     result = get_db().execute(sql(
         """SELECT id, a, active{} FROM addr WHERE id=:id or a=:a""".format(
