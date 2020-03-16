@@ -16,9 +16,8 @@ setuptools.setup(name='roboger',
                  packages=setuptools.find_packages(),
                  license='Apache License 2.0',
                  install_requires=[
-                     'requests', 'pyyaml', 'rapidtables', 'sqlalchemy',
-                     'neotermcolor', 'pyaltt2', 'flask', 'jsonschema',
-                     'python-rapidjson'
+                     'requests', 'pyyaml', 'sqlalchemy', 'pyaltt2', 'flask',
+                     'jsonschema', 'python-rapidjson'
                  ],
                  classifiers=(
                      'Programming Language :: Python :: 3',
