@@ -414,6 +414,12 @@ def reset_addr_limits():
     logger.info('CORE address limits reset')
 
 
+def cleanup():
+    logger.debug('CORE cleanup')
+    for k, v in plugins.items():
+        safe_run_method(v, 'cleanup')
+
+
 # object functions
 
 

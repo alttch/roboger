@@ -32,6 +32,7 @@ from .core import endpoint_delete_subscriptions
 
 from .core import subscription_get, subscription_list, subscription_create
 from .core import subscription_update, subscription_delete
+from .core import cleanup as core_cleanup
 
 from .core import json, is_parse_db_json, delete_everything
 
@@ -489,6 +490,8 @@ def test(**kwargs):
 def r_core_cmd(cmd=None):
     if cmd == 'reset-addr-limits':
         reset_addr_limits()
+    elif cmd == 'cleanup':
+        core_cleanup()
     elif cmd == 'delete-everything':
         delete_everything()
     else:
