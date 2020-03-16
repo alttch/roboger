@@ -138,6 +138,7 @@ def test001_test_server():
     assert result['version']
     result = requests.get(f'http://{test_server_bind}:{test_server_port}/ping')
     assert result.status_code == 204
+    api.core_cleanup()
 
 
 def test011_addr():
