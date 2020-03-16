@@ -13,6 +13,7 @@ from . import core
 product_build = 'stable'
 
 core.set_build(product_build)
-core.load()
+if not os.getenv('ROBOGER_TEST'):
+    core.load()
 
 app = core.get_app()
