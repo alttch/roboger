@@ -5,6 +5,12 @@ __version__ = '2.0.2'
 
 from flask import request, jsonify, Response, abort
 
+import simplejson
+
+# TODO: remove for Python 3.7+
+import flask
+flask.json = simplejson
+
 import base64
 import uuid
 import logging
