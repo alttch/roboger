@@ -3,6 +3,9 @@ all:
 
 test: test-sqlite test-mysql test-postgresql
 
+test-single:
+	cd tests && DBCONN=postgresql://roboger:123@localhost/roboger CLEANUP=1 LIMITS=1 pytest -x test.py --log-level DEBUG
+
 test-sqlite:
 	cd tests && DBCONN=sqlite:////tmp/roboger-test.db CLEANUP=1 pytest -x test.py --log-level DEBUG
 	cd tests && DBCONN=sqlite:////tmp/roboger-test.db CLEANUP=1 LIMITS=1 pytest -x test.py --log-level DEBUG
