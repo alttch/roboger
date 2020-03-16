@@ -238,6 +238,7 @@ def push(**kwargs):
                  config=json.loads(row.config)
                  if is_parse_db_json() else row.config,
                  event_id=event_id,
+                 addr=a,
                  msg=msg,
                  subject=subject,
                  formatted_subject=formatted_subject,
