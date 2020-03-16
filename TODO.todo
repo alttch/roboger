@@ -2,3 +2,4 @@
 - [ ] create android plugin
 - [ ] documentation
 - [ ] reset limits with captcha
+- [ ] fix robogerctl on alpine
