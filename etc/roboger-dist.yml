@@ -26,7 +26,7 @@ roboger:
     - name: slack
     #- name: telegram # requires url set in primary section to receive web hooks
       #config:
-        #token: 505115421:AAG2gACY88xKtuNBK3B8MrotjNNcx-bCml0
+        #token: your-bot-token
   gunicorn:
     listen: 0.0.0.0:7719
     start-failed-after: 5
