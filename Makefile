@@ -11,7 +11,10 @@ ver:
 	find ./bin -type f -exec sed -i "s/^__version__ = .*/__version__ = '${VERSION}'/g" {} \;
 	sed -i "s/roboger==.*/roboger==${VERSION}/" Dockerfile
 
-test: test-sqlite test-mysql test-postgresql
+test: update-ctl test-sqlite test-mysql test-postgresql
+
+update-ctl:
+	pip3 install -U robogerctl
 
 test-single:
 	cd tests && DBCONN=postgresql://roboger:123@localhost/roboger CLEANUP=1 LIMITS=1 pytest -x test.py --log-level DEBUG
