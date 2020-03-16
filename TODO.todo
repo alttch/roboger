@@ -1,5 +1,3 @@
-- [ ] auto create db
-- [ ] test with mysql and sqlite3
 - [ ] pypi module
 - [ ] docker image
 - [ ] migrate roboger.com UI

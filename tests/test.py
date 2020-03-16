@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 import sys
 import signal
+import sqlalchemy
 import time
 import requests
 import random
@@ -11,6 +12,7 @@ import yaml
 from functools import partial
 from types import SimpleNamespace
 from flask import Flask, request, Response
+from textwrap import dedent
 
 dir_me = Path(__file__).absolute().parents[1]
 os.chdir(dir_me)
@@ -30,16 +32,69 @@ test_app_port = random.randint(9800, 9899)
 
 pidfile = '/tmp/roboger-test-{}.pid'.format(os.getpid())
 logfile = '/tmp/roboger-test-gunicorn-{}.log'.format(os.getpid())
+configfile = '/tmp/roboger-test-{}.yml'.format(os.getpid())
+
+dbconn = os.environ['DBCONN']
+engine = sqlalchemy.create_engine(dbconn)
+c = engine.connect()
+for tbl in ['subscription', 'endpoint', 'addr']:
+    try:
+        c.execute(f'drop table {tbl}')
+    except (sqlalchemy.exc.ProgrammingError, sqlalchemy.exc.OperationalError):
+        pass
+c.close()
+
+limits = os.environ.get('LIMITS')
+if limits:
+    limits_config = """
+        limits:
+            period: hour
+            reserve: 10
+            redis:
+                host: localhost:6379
+                db: 3
+    """
+    import redis
+    redis.Redis(host='localhost', db=3).flushdb()
+else:
+    limits_config = ''
+
+with open(configfile, 'w') as fh:
+    fh.write(
+        dedent(f"""
+    roboger:
+        db: {dbconn}
+        log-tracebacks: true
+        {limits_config}
+        secure-mode: true
+        db-pool-size: 2
+        thread-pool-size: 20
+        timeout: 5
+        master:
+            key: "123"
+            allow:
+                - 127.0.0.1
+        plugins:
+            - name: webhook
+            - name: email
+              config:
+                  smtp-server: 127.0.0.1
+            - name: slack
+        gunicorn:
+            listen: {test_server_bind}:{test_server_port}
+            start-failed-after: 5
+            force-stop-after: 10
+            launch-debug: true
+            extra-options: -w 1 --log-level INFO
+    """))
 
 test_data = SimpleNamespace()
 
 _test_app = Flask(__name__)
 
 import roboger.manager
-with open(dir_me / 'etc/roboger.yml') as fh:
-    config = yaml.load(fh.read())
 
-if config.get('limits'):
+if limits:
     roboger.manager.use_limits = True
 
 
@@ -60,7 +115,8 @@ def start_servers():
                          'port': test_app_port
                      },
                      daemon=True).start()
-    if os.system(f'gunicorn -D -b {test_server_bind}:{test_server_port}'
+    if os.system(f'ROBOGER_CONFIG={configfile} '
+                 f'gunicorn -D -b {test_server_bind}:{test_server_port}'
                  f' --log-file {logfile} --log-level DEBUG'
                  f' --pid {pidfile} roboger.server:app'):
         raise RuntimeError('Failed to start gunicorn')
@@ -78,6 +134,9 @@ def start_servers():
         os.unlink(pidfile)
     except:
         pass
+    if os.getenv('CLEANUP'):
+        os.unlink(configfile)
+        os.unlink(logfile)
 
 
 def test001_test_server():
@@ -160,6 +219,9 @@ def test012_endpoint():
     ep2.save()
     ep2.disable()
     ep.load()
+    import logging
+    logging.warning(ep.config)
+    logging.warning(dir(ep.config))
     assert ep.config['rcpt'] == 'xxx@xxx'
     assert not ep.active
     assert ep.description == 'some test'
@@ -314,7 +376,3 @@ def test20_push():
     assert test_data.webhook_payload['tag'] is None
     assert test_data.webhook_payload['location'] == 'home'
     addr.delete()
-
-
-def test999_cleanup():
-    os.unlink(logfile)

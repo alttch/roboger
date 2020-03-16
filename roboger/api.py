@@ -27,6 +27,8 @@ from .core import endpoint_delete_subscriptions
 from .core import subscription_get, subscription_list, subscription_create
 from .core import subscription_update, subscription_delete
 
+from .core import json, is_parse_db_json
+
 from functools import wraps
 
 from pyaltt2.network import netacl_match
@@ -218,7 +220,8 @@ def push(**kwargs):
                 except OverlimitError as e:
                     return Response(str(e), status=429)
             send(row.plugin_name,
-                 config=row.config,
+                 config=json.loads(row.config)
+                 if is_parse_db_json() else row.config,
                  event_id=event_id,
                  msg=msg,
                  subject=subject,

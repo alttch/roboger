@@ -35,6 +35,7 @@ logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 
 _d = SimpleNamespace(db=None,
                      use_lastrowid=False,
+                     parse_db_json=False,
                      pool=None,
                      secure_mode=False,
                      ip_header=None,
@@ -96,6 +97,15 @@ def log_traceback():
 
 
 def load(fname=None):
+
+    class ForeignKeysListener(sqlalchemy.interfaces.PoolListener):
+
+        def connect(self, dbapi_con, con_record):
+            try:
+                dbapi_con.execute('pragma foreign_keys=ON')
+            except:
+                pass
+
     if not fname:
         fname = os.environ.get('ROBOGER_CONFIG')
     if not fname:
@@ -145,7 +155,8 @@ def load(fname=None):
         logger.info(f'CORE added plugin {plugin_name}')
     logger.debug('CORE initializing database')
     if config['db'].startswith('sqlite'):
-        _d.db = sqlalchemy.create_engine(config['db'])
+        _d.db = sqlalchemy.create_engine(config['db'],
+                                         listeners=[ForeignKeysListener()])
     else:
         pool_size = config.get('db-pool-size', default_db_pool_size)
         _d.db = sqlalchemy.create_engine(config['db'],
@@ -153,18 +164,101 @@ def load(fname=None):
                                          max_overflow=pool_size * 2)
     _d.use_lastrowid = config['db'].startswith(
         'sqlite') or config['db'].startswith('mysql')
+    _d.parse_db_json = config['db'].startswith(
+        'sqlite') or config['db'].startswith('mysql')
     logger.debug(f'CORE database {_d.db}')
     get_db()
     thread_pool_size = config.get('thread-pool-size', default_thread_pool_size)
     logger.debug('CORE initializing thread pool for plugins '
                  f'with max size {thread_pool_size}')
     _d.pool = ThreadPoolExecutor(max_workers=thread_pool_size)
+    init_db()
     from . import api
     api.init()
 
 
 def spawn(*args, **kwargs):
     return _d.pool.submit(*args, **kwargs)
+
+
+def init_db():
+    from sqlalchemy import (Table, Column, BigInteger, Integer, Numeric, CHAR,
+                            VARCHAR, MetaData, Float, ForeignKey, Index, JSON,
+                            Enum)
+    import enum
+
+    class LevelMatch(enum.Enum):
+        l = 'l'
+        g = 'g'
+        le = 'le'
+        ge = 'ge'
+        e = 'e'
+
+    meta = MetaData()
+    addr = Table('addr',
+                 meta,
+                 Column('id',
+                        BigInteger().with_variant(Integer, 'sqlite'),
+                        primary_key=True,
+                        autoincrement=True),
+                 Column('a', CHAR(64), nullable=False, unique=True),
+                 Column('active',
+                        Numeric(1, 0),
+                        nullable=False,
+                        server_default='1'),
+                 Column('lim',
+                        Numeric(8, 0),
+                        nullable=False,
+                        server_default='100'),
+                 mysql_engine='InnoDB',
+                 mysql_charset='latin1')
+    endpoint = Table('endpoint',
+                     meta,
+                     Column('id',
+                            BigInteger().with_variant(Integer, 'sqlite'),
+                            primary_key=True,
+                            autoincrement=True),
+                     Column('addr_id',
+                            BigInteger().with_variant(Integer, 'sqlite'),
+                            ForeignKey('addr.id', ondelete='CASCADE')),
+                     Index('endpoint_addr_id', 'addr_id'),
+                     Column('plugin_name', VARCHAR(40), nullable=False),
+                     Column('config', JSON, nullable=False),
+                     Column('active',
+                            Numeric(1, 0),
+                            nullable=False,
+                            server_default='1'),
+                     Column('description', VARCHAR(255), nullable=True),
+                     mysql_engine='InnoDB',
+                     mysql_charset='latin1')
+    subscription = Table('subscription',
+                         meta,
+                         Column('id',
+                                BigInteger().with_variant(Integer, 'sqlite'),
+                                primary_key=True,
+                                autoincrement=True),
+                         Column('endpoint_id',
+                                BigInteger().with_variant(Integer, 'sqlite'),
+                                ForeignKey('endpoint.id', ondelete='CASCADE')),
+                         Index('subscription_endpoint_id', 'endpoint_id'),
+                         Column('active',
+                                Numeric(1, 0),
+                                nullable=False,
+                                server_default='1'),
+                         Column('location', VARCHAR(255), nullable=True),
+                         Column('tag', VARCHAR(255), nullable=True),
+                         Column('sender', VARCHAR(255), nullable=True),
+                         Column('level',
+                                Numeric(2, 0),
+                                nullable=False,
+                                server_default='20'),
+                         Column('level_match',
+                                Enum(LevelMatch),
+                                nullable=False,
+                                server_default='ge'),
+                         mysql_engine='InnoDB',
+                         mysql_charset='latin1')
+    meta.create_all(_d.db)
 
 
 def get_db():
@@ -197,6 +291,10 @@ def get_plugin(plugin_name):
 
 def is_use_lastrowid():
     return _d.use_lastrowid
+
+
+def is_parse_db_json():
+    return _d.parse_db_json
 
 
 def is_secure_mode():
@@ -366,18 +464,25 @@ def endpoint_get(endpoint_id):
                 description FROM endpoint WHERE id=:id"""),
         id=endpoint_id).fetchone()
     if result:
-        return dict(result)
+        result = dict(result)
+        if is_parse_db_json():
+            result['config'] = json.loads(result['config'])
+        return result
     else:
         raise LookupError
 
 
 def endpoint_list(addr_id=None, addr=None):
-    return db_list(sql("""SELECT endpoint.id as id, addr_id, plugin_name,
+    result = db_list(sql("""SELECT endpoint.id as id, addr_id, plugin_name,
         config, endpoint.active as active,
         description FROM endpoint JOIN addr ON addr.id=endpoint.addr_id
-        WHERE addr.id=:addr_id OR addr=:addr ORDER BY id"""),
-                   addr_id=addr_id,
-                   addr=addr)
+        WHERE addr.id=:addr_id OR addr.a=:addr ORDER BY id"""),
+                     addr_id=addr_id,
+                     addr=addr)
+    if is_parse_db_json():
+        for r in result:
+            r['config'] = json.loads(r['config'])
+    return result
 
 
 def endpoint_create(plugin_name,
@@ -409,7 +514,7 @@ def endpoint_create(plugin_name,
                               config=json.dumps(config),
                               description=description)
     i = result.lastrowid if is_use_lastrowid() else result.fetchone().id
-    logging.debug(f'CORE created endpoint {i} (plugin: {plugin_name})')
+    logger.debug(f'CORE created endpoint {i} (plugin: {plugin_name})')
     return i
 
 
@@ -531,7 +636,7 @@ def subscription_create(endpoint_id,
                               level=level,
                               level_match=level_match)
     i = result.lastrowid if is_use_lastrowid() else result.fetchone().id
-    logging.debug(f'CORE created subscription {i} for endpoint {endpoint_id}')
+    logger.debug(f'CORE created subscription {i} for endpoint {endpoint_id}')
     return i
 
 
