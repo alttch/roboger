@@ -38,7 +38,8 @@ build: clean build-packages
 build-packages:
 	python3 setup.py build
 
-pub: d pub-pypi
+pub:
+	@echo "please use jenkins to build"
 
 pub-pypi:
 	twine upload dist/*
