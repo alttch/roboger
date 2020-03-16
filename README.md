@@ -39,7 +39,7 @@ be set up with a couple of commands.
 # How to use
 
 Firstly - set up Roboger server, create address, endpoints and subscriptions
-with **./bin/roboger-cmd**
+with **./bin/robogerctl**
 
 Then use Roboger API to send event notifications:
 
@@ -70,10 +70,10 @@ we just warn you about that)
 
 # Managing
 
-Use *roboger-cmd* to manage the server. Install CLI-only:
+Use *robogerctl* to manage the server. Install CLI-only:
 
 ```
-pip3 install roboger-cmd
+pip3 install robogerctl
 ```
 
 # Python client module
@@ -253,11 +253,11 @@ bots.
 
 ## Single resource
 
-Use *roboger-cmd <addr|endpoint|subscription> apply -f file.yml* to apply
+Use *robogerctl <addr|endpoint|subscription> apply -f file.yml* to apply
 resource configuration.
 
 ## Batch
 
-**roboger-cmd** does the job, but if you want to deploy in batch, use
-*roboger-cmd deploy -f file.yml* command. Look *sample-deploy.yml* for
+**robogerctl** does the job, but if you want to deploy in batch, use
+*robogerctl deploy -f file.yml* command. Look *sample-deploy.yml* for
 deployment example.
