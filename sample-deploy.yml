@@ -1,6 +1,7 @@
 version: 1.5
 addrs:
   - active: 1
+    a: gNYt41IPfm3tMuSOzv0ybVpTDu3buLX8jyrNejO2kaFoKlTF7mBVGDZy5DVpV1Ns
     endpoints:
       - plugin_name: email
         config:

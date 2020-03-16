@@ -94,6 +94,10 @@ def _response_moved(payload, id, resource):
     return _response_new_location(payload, 301, id, resource)
 
 
+def _response_conflict(msg=None):
+    return Response(msg if msg else 'resource already exists', status=409)
+
+
 def _response_empty():
     return Response(status=204)
 
@@ -497,12 +501,18 @@ def r_addr_get(a):
 
 
 @admin_method
-def r_addr_cmd(a, cmd):
+def r_addr_cmd(a, cmd, to=None):
     addr_id, addr = _process_addr(a)
-    if cmd == 'change':
-        new_addr = addr_change(addr_id=addr_id, addr=addr)
-        return _response_moved(None, new_addr, 'addr')
-    else:
+    try:
+        if cmd == 'change':
+            if to is not None and len(to) != 64:
+                return Response('addr size should be 64 symbols', status=400)
+            try:
+                new_addr = addr_change(addr_id=addr_id, addr=addr, to=to)
+                return _response_moved(None, new_addr, 'addr')
+            except ValueError:
+                return _response_conflict()
+    except LookupError:
         return _response_not_found(f'addr {a} not found')
 
 

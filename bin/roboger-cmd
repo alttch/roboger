@@ -79,6 +79,8 @@ for prs in [('addr', 'a'), ('endpoint', 'e', 'ep', 'end'),
             x.add_argument('resource', help='current/parent resource')
         if i == 'endpoint' and f == 'create':
             x.add_argument('plugin_name', help='plugin name')
+        if i == 'addr' and f == 'change':
+            x.add_argument('--to', help='change addres to the specified value')
         if i == 'endpoint' and f == 'copysub':
             x.add_argument('target_resource', help='current/parent resource')
             x.add_argument(
@@ -252,6 +254,8 @@ try:
                     pass
                 addr.load(data=addr_config, load_protected_fields=False)
                 addr.save()
+                if 'a' in acfg:
+                    addr.change(to=acfg['a'])
                 for ecfg in acfg.get('endpoints', []):
                     ep = addr.create_endpoint(plugin_name=ecfg['plugin_name'])
                     ep_config = ecfg.copy()
@@ -286,7 +290,7 @@ try:
         else:
             addr = roboger.manager.Addr(id=a.resource)
             if a.func in ['change', 'ch']:
-                addr.change()
+                addr.change(to=a.to)
                 result = addr.a
             else:
                 result = process_obj_func(addr, format_addr)

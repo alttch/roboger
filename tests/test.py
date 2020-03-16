@@ -170,6 +170,12 @@ def test011_addr():
     assert addr2.id == addr.id
     assert addr2.a != addr.a
     assert addr2
+    # change addr to specified value
+    addr.change(
+        to='gNYt41IPfm3tMuSOzv0ybVpTDu3buLX8jyrNejO2kaFoKlTF7mBVGDZy5DVpV1Ns')
+    addr.load()
+    assert addr.a == ('gNYt41IPfm3tMuSOzv0ybVpTDu3buLX8'
+                      'jyrNejO2kaFoKlTF7mBVGDZy5DVpV1Ns')
     # disable addr
     addr.disable()
     addr2.load()

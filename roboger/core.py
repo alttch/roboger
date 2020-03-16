@@ -420,15 +420,19 @@ def addr_create():
     return i
 
 
-def addr_change(addr_id=None, addr=None):
-    new_addr = gen_random_str(64)
-    if get_db().execute(sql("""
-            UPDATE addr SET a=:new_a WHERE id=:id or a=:a
-            """),
-                        new_a=new_addr,
-                        id=addr_id,
-                        a=addr).rowcount:
-        return new_addr
+def addr_change(addr_id=None, addr=None, to=None):
+    if to is None:
+        to = gen_random_str(64)
+    try:
+        if get_db().execute(sql("""
+                UPDATE addr SET a=:new_a WHERE id=:id or a=:a
+                """),
+                            new_a=to,
+                            id=addr_id,
+                            a=addr).rowcount:
+            return to
+    except sqlalchemy.exc.IntegrityError:
+        raise ValueError
     else:
         raise LookupError
 

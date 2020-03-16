@@ -53,8 +53,12 @@ class ManagementAPI:
                 raise ValueError(result.text)
             elif result.status_code == 404:
                 raise LookupError(result.text)
+            elif result.status_code == 403:
+                raise RuntimeError('forbidden')
+            elif result.status_code == 409:
+                raise RuntimeError(result.text)
             else:
-                RuntimeError(f'API code: {result.status_code}')
+                raise RuntimeError(f'API code: {result.status_code}')
         return result.json() if result.status_code not in (202, 204) else {}
 
 
@@ -156,8 +160,8 @@ class Addr(_RobogerObject):
                                                        if self.id else self.a)
         super().__init__(**kwargs)
 
-    def change(self):
-        result = super().cmd(cmd='change')
+    def change(self, to=None):
+        result = super().cmd(cmd='change', to=to)
         self.a = result['a']
         return self.a
 
