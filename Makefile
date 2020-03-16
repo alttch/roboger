@@ -1,4 +1,4 @@
-VERSION=2.0.7
+VERSION=2.0.8
 
 DOCKER_TEST_DB=172.16.99.254
 DOCKER_TEST_NETWORK=testnet
@@ -47,7 +47,7 @@ pub:
 
 pub-pypi:
 	twine upload dist/*
-	sleep 30
+	sleep 60
 
 docker: docker-build docker-test
 
