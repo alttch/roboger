@@ -114,6 +114,9 @@ Get sample configuration file from github repo, put it either to
 */opt/roboger/etc/ or to */usr/local/etc/roboger.yml* or wherever you want and
 point there ROBOGER_CONFIG env variable.
 
+Note: Roboger database v2 is not compatible with v1. Please reinstall Roboger
+from scratch, for the existing resources use auto-deployment.
+
 ## Docker/Kubernetes
 
 * Pre-built image available at https://hub.docker.com/r/altertech/roboger
