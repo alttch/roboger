@@ -48,7 +48,48 @@ roboger-control launch
 ```
 
 Then create address, endpoints and subscriptions with
-[robogerctl](https://github.com/alttch/robogerctl)
+[robogerctl](https://github.com/alttch/robogerctl):
+
+```
+> robogerctl address create
+attr    value
+--------------------------------------------------------------------------
+res     9                                                                <<< address resource id
+a       5VpTb3jp8yUd138saNnOVDkcTPQBDM9k4kpas2QQW6vZyYr19PvXofmHAfTrkm77 <<< your address
+active  1
+# let's craate endpoint for slack
+> robogerctl endpoint create 9 slack
+attr         value
+--------------------
+res          9.7     <<< endpoint resource id
+active       1
+config       {}
+description
+plugin_name  slack
+# lets create one subscription for this endpoint
+> robogerctl subscription create 9.7
+attr         value
+---------------------
+res          9.7.16
+active       1
+endpoint_id  7
+level        20
+level_match  ge
+location
+sender
+tag
+# edit endpoint configuration
+> robogerctl endpoint edit 9.7
+```
+
+make sure it looks like
+
+```yaml
+active: 1
+config:
+  url: http://slack-web-hook/url
+description: some my chat
+```
 
 Then use Roboger API to send event notifications:
 
