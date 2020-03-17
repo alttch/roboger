@@ -57,6 +57,7 @@ attr    value
 res     9                                                                <<< address resource id
 a       5VpTb3jp8yUd138saNnOVDkcTPQBDM9k4kpas2QQW6vZyYr19PvXofmHAfTrkm77 <<< your address
 active  1
+
 # let's craate endpoint for slack
 > robogerctl endpoint create 9 slack
 attr         value
@@ -66,6 +67,7 @@ active       1
 config       {}
 description
 plugin_name  slack
+
 # lets create one subscription for this endpoint
 > robogerctl subscription create 9.7
 attr         value
@@ -81,7 +83,6 @@ tag
 # edit endpoint configuration
 > robogerctl endpoint edit 9.7
 ```
-
 make sure it looks like
 
 ```yaml
