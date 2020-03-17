@@ -29,8 +29,8 @@ PROPERTY_MAP_SCHEMA = {
 }
 
 
-def load(server_config, **kwargs):
-    smtp = server_config.get('smtp-server')
+def load(plugin_config, **kwargs):
+    smtp = plugin_config.get('smtp-server')
     if smtp:
         _cfg.host, _cfg.port = parse_host_port(smtp, 25)
         logger.debug(f'{__name__} loaded, SMTP server: {_cfg.host}:{_cfg.port}')

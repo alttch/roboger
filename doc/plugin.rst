@@ -45,7 +45,7 @@ load
 
 Optional, called on core load, params:
 
-* **server_config** contains dict with plugin configuration, specified in
+* **plugin_config** contains dict with plugin configuration, specified in
   Roboger server main configuration file.
 
 This method initializes plugin global parameters, if required.
