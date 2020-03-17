@@ -51,7 +51,6 @@ pub:
 
 pub-pypi:
 	twine upload dist/*
-	sleep 60
 
 docker: docker-build docker-test
 
