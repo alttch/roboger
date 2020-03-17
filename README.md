@@ -201,6 +201,24 @@ required, plugin quotes variables automatically, if necessary):
 
 server config: not required
 
+## shell
+
+Executes server command, specified in endpoint configuration. The command is
+executed with the user permissions of Roboger server process. Should be enabled
+only in trusted environments, where regular users have no direct access to
+the endpoint configuration.
+
+endpoint config:
+
+```json
+{
+  "command" : "server shell command"
+}
+```
+
+Variables: same as in webhook plugin. Variables are sent to command without
+quotes.
+
 ## chain
 
 Allows to forward event to another Roboger server. Be careful to avoid event
