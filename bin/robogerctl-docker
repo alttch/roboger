@@ -1,4 +1,3 @@
 #!/bin/sh
 
-ROBOGER_MASTERKEY=$(cat /config/masterkey) /opt/venv/bin/python3 \
-  /opt/venv/bin/robogerctl -F /config/roboger.yml "$@"
+/opt/venv/bin/python3 /opt/venv/bin/robogerctl -F /config/roboger.yml "$@"
