@@ -1,4 +1,4 @@
-__version__ = '2.0.15'
+__version__ = '2.0.16'
 
 import setuptools
 
@@ -16,9 +16,9 @@ setuptools.setup(name='roboger',
                  packages=setuptools.find_packages(),
                  license='Apache License 2.0',
                  install_requires=[
-                     'requests', 'pyyaml', 'sqlalchemy', 'pyaltt2', 'flask',
-                     'jsonschema', 'python-rapidjson', 'netaddr', 'filetype',
-                     'tebot', 'simplejson'
+                     'requests', 'pyyaml', 'sqlalchemy', 'pyaltt2>=0.0.58',
+                     'flask', 'jsonschema', 'python-rapidjson', 'netaddr',
+                     'filetype', 'tebot', 'simplejson'
                  ],
                  classifiers=(
                      'Programming Language :: Python :: 3',

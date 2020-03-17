@@ -1,7 +1,7 @@
 __author__ = 'Altertech, http://www.altertech.com/'
 __copyright__ = 'Copyright (C) 2018-2020 Altertech Group'
 __license__ = 'Apache License 2.0'
-__version__ = '2.0.15'
+__version__ = '2.0.16'
 
 import platform
 import os
@@ -25,7 +25,7 @@ from pathlib import Path
 
 from pyaltt2.crypto import gen_random_str
 from pyaltt2.network import parse_host_port
-from pyaltt2.config import load_yaml, config_value
+from pyaltt2.config import load_yaml, config_value, choose_file
 from netaddr import IPNetwork
 
 logging.getLogger('requests').setLevel(logging.CRITICAL)
@@ -107,12 +107,9 @@ def load(fname=None):
                 pass
 
     logger.info(f'CORE Roboger server {__version__} {product.build}')
-    if not fname:
-        fname = os.environ.get('ROBOGER_CONFIG')
-    if not fname:
-        fname = f'{dir_me}/etc/roboger.yml'
-    if not Path(fname).exists:
-        fname = '/usr/local/etc/roboger.yml'
+    fname = choose_file(
+        env='ROBOGER_CONFIG',
+        choices=[f'{dir_me}/etc/roboger.yml', '/usr/local/etc/roboger.yml'])
     logger.debug(f'CORE using config file {fname}')
     config.update(load_yaml(fname)['roboger'])
     _d.secure_mode = config.get('secure-mode')
