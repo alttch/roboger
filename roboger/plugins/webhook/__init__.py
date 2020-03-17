@@ -33,7 +33,7 @@ _template_fields = [
 
 
 def send(config, **kwargs):
-    if config.get('template'):
+    if 'template' in config:
         data = config['template'].replace('\n', '').replace('\r', '')
         for p in _template_fields:
             v = kwargs.get('media_encoded' if p == 'media' else p)
