@@ -4,10 +4,6 @@ __description__ = 'sends event to Slack'
 import requests
 
 from jsonschema import validate
-try:
-    import rapidjson as json
-except:
-    import json
 
 from roboger.core import logger, log_traceback, product, get_timeout
 
@@ -47,11 +43,9 @@ def send(config, event_id, level, formatted_subject, subject, msg, sender,
             'color':
                 color,
             'fields': [{
-                'title':
-                    formatted_subject,
+                'title': formatted_subject,
                 'value': msg,
-                'short':
-                    subject
+                'short': subject
             }]
         }]
     else:
@@ -68,5 +62,3 @@ def send(config, event_id, level, formatted_subject, subject, msg, sender,
 
 def validate_config(config, **kwargs):
     validate(config, schema=PROPERTY_MAP_SCHEMA)
-    if config.get('template'):
-        json.loads(config['template'])
