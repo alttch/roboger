@@ -32,12 +32,14 @@ _copy_fields = ['msg', 'subject', 'level', 'location', 'tag', 'sender']
 def send(config, **kwargs):
     url = config['url']
     addr = config['addr']
+    if url.endswith('/'):
+        url = url[:-1]
     data = {k: kwargs.get(k) for k in _copy_fields}
     data['media'] = kwargs.get('media_encoded')
     data['addr'] = addr
     logger.debug(f'{__name__} {kwargs["event_id"]} '
                  f'sending Roboger chain event to {url} {addr}')
-    r = requests.post(url,
+    r = requests.post(f'{url}/push',
                       headers={'User-Agent': product.user_agent},
                       json=data,
                       timeout=get_timeout())

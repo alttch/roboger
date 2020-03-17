@@ -206,10 +206,12 @@ endpoint config:
 
 ```json
 {
-  "url" : "http://another-roboger-server/push",
+  "url" : "http://another-roboger-server",
   "addr" : "roboger address on target server"
 }
 ```
+
+Note: */push* uri is not required in "url" field.
 
 server config: not required
 
