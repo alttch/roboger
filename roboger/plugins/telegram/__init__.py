@@ -6,6 +6,7 @@ import tebot.bot
 from roboger.core import logger, log_traceback, config as core_config
 from roboger.core import get_app, get_timeout, emoji_code
 from pyaltt2.crypto import gen_random_str, Rioja
+from pyaltt2.config import config_value
 
 from flask import request
 from types import SimpleNamespace
@@ -32,8 +33,8 @@ PROPERTY_MAP_SCHEMA = {
 
 
 def load(config, **kwargs):
-    token = config['token']
-    bot.set_token(config['token'])
+    token = config_value(config=config, config_path='/token')
+    bot.set_token(token)
     _d.ce = Rioja(token)
     bot.timeout = get_timeout()
     mykey = gen_random_str()
