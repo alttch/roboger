@@ -11,7 +11,6 @@ import logging
 import threading
 import traceback
 import sqlalchemy
-import yaml
 import signal
 try:
     import rapidjson as json
@@ -26,6 +25,7 @@ from pathlib import Path
 
 from pyaltt2.crypto import gen_random_str
 from pyaltt2.network import parse_host_port
+from pyaltt2.config import load_yaml, config_value
 from netaddr import IPNetwork
 
 logging.getLogger('requests').setLevel(logging.CRITICAL)
@@ -114,8 +114,7 @@ def load(fname=None):
     if not Path(fname).exists:
         fname = '/usr/local/etc/roboger.yml'
     logger.debug(f'CORE using config file {fname}')
-    with open(fname) as fh:
-        config.update(yaml.load(fh.read())['roboger'])
+    config.update(load_yaml(fname)['roboger'])
     _d.secure_mode = config.get('secure-mode')
     _d.log_tracebacks = config.get('log-tracebacks')
     _d.limits = config.get('limits')
@@ -134,8 +133,11 @@ def load(fname=None):
     config['_acl'] = [IPNetwork(h) for h in config['master']['allow']] if \
             config.get('master', {}).get('allow') else None
     masterkey = os.getenv('ROBOGER_MASTERKEY')
-    if masterkey:
-        config.setdefault('master', {})['key'] = masterkey
+    config_value(env='ROBOGER_MASTERKEY',
+                 config=config,
+                 config_path='/master/key',
+                 to_str=True,
+                 in_place=True)
     _d.ip_header = config.get('ip-header')
     for plugin in config.get('plugins', []):
         plugin_name = plugin['name']
