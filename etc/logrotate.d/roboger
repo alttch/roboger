@@ -1,11 +1,11 @@
-/var/log/fes/fes.log {
+/var/log/roboger/roboger.log {
     daily
     missingok
     rotate 7
     compress
     delaycompress
     notifempty
-    create 600 fes adm
+    create 600 roboger adm
     sharedscripts
     postrotate
       kill -1 `cat /var/run/roboger.pid`
