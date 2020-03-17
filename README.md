@@ -3,6 +3,7 @@
 * Do you like the old good "echo alarm | sendmail me@mydomain" trick in crontab?
 * Does your software or servers send you mail/sms alerts when something is
   wrong?
+* Want to build own notification bot for Telegram, Slack or whatever else?
 * Tired of getting emails from robots?
 
 Then Roboger is definitely for you!
