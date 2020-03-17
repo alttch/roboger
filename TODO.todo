@@ -1,3 +1,4 @@
+- [ ] cmd plugin
 - [ ] test with sqlite
 - [ ] test with k8s
 - [ ] validate config and deploy files with jsonschema
