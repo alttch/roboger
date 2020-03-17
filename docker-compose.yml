@@ -1,10 +1,9 @@
 version: '3'
 services:
   roboger:
-    environment:
-      - ROBOGER_MASTERKEY=123
     image: altertech/roboger
     volumes:
-        - ./test_config:/config
+        - ./test_data/config:/config
+        - ./test_data/secret:/secret
     ports:
       - "7719:7719"

@@ -1,0 +1,23 @@
+roboger:
+  db: postgresql://roboger:123@10.90.34.111/roboger
+  log-tracebacks: true
+  #url: https://somedomain
+  secure-mode: true
+  db-pool-size: 2
+  thread-pool-size: 20
+  timeout: 5
+  master:
+    key: /secret/masterkey
+  plugins:
+    - name: webhook
+    - name: email
+      config:
+        smtp-server: 10.90.1.8
+    - name: slack
+  gunicorn:
+    path: /opt/venv/bin/gunicorn
+    listen: 0.0.0.0:7719
+    start-failed-after: 5
+    force-stop-after: 10
+    launch-debug: false
+    extra-options: -w 2 --log-level DEBUG -u nobody
