@@ -1,0 +1,13 @@
+/var/log/fes/fes.log {
+    daily
+    missingok
+    rotate 7
+    compress
+    delaycompress
+    notifempty
+    create 600 fes adm
+    sharedscripts
+    postrotate
+      kill -1 `cat /var/run/roboger.pid`
+    endscript
+}
