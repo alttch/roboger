@@ -1,5 +1,5 @@
 - [ ] test with k8s
-- [ ] validate client/server config, plugin server_config and deploy files with jsonschema
+- [ ] validate client/server config, deploy files with jsonschema
 - [ ] migrate roboger.com UI
 - [ ] create android plugin
 - [ ] API documentation
