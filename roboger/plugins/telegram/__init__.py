@@ -32,8 +32,8 @@ PROPERTY_MAP_SCHEMA = {
 }
 
 
-def load(config, **kwargs):
-    token = config_value(config=config, config_path='/token')
+def load(server_config, **kwargs):
+    token = server_config_value(config=server_config, config_path='/token')
     bot.set_token(token)
     _d.ce = Rioja(token)
     bot.timeout = get_timeout()
