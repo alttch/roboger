@@ -68,7 +68,7 @@ Or with **roboger-push** console client in the old good crontab or any other
 software/scripts:
 
 ```shell
-echo Everything is down!!! | roboger-push -l warning
+echo Everything is down | roboger-push -l warning
 ```
 
 **roboger-push** app is written in pure bash, so it will run almost everywhere,
