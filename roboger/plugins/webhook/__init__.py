@@ -37,13 +37,16 @@ def send(config, **kwargs):
         data = config['template'].replace('\n', '').replace('\r', '')
         for p in _template_fields:
             v = kwargs.get('media_encoded' if p == 'media' else p)
+            if p == 'msg' and v:
+                v = v.replace('\r', '\\\\r').replace('\n', '\\\\n')
             if p != 'level':
                 v = 'null' if v is None else f'"{v}"'
             data = re.sub(fr'\${p}([^_])', fr'{v}\1', data)
     else:
         data = "null"
     url = config['url']
-    logger.debug(f'{__name__} {kwargs["event_id"]} sending JSON POST to {url}')
+    logger.debug(
+        f'{__name__} {kwargs["event_id"]} sending JSON POST to {url} {data}')
     r = requests.post(url,
                       headers={
                           'Content-Type': 'application/json',

@@ -345,7 +345,7 @@ def test020_push():
     push = partial(requests.post,
                    f'http://{test_server_bind}:{test_server_port}/push')
     payload = dict(addr=addr.a,
-                   msg='test message',
+                   msg='test message\ntest test',
                    subject='test',
                    level=roboger.WARNING,
                    location='lab',
@@ -360,6 +360,7 @@ def test020_push():
     time.sleep(0.2)
     assert test_data.webhook_payload['event_id']
     assert test_data.webhook_payload['addr'] == addr.a
+    assert test_data.webhook_payload['msg'] == 'test message\ntest test'
     for k, v in payload.items():
         if k != 'addr':
             assert v == test_data.webhook_payload[k]
