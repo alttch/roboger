@@ -24,7 +24,7 @@ from sqlalchemy import text as sql
 from pathlib import Path
 
 from pyaltt2.crypto import gen_random_str
-from pyaltt2.network import parse_host_port
+from pyaltt2.network import parse_host_port, generate_netacl
 from pyaltt2.config import load_yaml, config_value, choose_file
 from netaddr import IPNetwork
 
@@ -127,8 +127,8 @@ def load(fname=None):
                                     socket_keepalive=True)
         logger.info(
             f'CORE limits feature activated. Redis: {rhost}:{rport} db: {rdb}')
-    config['_acl'] = [IPNetwork(h) for h in config['master']['allow']] if \
-            config.get('master', {}).get('allow') else None
+    config['_acl'] = generate_netacl(config.get('master', {}).get('allow'),
+                                     default=None)
     masterkey = os.getenv('ROBOGER_MASTERKEY')
     config_value(env='ROBOGER_MASTERKEY',
                  config=config,
