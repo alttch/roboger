@@ -283,6 +283,10 @@ def get_db():
             return g.conn
 
 
+def get_db_engine():
+    return _d.db
+
+
 def get_timeout():
     timeout = config.get('timeout')
     return timeout if timeout else default_timeout
