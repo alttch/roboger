@@ -1,7 +1,5 @@
-- [ ] cmd plugin
-- [ ] test with sqlite
 - [ ] test with k8s
-- [ ] validate config and deploy files with jsonschema
+- [ ] validate client/server config, plugin server_config and deploy files with jsonschema
 - [ ] migrate roboger.com UI
 - [ ] create android plugin
 - [ ] documentation
