@@ -120,6 +120,9 @@ point there ROBOGER_CONFIG env variable.
 Note: Roboger database v2 is not compatible with v1. Please reinstall Roboger
 from scratch, for the existing resources use auto-deployment.
 
+Roboger can work with SQLite, MySQL and PostgreSQL, however SQLite is not
+recommended for production due to possible database locks.
+
 ## Docker/Kubernetes
 
 * Pre-built image available at https://hub.docker.com/r/altertech/roboger
