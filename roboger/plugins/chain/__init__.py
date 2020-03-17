@@ -2,13 +2,8 @@ __version__ = '1.0.0'
 __description__ = 'forwards event to another Roboger server'
 
 import requests
-import re
 
 from jsonschema import validate
-try:
-    import rapidjson as json
-except:
-    import json
 
 from roboger.core import logger, log_traceback, product, get_timeout
 
