@@ -49,9 +49,7 @@ def send(config, event_id, level, formatted_subject, subject, msg, sender,
             'fields': [{
                 'title':
                     formatted_subject,
-                'value':
-                    msg.replace('\r', '\\\\r').replace('\n', '\\\\n')
-                    if msg else msg,
+                'value': msg,
                 'short':
                     subject
             }]
