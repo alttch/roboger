@@ -67,7 +67,7 @@ Then use Roboger API to send event notifications:
 Or with **roboger-push** console client in the old good crontab or any other
 software/scripts:
 
-```shell
+```
 echo Everything is down | roboger-push -l warning
 ```
 
@@ -77,14 +77,6 @@ addresses are defined in /usr/local/etc/roboger_push.ini.
 Note: if you want to send media attachments with roboger-push, you should have
 local *openssl* CLI installed (it's actually installed everywhere by default,
 we just warn you about that)
-
-# Managing
-
-Install robogerctl (not included in server):
-
-```
-pip3 install robogerctl
-```
 
 # Python client module
 
@@ -118,6 +110,7 @@ Install with pip:
 
 ```
 pip3 install roboger
+pip3 install gunicorn # if not installed
 ```
 
 Get sample configuration file from github repo, put it either to
@@ -141,6 +134,14 @@ from scratch, for the existing resources use auto-deployment.
     *curl -s https://raw.githubusercontent.com/alttch/roboger/master/bin/install-roboger-push | bash /dev/stdin YOUR_ROBOGER_ADDRESS*
 
 * customize /usr/local/etc/roboger_push.ini if required
+
+# Managing
+
+Install robogerctl (not included in server):
+
+```
+pip3 install robogerctl
+```
 
 # Endpoint plugins
 
