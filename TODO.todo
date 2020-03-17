@@ -2,5 +2,5 @@
 - [ ] validate client/server config, plugin server_config and deploy files with jsonschema
 - [ ] migrate roboger.com UI
 - [ ] create android plugin
-- [ ] documentation
+- [ ] API documentation
 - [ ] reset limits with captcha
