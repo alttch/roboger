@@ -28,6 +28,109 @@ from pyaltt2.network import parse_host_port, generate_netacl
 from pyaltt2.config import load_yaml, config_value, choose_file
 from netaddr import IPNetwork
 
+SERVER_CONFIG_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'roboger': {
+            'type': 'object',
+            'properties': {
+                'db': {
+                    'type': 'string'
+                },
+                'url': {
+                    'type': 'string',
+                    'format': 'uri'
+                },
+                'log-tracebacks': {
+                    'type': 'boolean'
+                },
+                'ip-header': {
+                    'type': 'string',
+                },
+                'limits': {
+                    'type': 'object',
+                    'properties': {
+                        'period': {
+                            'type': 'string'
+                        },
+                        'reserve': {
+                            'type': 'integer',
+                            'minimum': 1
+                        },
+                        'redis': {
+                            'type': 'object',
+                            'properties': {
+                                'host': {
+                                    'type': 'string',
+                                },
+                                'db': {
+                                    'type': 'integer',
+                                    'minimum': 0
+                                }
+                            },
+                            'additionalProperties': False,
+                        },
+                    },
+                    'additionalProperties': False,
+                },
+                'secure-mode': {
+                    'type': 'boolean'
+                },
+                'db-pool-size': {
+                    'type': 'integer',
+                    'minimum': 1
+                },
+                'thread-pool-size': {
+                    'type': 'integer',
+                    'minimum': 1
+                },
+                'timeout': {
+                    'type': 'number',
+                    'minimum': 0.1
+                },
+                'master': {
+                    'type': 'object',
+                    'properties': {
+                        'key': {
+                            'type': 'string'
+                        },
+                        'allow': {
+                            'type': 'array',
+                            'items': {
+                                'type': 'string'
+                            }
+                        }
+                    },
+                    'additionalProperties': False,
+                },
+                'plugins': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'name': {
+                                'type': 'string'
+                            },
+                            'config': {
+                                'type': 'object'
+                            }
+                        },
+                        'additionalProperties': False,
+                        'required': ['name']
+                    }
+                },
+                'gunicorn': {
+                    'type': 'object'
+                }
+            },
+            'additionalProperties': False,
+            'required': ['db']
+        }
+    },
+    'additionalProperties': False,
+    'required': ['roboger']
+}
+
 logging.getLogger('requests').setLevel(logging.CRITICAL)
 logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 
@@ -129,7 +232,8 @@ def load(fname=None):
         env='ROBOGER_CONFIG',
         choices=[f'{dir_me}/etc/roboger.yml', '/usr/local/etc/roboger.yml'])
     logger.debug(f'CORE using config file {fname}')
-    config.update(load_yaml(fname)['roboger'])
+    server_config = load_yaml(fname, schema=SERVER_CONFIG_SCHEMA)
+    config.update(server_config['roboger'])
     _d.secure_mode = config.get('secure-mode')
     _d.log_tracebacks = config.get('log-tracebacks')
     _d.limits = config.get('limits')
