@@ -176,9 +176,12 @@ def load(fname=None):
     logger.debug('CORE initializing thread pool for plugins '
                  f'with max size {thread_pool_size}')
     _d.pool = ThreadPoolExecutor(max_workers=thread_pool_size)
+    logger.debug('CORE initializing database')
     init_db()
     from . import api
+    logger.debug('CORE initializing API')
     api.init()
+    logger.debug('CORE initialzation completed')
 
 
 def spawn(*args, **kwargs):

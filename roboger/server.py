@@ -16,3 +16,5 @@ core.set_build(product_build)
 core.load()
 
 app = core.get_app()
+
+core.logger.debug('SERVER Roboger worker is running')
