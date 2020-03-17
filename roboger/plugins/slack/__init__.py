@@ -62,3 +62,8 @@ def send(config, event_id, level, formatted_subject, subject, msg, sender,
 
 def validate_config(config, **kwargs):
     validate(config, schema=PROPERTY_MAP_SCHEMA)
+
+
+def validate_plugin_config(plugin_config, **kwargs):
+    if plugin_config:
+        raise ValueError('this plugin should have no configuration options')

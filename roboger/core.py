@@ -106,6 +106,24 @@ def load(fname=None):
             except:
                 pass
 
+    def _init_plugin(plugin_name, mod, config):
+        try:
+            safe_run_method(mod, 'validate_plugin_config',
+                            plugin.get('config', {}))
+        except:
+            logger.error(f'CORE failed to validate '
+                         f'plugin configuration for {plugin_name}')
+            log_traceback()
+            return False
+        try:
+            safe_run_method(mod, 'load', plugin.get('config', {}))
+            return True
+        except:
+            logger.error(
+                f'CORE failed to load plugin configuration for {plugin_name}')
+            log_traceback()
+            return False
+
     logger.info(f'CORE Roboger server {__version__} {product.build}')
     fname = choose_file(
         env='ROBOGER_CONFIG',
@@ -136,6 +154,7 @@ def load(fname=None):
                  to_str=True,
                  in_place=True)
     _d.ip_header = config.get('ip-header')
+
     for plugin in config.get('plugins', []):
         plugin_name = plugin['name']
         try:
@@ -149,14 +168,10 @@ def load(fname=None):
                 logger.error(f'CORE unable to load plugin: {plugin_name}')
                 log_traceback()
                 continue
-        try:
-            safe_run_method(mod, 'load', plugin.get('config', {}))
-        except:
-            logger.error(
-                f'CORE failed to load plugin configuration for {plugin_name}')
-            log_traceback()
-        plugins[plugin_name] = mod
-        logger.info(f'CORE added plugin {plugin_name}')
+        if _init_plugin(plugin_name, mod, plugin.get('config', {})):
+            plugins[plugin_name] = mod
+            logger.info(f'CORE added plugin {plugin_name}')
+
     logger.debug('CORE initializing database')
     if config['db'].startswith('sqlite'):
         _d.db = sqlalchemy.create_engine(config['db'],

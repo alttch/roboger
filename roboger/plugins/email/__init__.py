@@ -28,6 +28,17 @@ PROPERTY_MAP_SCHEMA = {
     'additionalProperties': False
 }
 
+PLUGIN_PROPERTY_MAP_SCHEMA = {
+    'type': 'object',
+    'properties': {
+        'smtp-server': {
+            'type': 'string',
+        }
+    },
+    'additionalProperties': False,
+    'required': ['smtp-server']
+}
+
 
 def load(plugin_config, **kwargs):
     smtp = plugin_config.get('smtp-server')
@@ -70,3 +81,7 @@ def send(config, event_id, msg, formatted_subject, sender, media, **kwargs):
 
 def validate_config(config, **kwargs):
     validate(config, schema=PROPERTY_MAP_SCHEMA)
+
+
+def validate_plugin_config(plugin_config, **kwargs):
+    validate(plugin_config, schema=PLUGIN_PROPERTY_MAP_SCHEMA)

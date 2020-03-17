@@ -68,3 +68,8 @@ def validate_config(config, **kwargs):
             val = 0 if p == 'level' else '""'
             tpl = re.sub(fr'\${p}([^_])', fr'{val}\1', tpl)
         json.loads(tpl)
+
+
+def validate_plugin_config(plugin_config, **kwargs):
+    if plugin_config:
+        raise ValueError('this plugin should have no configuration options')
