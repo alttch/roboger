@@ -106,7 +106,7 @@ The following additional *roboger.core* methods may be useful for plugins:
 
 * **get_db()** get database connection (thread-local)
 
-* **spawn(method, args, kwargs** submit function to core thread-pool
+* **spawn(method, \*args, \*\*kwargs)** submit function to core thread-pool
 
 * **get_app()** get core web application. If plugin want to have own HTTP
   methods, they SHOULD have URI: */plugin/{plugin_name}/whatever_you_want*
