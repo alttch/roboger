@@ -19,7 +19,7 @@ setuptools.setup(name='roboger',
                      'requests', 'pyyaml', 'sqlalchemy', 'pyaltt2>=0.0.61',
                      'flask', 'flask-restplus', 'jsonschema',
                      'python-rapidjson', 'netaddr', 'filetype', 'tebot',
-                     'simplejson'
+                     'simplejson', 'werkzeug==0.16.1'
                  ],
                  classifiers=(
                      'Programming Language :: Python :: 3',
