@@ -17,12 +17,12 @@ spec:
       containers:
       - name: roboger
         image: altertech/roboger
-        #readinessProbe:
-          #httpGet:
-            #path: /ping
-            #port: 7719
-          #initialDelaySeconds: 30
-          #periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ping
+            port: 7719
+          initialDelaySeconds: 30
+          periodSeconds: 10
         volumeMounts:
           - name: config
             mountPath: /config
