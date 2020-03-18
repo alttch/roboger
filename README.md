@@ -157,7 +157,7 @@ pip3 install gunicorn # if not installed
 ```
 
 Get sample configuration file from github repo, put it either to
-*/opt/roboger/etc/ or to */usr/local/etc/roboger.yml* or wherever you want and
+*/opt/roboger/etc/* or to */usr/local/etc/roboger.yml* or wherever you want and
 point there ROBOGER_CONFIG env variable.
 
 Note: Roboger database v2 is not compatible with v1. Please reinstall Roboger
@@ -341,6 +341,5 @@ resource configuration.
 
 ## Batch
 
-**robogerctl** does the job, but if you want to deploy in batch, use
-*robogerctl deploy -f file.yml* command. Look *sample-deploy.yml* for
-deployment example.
+If you want to deploy in batch, use *robogerctl deploy -f file.yml* command.
+Look *sample-deploy.yml* for deployment example.

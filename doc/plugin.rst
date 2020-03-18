@@ -40,6 +40,28 @@ validate_config
 Optional, called when core asks plugin to validate endpoint configuration.
 Usually should implement JSON schema validation + any additional, if required.
 
+e.g.
+
+.. code:: python
+
+   def validate_config(config, **kwargs):
+      jsonschema.validate(config, SOME_SCHEMA)
+
+validate_plugin_config
+----------------------
+
+Optional, called before plugin loading, core asks plugin to validate its global
+configuration. Usually should implement JSON schema validation + any
+additional, if required. If plugin has no configuration options, it should
+raise *ValueError* exception in case if plugin_config is not empty.
+
+e.g.
+
+.. code:: python
+
+   def validate_plugin_config(plugin_config, **kwargs):
+      jsonschema.validate(plugin_config, SOME_SCHEMA)
+
 load
 ----
 
@@ -82,12 +104,12 @@ The following additional *roboger.core* methods may be useful for plugins:
 
 * **get_db_engine()** get database engine (SQLAlchemy)
 * **get_db()** get database connection (thread-local)
-* **spawn(method, args, kwargs** submit function to core thread-pool *
+* **spawn(method, args, kwargs** submit function to core thread-pool
 * **get_app()** get core web application. If plugin want to have own HTTP
   methods, they SHOULD have URI: */plugin/{plugin_name}/whatever_you_want*
 * **get_timeout()** get default timeout
 * **get_real_ip()** get IP address of current API call
-* **get_plugin(plugin_name)** get another plugin module *
+* **get_plugin(plugin_name)** get another plugin module
 * **convert_level(level)** convert event level to integer code
 * **is_use_lastrowid()** should *.lastrowid* be used for the database
    queries (if not - database supports *RETURNING*)
