@@ -33,142 +33,142 @@ DEFAULT_SENDER=""
 
 
 function echoV() {
-    [ ${VERBOSE} -gt 0 ] && echo "$@"
+  [ ${VERBOSE} -gt 0 ] && echo "$@"
 }
 
 function parseIniFile() {
-    local LINE=""
-    local SECTION=""
-    local KEY=""
-    local VALUE=""
+  local LINE=""
+  local SECTION=""
+  local KEY=""
+  local VALUE=""
 
-    local IFS=""
+  local IFS=""
 
-    while read -r LINE
-    do
-        LINE=${LINE%%[;#]*}
-        LINE=${LINE%%*( )}
+  while read -r LINE
+  do
+    LINE=${LINE%%[;#]*}
+    LINE=${LINE%%*( )}
 
-        if [[ -n $KEY && $LINE =~ ^[[:space:]]+(.+) ]]
-        then
-            VALUE+=" ${BASH_REMATCH[1]}"
-        else
-            if [[ -n $KEY ]]
-            then
-                _CONFIG=(${_CONFIG[@]} "${SECTION}.${KEY}" "${VALUE}")
-                KEY=""
-                VALUE=""
-            fi
-
-            if [[ $LINE =~ ^\[([[:alnum:]]+)\] ]]
-            then
-                SECTION=${BASH_REMATCH[1]}
-                _SECTIONS="${_SECTIONS} ${SECTION}"
-                KEY=""
-            elif [[ $LINE =~ ^([^[:space:]]+)[[:space:]]*=[[:space:]]*(.+) ]]
-            then 
-                KEY=${BASH_REMATCH[1]}
-                VALUE="${BASH_REMATCH[2]}"
-            fi
-        fi
-    done
-
-    if [[ -n $KEY ]]
+    if [[ -n $KEY && $LINE =~ ^[[:space:]]+(.+) ]]
     then
+      VALUE+=" ${BASH_REMATCH[1]}"
+    else
+      if [[ -n $KEY ]]
+      then
         _CONFIG=(${_CONFIG[@]} "${SECTION}.${KEY}" "${VALUE}")
+        KEY=""
+        VALUE=""
+      fi
+
+      if [[ $LINE =~ ^\[([[:alnum:]]+)\] ]]
+      then
+        SECTION=${BASH_REMATCH[1]}
+        _SECTIONS="${_SECTIONS} ${SECTION}"
+        KEY=""
+      elif [[ $LINE =~ ^([^[:space:]]+)[[:space:]]*=[[:space:]]*(.+) ]]
+      then
+        KEY=${BASH_REMATCH[1]}
+        VALUE="${BASH_REMATCH[2]}"
+      fi
     fi
+  done
+
+  if [[ -n $KEY ]]
+  then
+    _CONFIG=(${_CONFIG[@]} "${SECTION}.${KEY}" "${VALUE}")
+  fi
 }
 
 function getProperty() {
-	_PROP=""
-    local -i i
-    local KEY=$1
-    for ((i=0; i<${#_CONFIG[@]}; i+=2))
-    do
-        if [[ ${_CONFIG[$i]} =~ ^\.?${KEY} ]]
-        then
-            _PROP=${_CONFIG[((i+1))]}
-            return 0
-        fi
-    done
-    return 1
+  _PROP=""
+  local -i i
+  local KEY=$1
+  for ((i=0; i<${#_CONFIG[@]}; i+=2))
+  do
+    if [[ ${_CONFIG[$i]} =~ ^\.?${KEY} ]]
+    then
+      _PROP=${_CONFIG[((i+1))]}
+      return 0
+    fi
+  done
+  return 1
 }
 
 function sendPush() {
-    local -i i
-    local SRV=$1
-    getProperty "${SRV}".addr
-    local ADDR=${_PROP}
-    getProperty "${SRV}".push
-    local PUSH=${_PROP}
-    getProperty "${SRV}".retries
-    local RETRIES=${_PROP}
-    getProperty "${SRV}".retry_delay
-    local RETRY_DELAY=${_PROP}
-    getProperty "${SRV}".timeout
-    local T=${_PROP}
-    getProperty "${SRV}".backup
-    local BACKUP_SRV=${_PROP}
-    local FROM=${SENDER}
-    if [ -z "${FROM}" ]; then
-        getProperty "${SRV}".sender
-        local FROM=${_PROP}
-        [ -z "${FROM}" ] && local FROM=${DEFAULT_SENDER}
-    fi
-    local _LOCATION=${LOCATION}
-    if [ -z "${_LOCATION}" ]; then
-        getProperty "${SRV}".location
-        local _LOCATION=${_PROP}
-    fi
-    [ -z "${RETRIES}" ] && RETRIES=1
-    [ -z "${RETRY_DELAY}" ] && RETRY_DELAY=${DEFAULT_RETRY_DELAY}
-    [ -z "${T}" ] && T=_$DEFAULT_TIMEOUT
-    if [ "${ADDR}" ] && [ "$PUSH" ]; then
-        for ((i=1; i<=RETRIES; i+=1))
-        do
-            local _data="{ \"msg\": \"${MSG}\", \"subject\": \"${SUBJECT}\", \"location\": \"${_LOCATION}\", \"tag\": \"${TAG}\", \"level\": \"${LEVEL}\", \"sender\" : \"${FROM}\", \"addr\":\"${ADDR}\", \"media\": \"${MEDIA}\" }"
-            local VERB=""
-            if [ ${VERBOSE} == "2" ]; then
-                VERB="-v"
-            fi
-            local CODE=$(echo "${_data}" | curl --header "Content-Type: application/json" --data @- -X POST -m "${T}" -s ${VERB} -o /dev/null -w "%{http_code}" "${PUSH}"/push)
-            if [ "${CODE}" == "200" ] || [ "${CODE}" == "202" ]; then
-                echoV "${SRV} ${ADDR} - sent"
-                _EX=0
-                break
-            fi
-            if [ "${CODE}" == "500" ] || [ "${CODE}" == "404" ] || [ "${CODE}" == "403" ]; then
-                echoV -n "${SRV} ${ADDR} - error"
-                if [ "${BACKUP_SRV}" ]; then
-                    echoV ", sending via backup"
-                    sendPush "${BACKUP_SRV}"
-                else
-                    echoV
-                fi
-                break
-            fi
-            if [ $i -lt ${RETRIES} ]; then
-                echoV "${SRV} ${ADDR} - failed, retrying"
-                sleep ${RETRY_DELAY}
-            else
-                echoV -n "${SRV} ${ADDR} - error"
-                if [ "${BACKUP_SRV}" ]; then
-                    echoV ", sending via backup"
-                    sendPush "${BACKUP_SRV}"
-                else
-                    echoV
-                fi
-            fi
-        done
-    else
-        echoV "Skipping ${SRV}, no addr or push"
+  local -i i
+  local SRV=$1
+  getProperty "${SRV}".addr
+  local ADDR=${_PROP}
+  getProperty "${SRV}".push
+  local PUSH=${_PROP}
+  getProperty "${SRV}".retries
+  local RETRIES=${_PROP}
+  getProperty "${SRV}".retry_delay
+  local RETRY_DELAY=${_PROP}
+  getProperty "${SRV}".timeout
+  local T=${_PROP}
+  getProperty "${SRV}".backup
+  local BACKUP_SRV=${_PROP}
+  local FROM=${SENDER}
+  if [ -z "${FROM}" ]; then
+    getProperty "${SRV}".sender
+    local FROM=${_PROP}
+    [ -z "${FROM}" ] && local FROM=${DEFAULT_SENDER}
+  fi
+  local _LOCATION=${LOCATION}
+  if [ -z "${_LOCATION}" ]; then
+    getProperty "${SRV}".location
+    local _LOCATION=${_PROP}
+  fi
+  [ -z "${RETRIES}" ] && RETRIES=1
+  [ -z "${RETRY_DELAY}" ] && RETRY_DELAY=${DEFAULT_RETRY_DELAY}
+  [ -z "${T}" ] && T=_$DEFAULT_TIMEOUT
+  if [ "${ADDR}" ] && [ "$PUSH" ]; then
+    for ((i=1; i<=RETRIES; i+=1))
+    do
+      local _data="{ \"msg\": \"${MSG}\", \"subject\": \"${SUBJECT}\", \"location\": \"${_LOCATION}\", \"tag\": \"${TAG}\", \"level\": \"${LEVEL}\", \"sender\" : \"${FROM}\", \"addr\":\"${ADDR}\", \"media\": \"${MEDIA}\", \"media_fname\": \"${MEDIA_FILE}\" }"
+      local VERB=""
+      if [ ${VERBOSE} == "2" ]; then
+        VERB="-v"
+      fi
+      local CODE=$(echo "${_data}" | curl --header "Content-Type: application/json" --data @- -X POST -m "${T}" -s ${VERB} -o /dev/null -w "%{http_code}" "${PUSH}"/push)
+      if [ "${CODE}" == "200" ] || [ "${CODE}" == "202" ]; then
+        echoV "${SRV} ${ADDR} - sent"
+        _EX=0
+        break
+      fi
+      if [ "${CODE}" == "500" ] || [ "${CODE}" == "404" ] || [ "${CODE}" == "403" ]; then
+        echoV -n "${SRV} ${ADDR} - error"
+        if [ "${BACKUP_SRV}" ]; then
+          echoV ", sending via backup"
+          sendPush "${BACKUP_SRV}"
+        else
+          echoV
+        fi
+        break
+      fi
+      if [ $i -lt ${RETRIES} ]; then
+        echoV "${SRV} ${ADDR} - failed, retrying"
+        sleep ${RETRY_DELAY}
+      else
+        echoV -n "${SRV} ${ADDR} - error"
+        if [ "${BACKUP_SRV}" ]; then
+          echoV ", sending via backup"
+          sendPush "${BACKUP_SRV}"
+        else
+          echoV
+        fi
+      fi
+    done
+  else
+    echoV "Skipping ${SRV}, no addr or push"
 
-    fi
+  fi
 }
 
 
 function showHelp() {
-cat <<EOF
+  cat <<EOF
 Usage: roboger-push [-f config] [-s subject] [-l level] [-x sender]
   [-n location] [-t tag] [-m message] [-a file] [-v]
 
@@ -192,69 +192,69 @@ EOF
 
 while [[ $# -gt 0 ]]
 do
-    key="$1"
-    case $key in
-        -f)
-            CONFIG_FILE="$2"
-            shift
-            shift
-        ;;
-        -x) SENDER="$2"
-            shift
-            shift
-        ;;
-        -n) LOCATION="$2"
-            shift
-            shift
-        ;;
-        -k) TAG="$2"
-            shift
-            shift
-        ;;
-        -t) TAG="$2"
-            shift
-            shift
-        ;;
-        -l) LEVEL="$2"
-            shift
-            shift
-        ;;
-        -s) SUBJECT="$2"
-            shift
-            shift
-        ;;
-        -e) EXPIRES="$2"
-            shift
-            shift
-        ;;
-        -m) MSG="$2"
-            shift
-            shift
-        ;;
-        -a) MEDIA_FILE="$2"
-            shift
-            shift
-        ;;
-        -v) VERBOSE=1
-            shift
-        ;;
-        -vv) VERBOSE=2
-            shift
-        ;;
-        -h) showHelp
-            exit 0
-        ;;
-        *)
-            echo "Unknown option: ${key}"
-            showHelp
-            exit -1
-        ;;
-    esac
+  key="$1"
+  case $key in
+    -f)
+      CONFIG_FILE="$2"
+      shift
+      shift
+      ;;
+    -x) SENDER="$2"
+      shift
+      shift
+      ;;
+    -n) LOCATION="$2"
+      shift
+      shift
+      ;;
+    -k) TAG="$2"
+      shift
+      shift
+      ;;
+    -t) TAG="$2"
+      shift
+      shift
+      ;;
+    -l) LEVEL="$2"
+      shift
+      shift
+      ;;
+    -s) SUBJECT="$2"
+      shift
+      shift
+      ;;
+    -e) EXPIRES="$2"
+      shift
+      shift
+      ;;
+    -m) MSG="$2"
+      shift
+      shift
+      ;;
+    -a) MEDIA_FILE="$2"
+      shift
+      shift
+      ;;
+    -v) VERBOSE=1
+      shift
+      ;;
+    -vv) VERBOSE=2
+      shift
+      ;;
+    -h) showHelp
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: ${key}"
+      showHelp
+      exit -1
+      ;;
+  esac
 done
 
 if [ ! -f "${CONFIG_FILE}" ]; then
-    echo "config not found: ${CONFIG_FILE}. Use -f to specify custom config file, -h for help"
-    exit 3
+  echo "config not found: ${CONFIG_FILE}. Use -f to specify custom config file, -h for help"
+  exit 3
 fi
 
 HOSTNAME=$(hostname -f 2>&1) || HOSTNAME=$(hostname)
@@ -263,18 +263,18 @@ HOSTNAME=$(hostname -f 2>&1) || HOSTNAME=$(hostname)
 [ -z "${MSG}" ] && MSG=$(sed 's/\t/    /g'|sed 's/\\\\/\\\\\\\\/g'|sed 's/\"/\\\"/g'|sed ':a;N;$!ba;s/\n/\\n/g'|head -c 2048)
 
 if [ "${MEDIA_FILE}" ]; then
-    if [ -f "${MEDIA_FILE}" ]; then
-        MEDIA=$(openssl base64 -in "${MEDIA_FILE}" |sed ':a;N;$!ba;s/\n//g')
-    else
-        >&2 echo "Warning: no such file ${MEDIA_FILE}"
-    fi
+  if [ -f "${MEDIA_FILE}" ]; then
+    MEDIA=$(base64 -w0 "${MEDIA_FILE}")
+  else
+    >&2 echo "Warning: no such file ${MEDIA_FILE}"
+  fi
 fi
 
 parseIniFile < "$CONFIG_FILE"
 for SRV in ${_SECTIONS}; do
-	getProperty "${SRV}".type
-    if [ "${_PROP}" != "backup" ]; then
-        sendPush "${SRV}"
-    fi
+  getProperty "${SRV}".type
+  if [ "${_PROP}" != "backup" ]; then
+    sendPush "${SRV}"
+  fi
 done
 exit $_EX
