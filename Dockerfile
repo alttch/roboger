@@ -1,4 +1,4 @@
-from altertech/pytpl:30
+from altertech/pytpl:31
 RUN /opt/venv/bin/pip3 install pytest PyMySQL
 COPY ./etc/supervisor/conf.d/roboger.conf /etc/supervisor/conf.d/
 RUN /opt/venv/bin/pip3 install --no-cache-dir robogerctl==2.0.14
