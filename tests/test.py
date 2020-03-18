@@ -27,8 +27,13 @@ test_app_bind = '127.0.0.1'
 test_app_port = random.randint(9800, 9899)
 
 pidfile = '/tmp/roboger-test-{}.pid'.format(os.getpid())
-logfile = '/tmp/roboger-test-gunicorn-{}.log'.format(os.getpid())
+logfile = '/tmp/roboger-test-gunicorn.log'
 configfile = '/tmp/roboger-test-{}.yml'.format(os.getpid())
+
+try:
+    os.unlink(logfile)
+except:
+    pass
 
 gunicorn = os.getenv('GUNICORN', 'gunicorn')
 
@@ -130,7 +135,6 @@ def start_servers():
         pass
     if os.getenv('CLEANUP'):
         os.unlink(configfile)
-        os.unlink(logfile)
 
 
 def test001_test_server():
