@@ -21,8 +21,14 @@ spec:
           httpGet:
             path: /ping
             port: 7719
-          initialDelaySeconds: 30
-          periodSeconds: 10
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: 7719
+          initialDelaySeconds: 5
+          periodSeconds: 5
         volumeMounts:
           - name: config
             mountPath: /config
