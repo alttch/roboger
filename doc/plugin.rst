@@ -111,7 +111,7 @@ The following additional *roboger.core* methods may be useful for plugins:
 * **get_real_ip()** get IP address of current API call
 * **get_plugin(plugin_name)** get another plugin module
 * **convert_level(level)** convert event level to integer code
-* **is_use_lastrowid()** should *.lastrowid* be used for the database
+* **is_use_lastrowid()** should *lastrowid* be used for the database
    queries (if not - database supports *RETURNING*)
 * **is_use_limits()** is Roboger server configured to have limits applied on
   addresses or not.
