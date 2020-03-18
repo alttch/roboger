@@ -211,6 +211,10 @@ def init():
                             default=None,
                             help='event keyword (obsolete, don\'t use)',
                             type=str)
+        p_push.add_argument('expires',
+                            default=None,
+                            help='reserved, don\'t use',
+                            type=int)
         p_push.add_argument('media',
                             default=None,
                             help='base64-encoded media file',
