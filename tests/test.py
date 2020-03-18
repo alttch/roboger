@@ -114,6 +114,7 @@ def start_servers():
                  f' --pid {pidfile} roboger.server:app'):
         raise RuntimeError('Failed to start gunicorn')
     c = 0
+    time.sleep(1)
     while not os.path.isfile(pidfile):
         c += 1
         time.sleep(0.1)
