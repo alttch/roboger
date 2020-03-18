@@ -4,7 +4,7 @@ __license__ = 'Apache License 2.0'
 __version__ = '2.0.25'
 
 from flask import request, jsonify, Response, abort
-from flask_restplus import Api, Resource, reqparse
+from flask_restx import Api, Resource, reqparse
 
 import simplejson
 
