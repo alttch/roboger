@@ -103,8 +103,8 @@ Then use Roboger API to send event notifications:
         'subject': 'what we are talking about',
         'msg': 'message body',
         'level': 'event level (debug, info, warning, error or critical)',
-        'media': 'base64-encoded binary eg. photo from surveillance camera')
-        'media_file': 'media file name')
+        'media': 'base64-encoded binary eg. photo from surveillance camera',
+        'media_file': 'media file name'
     }
     (all fields except address are optional, default level is "info")
 
