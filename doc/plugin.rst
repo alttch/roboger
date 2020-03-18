@@ -33,6 +33,7 @@ configured endpoint receives an event, and gets the following data in kwargs:
 * **tag** event tag
 * **media** event media, binary
 * **media_encoded** event media, base64-encoded
+* **media_fname** event media file name, if specified by sender
 
 validate_config
 ---------------

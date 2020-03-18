@@ -104,6 +104,7 @@ Then use Roboger API to send event notifications:
         'msg': 'message body',
         'level': 'event level (debug, info, warning, error or critical)',
         'media': 'base64-encoded binary eg. photo from surveillance camera')
+        'media_file': 'media file name')
     }
     (all fields except address are optional, default level is "info")
 
@@ -209,9 +210,8 @@ server config:
 - name: email
   config:
     smtp-server: your-smtp-server:port
+    default-location: location # if not specified, host name is used
 ```
-
-**Note: plugin always requires "sender" field in event push payload.**
 
 ## webhook
 
@@ -343,3 +343,7 @@ resource configuration.
 
 If you want to deploy in batch, use *robogerctl deploy -f file.yml* command.
 Look *sample-deploy.yml* for deployment example.
+
+## API documentation
+
+Swagger API docs are at http://your-roboger-host:7719/
