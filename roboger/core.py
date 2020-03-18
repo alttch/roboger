@@ -441,6 +441,10 @@ def is_use_limits():
 
 
 def convert_level(level):
+    try:
+        level = int(level)
+    except:
+        pass
     if level in [10, 20, 30, 40, 50]: return level
     elif isinstance(level, str):
         level = level.lower()
