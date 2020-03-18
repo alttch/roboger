@@ -1,0 +1,13 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: ing-main
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 1m
+spec:
+  rules:
+  - http:
+      paths:
+      - backend:
+          serviceName: roboger-svc
+          servicePort: 7719

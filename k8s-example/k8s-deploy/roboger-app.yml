@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roboger
+  labels:
+    app: roboger
+spec:
+  selector:
+    matchLabels:
+      app: roboger
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: roboger
+    spec:
+      containers:
+      - name: roboger
+        image: altertech/roboger
+        #readinessProbe:
+          #httpGet:
+            #path: /ping
+            #port: 7719
+          #initialDelaySeconds: 30
+          #periodSeconds: 10
+        volumeMounts:
+          - name: config
+            mountPath: /config
+          - name: secret
+            mountPath: /secret
+      volumes:
+        - name: config
+          configMap:
+            name: roboger-config
+        - name: secret
+          secret:
+            secretName: roboger-masterkey

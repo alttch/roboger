@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: roboger-svc
+spec:
+  selector:
+    app: roboger
+  ports:
+    - name: default
+      protocol: TCP
+      port: 7719
+      targetPort: 7719
+  type: NodePort

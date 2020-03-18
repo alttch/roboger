@@ -1,0 +1,31 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: roboger-config
+data:
+  roboger.yml: |-
+    roboger:
+      db: postgresql://roboger:123@10.90.1.7/roboger
+      log-tracebacks: true
+      ip-header: CF-Connecting-IP
+      secure-mode: true
+      db-pool-size: 2
+      thread-pool-size: 20
+      timeout: 5
+      master:
+        key: /secret/masterkey
+      plugins:
+        - name: webhook
+        - name: chain
+        - name: shell
+        - name: email
+          config:
+            smtp-server: 10.90.1.8
+        - name: slack
+      gunicorn:
+        path: /opt/venv/bin/gunicorn
+        listen: 0.0.0.0:7719
+        start-failed-after: 5
+        force-stop-after: 10
+        launch-debug: true
+        extra-options: -w 1 --log-level INFO
