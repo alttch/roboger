@@ -4,6 +4,7 @@ __license__ = 'Apache License 2.0'
 __version__ = '2.0.23'
 
 from flask import request, jsonify, Response, abort
+from flask_restplus import Api, Resource, reqparse
 
 import simplejson
 
@@ -121,7 +122,7 @@ def public_method(f):
 
     @wraps(f)
     def do(*args):
-        logger.debug(f'API call {get_real_ip()} {f.__name__}')
+        logger.debug(f'API call {get_real_ip()} {f.__qualname__}')
         return f(*args, **(request.json if request.json else {}))
 
     return do
@@ -157,104 +158,6 @@ def admin_method(f):
     return do
 
 
-@public_method
-def ping(**kwargs):
-    get_db()
-    return _response_empty()
-
-
-@public_method
-def push(**kwargs):
-    try:
-        event_id = str(uuid.uuid4())
-        a = kwargs.get('addr', kwargs.get('a'))
-        logger.info(f'API message to {a}')
-        msg = kwargs.get('msg', '')
-        subject = kwargs.get('subject', '')
-        level = convert_level(kwargs.get('level'))
-        location = kwargs.get('location')
-        if location == '': location = None
-        # TODO: remove keywords when removing legacy
-        tag = kwargs.get('keywords', kwargs.get('tag'))
-        if tag == '': tag = None
-        sender = kwargs.get('sender')
-        if sender == '': sender = None
-        media_encoded = kwargs.get('media')
-        if media_encoded == '': media_encoded = None
-        if media_encoded:
-            try:
-                media = base64.b64decode(media_encoded)
-            except:
-                media = None
-                media_encoded = None
-                logger.warning(
-                    f'API invalid media file in {event_id} message to {addr}')
-        else:
-            media = None
-        level_name = logging.getLevelName(level)
-        formatted_subject = level_name
-        if location:
-            formatted_subject += f' @{location}'
-        elif location:
-            formatted_subject = location
-        if subject: formatted_subject += f': {subject}'
-        try:
-            addr = addr_get(addr=a)
-            if addr['active'] < 1:
-                return Response(f'addr {a} is disabled', status=406)
-            if is_use_limits():
-                check_addr_limit(addr, level=level, size=request.content_length)
-        except LookupError:
-            logger.info(f'API no such address: {a}')
-            return _response_not_found(f'addr {a} not found')
-        except OverlimitError as e:
-            return Response(str(e), status=429)
-        for row in get_db().execute(sql("""
-            SELECT plugin_name, config
-            FROM subscription JOIN endpoint ON
-                endpoint.id = subscription.endpoint_id JOIN addr ON
-                endpoint.addr_id = addr.id WHERE
-                addr.a=:a
-                AND addr.active=1
-                AND subscription.active = 1
-                AND endpoint.active = 1
-                AND (location=:location or location IS null)
-                AND (tag=:tag or tag IS null)
-                AND (sender=:sender or sender IS null)
-                AND (
-                    (level=:level AND level_match='e') OR
-                    (level<:level and level_match='g') OR
-                    (level<=:level and level_match='ge') OR
-                    (level>:level and level_match='l') OR
-                    (level>=:level and level_match='le')
-                    )
-                    """),
-                                    a=a,
-                                    location=location,
-                                    tag=tag,
-                                    sender=sender,
-                                    level=level):
-            send(row.plugin_name,
-                 config=json.loads(row.config)
-                 if is_parse_db_json() else row.config,
-                 event_id=event_id,
-                 addr=a,
-                 msg=msg,
-                 subject=subject,
-                 formatted_subject=formatted_subject,
-                 level=level,
-                 level_name=level_name,
-                 location=location,
-                 tag=tag,
-                 sender=sender,
-                 media=media,
-                 media_encoded=media_encoded)
-        return _response_accepted()
-    except:
-        log_traceback()
-        abort(503)
-
-
 api_uri = '/manage'
 
 api_uri_rest = f'{api_uri}/v2'
@@ -262,8 +165,164 @@ api_uri_rest = f'{api_uri}/v2'
 
 def init():
     app = get_app()
-    app.add_url_rule('/ping', 'ping', ping, methods=['GET'])
-    app.add_url_rule('/push', 'push', push, methods=['POST'])
+
+    api = Api(app=app)
+    ns_public = api.namespace('/', description='Public functions')
+
+    @ns_public.route('/ping')
+    class Ping(Resource):
+
+        method_decorators = [public_method]
+
+        @api.response(204, 'server works properly')
+        def get(self):
+            """
+            Check server health
+            """
+            get_db()
+            return '', 204
+
+    @ns_public.route('/push')
+    class Push(Resource):
+
+        method_decorators = [public_method]
+
+        p_push = reqparse.RequestParser()
+        p_push.add_argument('addr',
+                            required=True,
+                            help='recipient address',
+                            type=str)
+        p_push.add_argument('sender',
+                            default=None,
+                            help='event sender',
+                            type=str)
+        p_push.add_argument('msg', default='', help='message text', type=str)
+        p_push.add_argument('subject',
+                            default='',
+                            help='message subject',
+                            type=str)
+        p_push.add_argument('level', default='info', help='event level')
+        p_push.add_argument('location',
+                            default=None,
+                            help='event location',
+                            type=str)
+        p_push.add_argument('tag', default=None, help='event tag', type=str)
+        p_push.add_argument('keywords',
+                            default=None,
+                            help='event keyword (obsolete, don\'t use)',
+                            type=str)
+        p_push.add_argument('media',
+                            default=None,
+                            help='base64-encoded media file',
+                            type=str)
+        p_push.add_argument('media_fname',
+                            default=None,
+                            help='media file name, auto generated if empty',
+                            type=str)
+
+        @api.response(202, 'event message successfully accepted')
+        @api.response(404, 'recipient address not found')
+        @api.response(406, 'recipient address is disabled')
+        @api.response(429, 'recipient address is out of limit')
+        @api.response(503, 'server error')
+        @api.expect(p_push, validate=True)
+        def post(self, **kwargs):
+            """
+            Push event message
+            """
+            try:
+                event_id = str(uuid.uuid4())
+                try:
+                    a = self.p_push.parse_args(strict=True)
+                except Exception as e:
+                    return str(e), 400
+                logger.info(f'API message to {a.addr}')
+                # TODO: remove keywords when removing legacy
+                if a.keywords is not None:
+                    a.tag = a.keywords
+                if a.media:
+                    try:
+                        media = base64.b64decode(a.media)
+                        if a.media_fname and '/' in a.media_fname:
+                            a.media_fname = a.media_fname.rsplit('/', 1)[-1]
+                    except:
+                        media = None
+                        a.media = None
+                        logger.warning(
+                            f'API invalid media file, event {event_id}'
+                            f' message to {a.addr}')
+                else:
+                    media = None
+                level = convert_level(a.level)
+                level_name = logging.getLevelName(level)
+                if a.sender:
+                    s = a.sender.split('@', 1)[0] if a.location else a.sender
+                else:
+                    s = None
+                formatted_subject = '{} {}{}{}'.format(
+                    level_name, s if s is not None else '',
+                    f'@{a.location}' if a.location else '',
+                    f': {a.subject}' if a.subject else '')
+
+                try:
+                    addr = addr_get(addr=a.addr)
+                    if addr['active'] < 1:
+                        return f'addr {a.addr} is disabled', 406
+                    if is_use_limits():
+                        check_addr_limit(addr,
+                                         level=level,
+                                         size=request.content_length)
+                except LookupError:
+                    logger.info(f'API no such address: {a.addr}')
+                    return f'addr {a.addr} not found', 404
+                except OverlimitError as e:
+                    return str(e), 429
+                for row in get_db().execute(sql("""
+                    SELECT plugin_name, config
+                    FROM subscription JOIN endpoint ON
+                        endpoint.id = subscription.endpoint_id JOIN addr ON
+                        endpoint.addr_id = addr.id WHERE
+                        addr.a=:a
+                        AND addr.active=1
+                        AND subscription.active = 1
+                        AND endpoint.active = 1
+                        AND (location=:location or location IS null)
+                        AND (tag=:tag or tag IS null)
+                        AND (sender=:sender or sender IS null)
+                        AND (
+                            (level=:level AND level_match='e') OR
+                            (level<:level and level_match='g') OR
+                            (level<=:level and level_match='ge') OR
+                            (level>:level and level_match='l') OR
+                            (level>=:level and level_match='le')
+                            )
+                            """),
+                                            a=a.addr,
+                                            location=a.location,
+                                            tag=a.tag,
+                                            sender=a.sender,
+                                            level=level):
+                    send(row.plugin_name,
+                         config=json.loads(row.config)
+                         if is_parse_db_json() else row.config,
+                         event_id=event_id,
+                         addr=a.addr,
+                         msg=a.msg,
+                         subject=a.subject,
+                         formatted_subject=formatted_subject,
+                         level=level,
+                         level_name=level_name,
+                         location=a.location,
+                         tag=a.tag,
+                         sender=a.sender,
+                         media=media,
+                         media_encoded=a.media,
+                         media_fname=a.media_fname)
+                return _response_accepted()
+            except:
+                log_traceback()
+                return '', 503
+
     # v2 (RESTful)
     app.add_url_rule(f'{api_uri_rest}/core', 'test', test, methods=['GET'])
     app.add_url_rule(f'{api_uri_rest}/core',
