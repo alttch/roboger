@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-__version__ = '2.0.24'
+__version__ = '2.0.25'
 
 product_build = 'stable'
 
