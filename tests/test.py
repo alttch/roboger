@@ -229,9 +229,6 @@ def test012_endpoint():
     ep2.save()
     ep2.disable()
     ep.load()
-    import logging
-    logging.warning(ep.config)
-    logging.warning(dir(ep.config))
     assert ep.config['rcpt'] == 'xxx@xxx'
     assert not ep.active
     assert ep.description == 'some test'
