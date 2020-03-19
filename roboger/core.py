@@ -484,7 +484,7 @@ def _safe_send(plugin_name, send_func, event_id, **kwargs):
 
 
 def check_addr_limit(addr, level, size):
-    a = addr['a']
+    a = addr['id']
     lim_c = addr['lim_c']
     lim_s = addr['lim_s']
     key_c = f'{a}.lim_c'
@@ -501,31 +501,36 @@ def check_addr_limit(addr, level, size):
     except Exception as e:
         logger.error(f'CORE Redis error: {e}')
         return
-    logger.debug(f'checking limits for {a}, current: '
+    logger.debug(f'checking limits for addr.id={a}, current: '
                  f'{current_c}, size: {current_s}, current msg level: {level}')
     try:
         if current_c >= lim_c:
-            logger.info(f'CORE address count overlimit {a} for all priorities')
+            logger.info(
+                f'CORE address count overlimit addr.id={a} for all priorities')
             raise OverlimitError(
-                f'Messages to {a} are limited by {lim_c} per '
+                f'Messages to {addr["a"]} are limited by {lim_c} per '
                 f'{_d.limits["period"]}. Limit has been reached')
         elif current_c >= lim_c - (lim_c / 100 *
                                    _d.limits['reserve']) and level < 30:
-            logger.info(f'CORE address count overlimit {a} for low-priority')
-            raise OverlimitError(f'Messages to {a} are limited by {lim_c} per '
-                                 f'{_d.limits["period"]}, '
-                                 f'{_d.limits["reserve"]}% are reserved for '
-                                 'WARNING and higher levels')
-        if current_s >= lim_s + size:
-            logger.info(f'CORE address size overlimit {a} for all priorities')
+            logger.info(
+                f'CORE address count overlimit addr.id={a} for low-priority')
             raise OverlimitError(
-                f'Messages to {a} are limited by {lim_s} bytes per '
+                f'Messages to {addr["a"]} are limited by {lim_c} per '
+                f'{_d.limits["period"]}, '
+                f'{_d.limits["reserve"]}% are reserved for '
+                'WARNING and higher levels')
+        if current_s >= lim_s + size:
+            logger.info(
+                f'CORE address size overlimit addr.id={a} for all priorities')
+            raise OverlimitError(
+                f'Messages to {addr["a"]} are limited by {lim_s} bytes per '
                 f'{_d.limits["period"]}. Limit has been reached')
         elif current_s >= lim_s - (lim_s / 100 *
                                    _d.limits['reserve']) and level < 30:
-            logger.info(f'CORE address size overlimit {a} for low-priority')
+            logger.info(
+                f'CORE address size overlimit addr.id={a} for low-priority')
             raise OverlimitError(
-                f'Messages to {a} are limited by {lim_s} bytes per '
+                f'Messages to {addr["a"]} are limited by {lim_s} bytes per '
                 f'{_d.limits["period"]}, '
                 f'{_d.limits["reserve"]}% are reserved for '
                 'WARNING and higher levels')
