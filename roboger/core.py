@@ -27,6 +27,7 @@ from pyaltt2.crypto import gen_random_str
 from pyaltt2.network import parse_host_port, generate_netacl
 from pyaltt2.config import load_yaml, config_value, choose_file
 from netaddr import IPNetwork
+from functools import partial
 
 SERVER_CONFIG_SCHEMA = {
     'type': 'object',
@@ -310,7 +311,7 @@ def spawn(*args, **kwargs):
 def init_db():
     from sqlalchemy import (Table, Column, BigInteger, Integer, Numeric, CHAR,
                             VARCHAR, MetaData, Float, ForeignKey, Index, JSON,
-                            Enum)
+                            Enum, DateTime, Interval, Boolean)
     import enum
 
     class LevelMatch(enum.Enum):
@@ -320,6 +321,9 @@ def init_db():
         ge = 'ge'
         e = 'e'
 
+    if 'mysql' in _d.db.name:
+        from sqlalchemy.dialects.mysql import DATETIME
+        DateTime = partial(DATETIME, fsp=6)
     meta = MetaData()
     addr = Table('addr',
                  meta,
@@ -389,6 +393,25 @@ def init_db():
                                 server_default='ge'),
                          mysql_engine='InnoDB',
                          mysql_charset='utf8mb4')
+    blobstore = Table('bucket',
+                      meta,
+                      Column('hash', CHAR(64), nullable=False,
+                             primary_key=True),
+                      Column('path', VARCHAR(512), nullable=False, unique=True),
+                      Index('bucket_path', 'path'),
+                      Column('ctype', VARCHAR(256)),
+                      Column('size',
+                             BigInteger().with_variant(Integer, 'sqlite'),
+                             nullable=False),
+                      Column('public',
+                             Boolean,
+                             nullable=False,
+                             server_default='0'),
+                      Column('d', DateTime(timezone=True), nullable=False),
+                      Column('da', DateTime(timezone=True), nullable=True),
+                      Column('expires', Interval, nullable=True),
+                      mysql_engine='InnoDB',
+                      mysql_charset='utf8mb4')
     meta.create_all(_d.db)
 
 
