@@ -24,6 +24,7 @@ configured endpoint receives an event, and gets the following data in kwargs:
 * **config** dict with endpoint configuration
 * **event_id** event unique id (UUID, string)
 * **addr** event address on Roboger server
+* **addr_id** event address ID on Roboger server
 * **msg** message text
 * **subject** message subject
 * **formatted_subject** pre-formatted subject with level and location
@@ -123,3 +124,41 @@ The following additional *roboger.core* methods may be useful for plugins:
 * **is_use_lastrowid()** should *lastrowid* be used for the database queries (if not - database supports *RETURNING*)
 
 * **is_use_limits()** is Roboger server configured to have limits applied on addresses or not.
+
+Bucket
+======
+
+Roboger provides storage bucket for plugins to temporary store media and other
+files (e.g. allow user open media file via link).
+
+Currently bucket works only with PostgreSQL.
+
+Methods
+-------
+
+Bucket objects are managed by *roboger.core* methods, which can be imported
+into your plugin (see function pydoc for arguments etc.):
+
+* **bucket_put** create object
+* **bucket_get** get object
+* **bucket_touch** set object access time to current
+* **bucket_delete** delete object
+
+Features and rules
+------------------
+
+* Object ID is SHA256 hash of first 1024 bytes of object content, current time,
+  creator and address id.
+
+* When creating bucket object, set *creator* attribute to
+  *plugin.{yourpluginname}*
+
+* If created with *public=True*, bucket object can be accessed at
+  */file/{object_id}*. Other objects are not accessible with HTTP API (unless
+  provided by plugin)
+
+* Bucket object can not be modified after creation.
+
+* Bucket object is not accessible (including core bucket_get function) after
+  the expiration. Expiration time is calculated from object creation, lifetime
+  can not be extended.

@@ -1,4 +1,5 @@
 from pathlib import Path
+import logging
 import os
 import sys
 import signal
@@ -30,6 +31,8 @@ pidfile = '/tmp/roboger-test-{}.pid'.format(os.getpid())
 logfile = '/tmp/roboger-test-gunicorn.log'
 configfile = '/tmp/roboger-test-{}.yml'.format(os.getpid())
 
+logger = logging.getLogger('roboger.test')
+
 try:
     os.unlink(logfile)
 except:
@@ -40,7 +43,7 @@ gunicorn = os.getenv('GUNICORN', 'gunicorn')
 dbconn = os.environ['DBCONN']
 engine = sqlalchemy.create_engine(dbconn)
 c = engine.connect()
-for tbl in ['subscription', 'endpoint', 'addr']:
+for tbl in ['bucket', 'subscription', 'endpoint', 'addr']:
     try:
         c.execute(f'drop table {tbl}')
     except (sqlalchemy.exc.ProgrammingError, sqlalchemy.exc.OperationalError):
@@ -86,7 +89,28 @@ with open(configfile, 'w') as fh:
             extra-options: -w 1 --log-level INFO -u nobody
     """))
 
-test_data = SimpleNamespace()
+test_data = SimpleNamespace(bucket_objects=[])
+
+import roboger.core as r
+r.load(fname=configfile)
+
+addr_id = r.addr_create()
+
+for tp in ['txt', 'ogv', 'jpg', 'png']:
+    with open(f'./tests/test.{tp}', 'rb') as fh:
+        content = fh.read()
+        object_id = r.bucket_put(content=content,
+                                 creator='test',
+                                 addr_id=addr_id,
+                                 public=True,
+                                 fname=f'test.{tp}',
+                                 metadata={
+                                     'test1': tp,
+                                     'test2': 123
+                                 },
+                                 expires=1 if tp in 'png' else None)
+        test_data.bucket_objects.append(
+            dict(tp=tp, id=object_id, content=content))
 
 _test_app = Flask(__name__)
 
@@ -318,6 +342,26 @@ def test014_endpoint_copysub():
     ep.copysub(target=ep2, replace=True)
     assert len(ep2.list_subscriptions()) == 3
     addr.delete()
+
+
+def test015_bucket():
+    import magic
+    time.sleep(1)
+    for o in test_data.bucket_objects:
+        logger.debug(f'testing {o["tp"]} object')
+        url = f'http://{test_server_bind}:{test_server_port}/file/{o["id"]}'
+        r = requests.get(url)
+        if o['tp'] == 'png':
+            assert r.status_code == 404
+        else:
+            if not r.ok:
+                raise RuntimeError(f'server response: {r.status_code}')
+            assert r.content == o['content']
+            assert r.headers['Content-Type'] == magic.Magic(
+                mime=True).from_buffer(o['content'])
+            assert r.headers['x-roboger-test1'] == o['tp']
+            assert r.headers['x-roboger-test2'] == '123'
+            assert r.headers['roboger-file-name'] == f'test.{o["tp"]}'
 
 
 def test020_push():

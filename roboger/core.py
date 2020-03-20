@@ -12,6 +12,8 @@ import threading
 import traceback
 import sqlalchemy
 import signal
+import datetime
+import time
 try:
     import rapidjson as json
 except:
@@ -28,6 +30,7 @@ from pyaltt2.network import parse_host_port, generate_netacl
 from pyaltt2.config import load_yaml, config_value, choose_file
 from netaddr import IPNetwork
 from functools import partial
+from hashlib import sha256
 
 SERVER_CONFIG_SCHEMA = {
     'type': 'object',
@@ -73,6 +76,15 @@ SERVER_CONFIG_SCHEMA = {
                         },
                     },
                     'additionalProperties': False,
+                },
+                'bucket': {
+                    'type': 'object',
+                    'properties': {
+                        'default-expires': {
+                            'type': 'integer'
+                        }
+                    },
+                    'additionalProperties': False
                 },
                 'secure-mode': {
                     'type': 'boolean'
@@ -155,6 +167,8 @@ dir_me = Path(__file__).absolute().parents[1].as_posix()
 
 db_lock = threading.RLock()
 
+default_bucket_expires = 86400
+
 logger = logging.getLogger('gunicorn.error')
 #logging.getLogger('roboger')
 
@@ -235,6 +249,10 @@ def load(fname=None):
     logger.debug(f'CORE using config file {fname}')
     server_config = load_yaml(fname, schema=SERVER_CONFIG_SCHEMA)
     config.update(server_config['roboger'])
+    config_value(config=config,
+                 config_path='/bucket/default-expires',
+                 in_place=True,
+                 default=default_bucket_expires)
     _d.secure_mode = config.get('secure-mode')
     _d.log_tracebacks = config.get('log-tracebacks')
     _d.limits = config.get('limits')
@@ -311,7 +329,7 @@ def spawn(*args, **kwargs):
 def init_db():
     from sqlalchemy import (Table, Column, BigInteger, Integer, Numeric, CHAR,
                             VARCHAR, MetaData, Float, ForeignKey, Index, JSON,
-                            Enum, DateTime, Interval, Boolean)
+                            Enum, DateTime, Interval, Boolean, LargeBinary)
     import enum
 
     class LevelMatch(enum.Enum):
@@ -393,24 +411,27 @@ def init_db():
                                 server_default='ge'),
                          mysql_engine='InnoDB',
                          mysql_charset='utf8mb4')
-    blobstore = Table('bucket',
-                      meta,
-                      Column('hash', CHAR(64), nullable=False,
-                             primary_key=True),
-                      Column('owner', VARCHAR(64), nullable=False),
-                      Column('ctype', VARCHAR(256)),
-                      Column('size',
-                             BigInteger().with_variant(Integer, 'sqlite'),
-                             nullable=False),
-                      Column('public',
-                             Boolean,
-                             nullable=False,
-                             server_default='0'),
-                      Column('d', DateTime(timezone=True), nullable=False),
-                      Column('da', DateTime(timezone=True), nullable=True),
-                      Column('expires', Interval, nullable=True),
-                      mysql_engine='InnoDB',
-                      mysql_charset='utf8mb4')
+    bucket = Table('bucket',
+                   meta,
+                   Column('id', CHAR(64), nullable=False, primary_key=True),
+                   Column('creator', VARCHAR(64), nullable=False),
+                   Column('addr_id',
+                          BigInteger().with_variant(Integer, 'sqlite'),
+                          ForeignKey('addr.id', ondelete='CASCADE')),
+                   Column('mimetype', VARCHAR(256)),
+                   Column('fname', VARCHAR(256), nullable=True),
+                   Column('size',
+                          BigInteger().with_variant(Integer, 'sqlite'),
+                          nullable=False),
+                   Column('public', Boolean, nullable=False,
+                          server_default='0'),
+                   Column('metadata', JSON, nullable=True),
+                   Column('d', DateTime(timezone=True), nullable=False),
+                   Column('da', DateTime(timezone=True), nullable=True),
+                   Column('expires', Interval, nullable=True),
+                   Column('content', LargeBinary, nullable=False),
+                   mysql_engine='InnoDB',
+                   mysql_charset='utf8mb4')
     meta.create_all(_d.db)
 
 
@@ -572,6 +593,7 @@ def reset_addr_limits():
 
 def cleanup():
     logger.debug('CORE cleanup')
+    bucket_cleanup()
     for k, v in plugins.items():
         safe_run_method(v, 'cleanup')
 
@@ -771,12 +793,10 @@ def endpoint_update(endpoint_id, data, validate_config=False, plugin_name=None):
 
 
 def endpoint_delete(endpoint_id):
-    if not get_db().execute(
-            sql("""
+    if not get_db().execute(sql("""
             DELETE FROM endpoint WHERE id=:id
             """),
-            id=endpoint_id,
-    ).rowcount:
+                            id=endpoint_id).rowcount:
         raise LookupError
 
 
@@ -889,10 +909,143 @@ def subscription_update(subscription_id, data):
 
 
 def subscription_delete(subscription_id):
-    if not get_db().execute(
-            sql("""
+    if not get_db().execute(sql("""
             DELETE FROM subscription WHERE id=:id
             """),
-            id=subscription_id,
-    ).rowcount:
+                            id=subscription_id).rowcount:
         raise LookupError
+
+
+def bucket_get(object_id, public=None):
+    """
+    Get bucket object
+
+    Args:
+        object_id: object ID
+        public: filter by "public" attr (None - don't filter)
+    Raises:
+        LookupError: if object is not found
+    """
+    if public is None:
+        xargs = {}
+        cond = ''
+    else:
+        xargs = {'public': public}
+        cond = """ AND public = :public"""
+    result = get_db().execute(sql(f"""
+        SELECT
+            id, creator, mimetype, fname, size, public, metadata, d, da,
+            d + expires as de, d - :d + expires as expires, content
+            FROM bucket WHERE id=:object_id {cond} AND d + expires >= :d"""),
+                              object_id=object_id,
+                              d=datetime.datetime.now(),
+                              **xargs).fetchone()
+    if result:
+        if is_parse_db_json():
+            result['metadata'] = json.loads(result['metadata'])
+        return dict(result)
+    else:
+        raise LookupError
+
+
+def bucket_put(content,
+               creator,
+               addr_id,
+               mimetype=None,
+               fname=None,
+               public=False,
+               metadata={},
+               expires=None):
+    """
+    Args:
+        content: file content (binary/text, required)
+        creator: object creator
+        addr_id: object addr id
+        mimetype: optional object mime type (auto-detected if not provided)
+        fname: optional object file name (served in "roboger-file-name" header)
+        public: if True, file is accessible with public HTTP API as
+            /file/{object_id}
+        metadata: elements, provided in this dict, are served in headers as
+            "x-roboger-{key}: {vaue}"
+        expires: object expiration (in seconds), if not provided, default
+            server expiration (by default: 86400 seconds) is set
+    Returns:
+        bucket object ID
+    """
+    if not isinstance(content, bytes) and not isinstance(content.bytearray):
+        content = str(content).encode()
+    h = sha256(content[:1024])
+    h.update(str(datetime.datetime.now()).encode())
+    h.update(str(time.perf_counter()).encode())
+    h.update(creator.encode())
+    h.update(str(addr_id).encode())
+    object_id = h.hexdigest()
+    if not mimetype:
+        import magic
+        mime = magic.Magic(mime=True)
+        mimetype = mime.from_buffer(content)
+        if not mimetype: mimetype = 'application/octet-stream'
+    if metadata is None:
+        metadata = {}
+    get_db().execute(sql("""
+        INSERT INTO bucket
+                (id, creator, addr_id, mimetype, fname, size, public,
+                metadata, d, expires, content)
+            VALUES
+                (:object_id, :creator, :addr_id, :mimetype, :fname, :size,
+                :public, :metadata, :d, :expires, :content)
+        """),
+                     object_id=object_id,
+                     creator=creator,
+                     addr_id=addr_id,
+                     mimetype=mimetype,
+                     fname=fname,
+                     size=len(content),
+                     public=public,
+                     metadata=json.dumps(metadata),
+                     d=datetime.datetime.now(),
+                     expires=str(expires) if expires is not None else str(
+                         config['bucket']['default-expires']),
+                     content=content)
+    logger.debug(
+        f'CORE new bucket object {object_id} {mimetype} from {creator}')
+    return object_id
+
+
+def bucket_touch(object_id):
+    """
+    Mark object accessed (set access time)
+
+    Raises:
+        LookupError: if object is not found
+    """
+    if not get_db().execute(sql("""
+            UPDATE bucket SET da = :da WHERE id=:object_id
+            """),
+                            da=datetime.datetime.now(),
+                            object_id=object_id).rowcount:
+        raise LookupError
+
+
+def bucket_delete(object_id):
+    """
+    Delete object
+
+    Expired objects are also deleted automatically, when core cleaup is called.
+
+    Raises:
+        LookupError: if object is not found
+    """
+    if not get_db().execute(sql("""
+            DELETE FROM bucket WHERE id=:object_id
+            """),
+                            object_id=object_id).rowcount:
+        raise LookupError
+    logger.debug(f'CORE deleted bucket object {object_id}')
+
+
+def bucket_cleanup():
+    get_db().execute(sql("""
+            DELETE FROM bucket WHERE d + expires < :d
+            """),
+                     d=datetime.datetime.now())

@@ -3,7 +3,7 @@ __copyright__ = 'Copyright (C) 2018-2020 Altertech Group'
 __license__ = 'Apache License 2.0'
 __version__ = '2.0.29'
 
-from flask import request, jsonify, Response, abort
+from flask import request, jsonify, Response, abort, send_file, make_response
 from flask_restx import Api, Resource, reqparse
 
 import simplejson
@@ -14,7 +14,9 @@ flask.json = simplejson
 
 import base64
 import uuid
+import io
 import logging
+import datetime
 from functools import wraps
 
 from sqlalchemy import text as sql
@@ -36,6 +38,7 @@ from .core import subscription_update, subscription_delete
 from .core import cleanup as core_cleanup, plugin_list
 
 from .core import json, is_parse_db_json, delete_everything
+from .core import bucket_get, bucket_touch
 
 from functools import wraps
 
@@ -121,9 +124,9 @@ def _response_accepted():
 def public_method(f):
 
     @wraps(f)
-    def do(*args):
+    def do(*args, **kwargs):
         logger.debug(f'API call {get_real_ip()} {f.__qualname__}')
-        return f(*args, **(request.json if request.json else {}))
+        return f(*args, **kwargs)
 
     return do
 
@@ -182,6 +185,35 @@ def init():
             get_db()
             return '', 204
 
+    @ns_public.route('/file/<string:object_id>')
+    class File(Resource):
+
+        method_decorators = [public_method]
+
+        @api.response(200, 'serving file')
+        @api.response(404, 'file not found')
+        @api.produces(['*/*'])
+        def get(self, object_id):
+            try:
+                o = bucket_get(object_id, public=True)
+                buf = io.BytesIO()
+                buf.write(o['content'])
+                buf.seek(0)
+                bucket_touch(object_id)
+                resp = make_response(
+                    send_file(buf,
+                              mimetype=o['mimetype'],
+                              cache_timeout=round(
+                                  o['expires'].total_seconds())))
+                for k, v in o['metadata'].items():
+                    resp.headers[f'x-roboger-{k}'] = str(v)
+                resp.headers['Content-Type'] = o['mimetype']
+                if o['fname']:
+                    resp.headers['roboger-file-name'] = o['fname']
+                return resp
+            except LookupError:
+                return 'no such file', 404
+
     @ns_public.route('/push')
     class Push(Resource):
 
@@ -229,7 +261,7 @@ def init():
         @api.response(429, 'recipient address is out of limit')
         @api.response(503, 'server error')
         @api.expect(p_push, validate=True)
-        def post(self, **kwargs):
+        def post(self):
             """
             Push event message
             """
@@ -281,7 +313,7 @@ def init():
                 except OverlimitError as e:
                     return str(e), 429
                 for row in get_db().execute(sql("""
-                    SELECT plugin_name, config
+                    SELECT plugin_name, config, addr.id as addr_id
                     FROM subscription JOIN endpoint ON
                         endpoint.id = subscription.endpoint_id JOIN addr ON
                         endpoint.addr_id = addr.id WHERE
@@ -310,6 +342,7 @@ def init():
                          if is_parse_db_json() else row.config,
                          event_id=event_id,
                          addr=a.addr,
+                         addr_id=row.addr_id,
                          msg=a.msg,
                          subject=a.subject,
                          formatted_subject=formatted_subject,
