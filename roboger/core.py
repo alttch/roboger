@@ -150,6 +150,7 @@ logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 _d = SimpleNamespace(db=None,
                      use_lastrowid=False,
                      parse_db_json=False,
+                     use_interval=False,
                      pool=None,
                      secure_mode=False,
                      ip_header=None,
@@ -309,6 +310,8 @@ def load(fname=None):
         'sqlite') or config['db'].startswith('mysql')
     _d.parse_db_json = config['db'].startswith(
         'sqlite') or config['db'].startswith('mysql')
+    _d.use_interval = not config['db'].startswith(
+        'sqlite') and not config['db'].startswith('mysql')
     logger.debug(f'CORE database {_d.db}')
     get_db()
     thread_pool_size = config.get('thread-pool-size', default_thread_pool_size)
@@ -341,8 +344,9 @@ def init_db():
         e = 'e'
 
     if 'mysql' in _d.db.name:
-        from sqlalchemy.dialects.mysql import DATETIME
+        from sqlalchemy.dialects.mysql import DATETIME, LONGBLOB
         DateTime = partial(DATETIME, fsp=6)
+        LargeBinary = LONGBLOB
     meta = MetaData()
     addr = Table('addr',
                  meta,
@@ -429,7 +433,10 @@ def init_db():
                    Column('metadata', JSON, nullable=True),
                    Column('d', DateTime(timezone=True), nullable=False),
                    Column('da', DateTime(timezone=True), nullable=True),
-                   Column('expires', Interval, nullable=True),
+                   Column('expires',
+                          Integer if _d.db.name in ('sqlite',
+                                                    'mysql') else Interval,
+                          nullable=True),
                    Column('content', LargeBinary, nullable=False),
                    mysql_engine='InnoDB',
                    mysql_charset='utf8mb4')
@@ -470,6 +477,10 @@ def get_plugin(plugin_name):
 
 def is_use_lastrowid():
     return _d.use_lastrowid
+
+
+def is_use_interval():
+    return _d.use_interval
 
 
 def is_parse_db_json():
@@ -933,18 +944,38 @@ def bucket_get(object_id, public=None):
     else:
         xargs = {'public': public}
         cond = """ AND public = :public"""
-    result = get_db().execute(sql(f"""
-        SELECT
+    if _d.db.name == 'sqlite':
+        q = f"""SELECT
+            id, creator, mimetype, fname, size, public, metadata, d, da,
+            unix_timestamp(d) + expires as de,
+            d - :d + expires as expires, content
+            FROM bucket WHERE id=:object_id {cond} AND d + expires >= :d"""
+        d = time.time()
+    elif _d.db.name == 'mysql':
+        q = f"""SELECT
+            id, creator, mimetype, fname, size, public, metadata, d, da,
+            DATE_FORMAT(FROM_UNIXTIME(UNIX_TIMESTAMP(d)),
+                '%Y-%m-%d %H:%i:%s.%f') as de,
+            UNIX_TIMESTAMP(d) - :d + expires as expires,
+                content
+            FROM bucket WHERE id=:object_id {cond} AND
+                UNIX_TIMESTAMP(d) + expires >= :d"""
+        d = time.time()
+        logger.info(q)
+        logger.info(d)
+    else:
+        q = f"""SELECT
             id, creator, mimetype, fname, size, public, metadata, d, da,
             d + expires as de, d - :d + expires as expires, content
-            FROM bucket WHERE id=:object_id {cond} AND d + expires >= :d"""),
-                              object_id=object_id,
-                              d=datetime.datetime.now(),
+            FROM bucket WHERE id=:object_id {cond} AND d + expires >= :d"""
+        d = datetime.datetime.now()
+    result = get_db().execute(sql(q), object_id=object_id, d=d,
                               **xargs).fetchone()
     if result:
+        result = dict(result)
         if is_parse_db_json():
             result['metadata'] = json.loads(result['metadata'])
-        return dict(result)
+        return result
     else:
         raise LookupError
 
@@ -988,6 +1019,13 @@ def bucket_put(content,
         if not mimetype: mimetype = 'application/octet-stream'
     if metadata is None:
         metadata = {}
+    if is_use_interval():
+        expires = datetime.timedelta(
+            seconds=(expires if expires is not None else config['bucket']
+                     ['default-expires']))
+    else:
+        if expires is None:
+            expires = config['bucket']['default-expires']
     get_db().execute(sql("""
         INSERT INTO bucket
                 (id, creator, addr_id, mimetype, fname, size, public,
@@ -1005,9 +1043,7 @@ def bucket_put(content,
                      public=public,
                      metadata=json.dumps(metadata),
                      d=datetime.datetime.now(),
-                     expires=datetime.timedelta(
-                         seconds=(expires if expires is not None else
-                                  config['bucket']['default-expires'])),
+                     expires=expires,
                      content=content)
     logger.debug(
         f'CORE new bucket object {object_id} {mimetype} from {creator}')
@@ -1047,7 +1083,10 @@ def bucket_delete(object_id):
 
 
 def bucket_cleanup():
-    get_db().execute(sql("""
-            DELETE FROM bucket WHERE d + expires < :d
-            """),
-                     d=datetime.datetime.now())
+    if _d.db.name == 'mysql':
+        q = 'DELETE FROM bucket where UNIX_TIMESTAMP(d) + expires < :d'
+        d = time.time()
+    else:
+        q = 'DELETE FROM bucket WHERE d + expires < :d'
+        d = datetime.datetime.now()
+    get_db().execute(sql(q), d=d)

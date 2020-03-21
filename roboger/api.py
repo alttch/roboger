@@ -37,7 +37,7 @@ from .core import subscription_get, subscription_list, subscription_create
 from .core import subscription_update, subscription_delete
 from .core import cleanup as core_cleanup, plugin_list
 
-from .core import json, is_parse_db_json, delete_everything
+from .core import json, is_parse_db_json, is_use_interval, delete_everything
 from .core import bucket_get, bucket_touch
 
 from functools import wraps
@@ -200,11 +200,12 @@ def init():
                 buf.write(o['content'])
                 buf.seek(0)
                 bucket_touch(object_id)
+                expires = o['expires'].total_seconds() if is_use_interval(
+                ) else o['expires']
                 resp = make_response(
                     send_file(buf,
                               mimetype=o['mimetype'],
-                              cache_timeout=round(
-                                  o['expires'].total_seconds())))
+                              cache_timeout=round(expires)))
                 for k, v in o['metadata'].items():
                     resp.headers[f'x-roboger-{k}'] = str(v)
                 resp.headers['Content-Type'] = o['mimetype']

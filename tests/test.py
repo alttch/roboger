@@ -94,7 +94,7 @@ with open(configfile, 'w') as fh:
 
 test_data = SimpleNamespace(bucket_objects=[])
 
-if engine.name == 'postgresql' and not os.environ.get('SKIP_BUCKET_TEST'):
+if not os.environ.get('SKIP_BUCKET_TEST'):
 
     import roboger.core as r
     os.environ['ROBOGER_MASTERKEY'] = '123'
@@ -352,7 +352,7 @@ def test014_endpoint_copysub():
 
 def test015_bucket():
     # bucket works only with PostgreSQL
-    if engine.name != 'postgresql' or os.environ.get('SKIP_BUCKET_TEST'): return
+    if os.environ.get('SKIP_BUCKET_TEST'): return
     import magic
     time.sleep(1)
     for o in test_data.bucket_objects:
