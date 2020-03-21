@@ -947,9 +947,9 @@ def bucket_get(object_id, public=None):
     if _d.db.name == 'sqlite':
         q = f"""SELECT
             id, creator, mimetype, fname, size, public, metadata, d, da,
-            unix_timestamp(d) + expires as de,
-            d - :d + expires as expires, content
-            FROM bucket WHERE id=:object_id {cond} AND d + expires >= :d"""
+            datetime(strftime('%s', d) + expires, 'unixepoch') as de,
+            strftime('%s', d) - :d + expires as expires, content
+            FROM bucket WHERE id=:object_id {cond} AND strftime('%s', d) + expires >= :d"""
         d = time.time()
     elif _d.db.name == 'mysql':
         q = f"""SELECT
@@ -1083,8 +1083,11 @@ def bucket_delete(object_id):
 
 
 def bucket_cleanup():
-    if _d.db.name == 'mysql':
-        q = 'DELETE FROM bucket where UNIX_TIMESTAMP(d) + expires < :d'
+    if _d.db.name == 'sqlite':
+        q = """DELETE FROM bucket WHERE STRFTIME('%s', d) + expires < :d"""
+        d = time.time()
+    elif _d.db.name == 'mysql':
+        q = 'DELETE FROM bucket WHERE UNIX_TIMESTAMP(d) + expires < :d'
         d = time.time()
     else:
         q = 'DELETE FROM bucket WHERE d + expires < :d'
