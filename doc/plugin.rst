@@ -131,7 +131,9 @@ Bucket
 Roboger provides storage bucket for plugins to temporary store media and other
 files (e.g. allow user open media file via link).
 
-Currently bucket works only with PostgreSQL.
+.. warning::
+
+   Currently bucket works only with PostgreSQL.
 
 Methods
 -------
