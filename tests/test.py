@@ -31,7 +31,10 @@ pidfile = '/tmp/roboger-test-{}.pid'.format(os.getpid())
 logfile = '/tmp/roboger-test-gunicorn.log'
 configfile = '/tmp/roboger-test-{}.yml'.format(os.getpid())
 
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger('roboger.test')
+logger.setLevel(level=logging.DEBUG)
+logging.getLogger('roboger').setLevel(level=logging.DEBUG)
 
 try:
     os.unlink(logfile)
@@ -92,6 +95,7 @@ with open(configfile, 'w') as fh:
 test_data = SimpleNamespace(bucket_objects=[])
 
 import roboger.core as r
+os.environ['ROBOGER_MASTERKEY'] = '123'
 r.load(fname=configfile)
 
 addr_id = r.addr_create()
@@ -355,7 +359,7 @@ def test015_bucket():
             assert r.status_code == 404
         else:
             if not r.ok:
-                raise RuntimeError(f'server response: {r.status_code}')
+                raise RuntimeError(f'server response: {r.status_code} {url}')
             assert r.content == o['content']
             assert r.headers['Content-Type'] == magic.Magic(
                 mime=True).from_buffer(o['content'])
