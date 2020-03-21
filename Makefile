@@ -63,7 +63,7 @@ docker-build:
 
 docker-test:
 	docker run --network ${DOCKER_TEST_NETWORK} altertech/roboger:latest env GUNICORN=/opt/venv/bin/gunicorn \
-		DBCONN=postgresql://roboger:123@${DOCKER_TEST_DB}/roboger \
+		DBCONN=postgresql://roboger:123@${DOCKER_TEST_DB}/roboger CLEANUP=1 SKIP_BUCKET_TEST=1 \
 		/opt/venv/bin/pytest -x /usr/local/roboger-test.py
 
 docker-pub:
