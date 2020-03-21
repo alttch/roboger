@@ -419,7 +419,7 @@ def init_db():
                    Column('addr_id',
                           BigInteger().with_variant(Integer, 'sqlite'),
                           ForeignKey('addr.id', ondelete='CASCADE')),
-                   Column('mimetype', VARCHAR(256)),
+                   Column('mimetype', VARCHAR(256), nullable=False),
                    Column('fname', VARCHAR(256), nullable=True),
                    Column('size',
                           BigInteger().with_variant(Integer, 'sqlite'),
@@ -988,8 +988,7 @@ def bucket_put(content,
         if not mimetype: mimetype = 'application/octet-stream'
     if metadata is None:
         metadata = {}
-    get_db().execute(
-        sql("""
+    get_db().execute(sql("""
         INSERT INTO bucket
                 (id, creator, addr_id, mimetype, fname, size, public,
                 metadata, d, expires, content)
@@ -997,18 +996,19 @@ def bucket_put(content,
                 (:object_id, :creator, :addr_id, :mimetype, :fname, :size,
                 :public, :metadata, :d, :expires, :content)
         """),
-        object_id=object_id,
-        creator=creator,
-        addr_id=addr_id,
-        mimetype=mimetype,
-        fname=fname,
-        size=len(content),
-        public=public,
-        metadata=json.dumps(metadata),
-        d=datetime.datetime.now(),
-        expires=datetime.timedelta(seconds=(expires if expires is not None else
-                                   config['bucket']['default-expires'])),
-        content=content)
+                     object_id=object_id,
+                     creator=creator,
+                     addr_id=addr_id,
+                     mimetype=mimetype,
+                     fname=fname,
+                     size=len(content),
+                     public=public,
+                     metadata=json.dumps(metadata),
+                     d=datetime.datetime.now(),
+                     expires=datetime.timedelta(
+                         seconds=(expires if expires is not None else
+                                  config['bucket']['default-expires'])),
+                     content=content)
     logger.debug(
         f'CORE new bucket object {object_id} {mimetype} from {creator}')
     return object_id
