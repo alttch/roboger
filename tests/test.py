@@ -94,27 +94,29 @@ with open(configfile, 'w') as fh:
 
 test_data = SimpleNamespace(bucket_objects=[])
 
-import roboger.core as r
-os.environ['ROBOGER_MASTERKEY'] = '123'
-r.load(fname=configfile)
+if engine.name == 'postgresql':
 
-addr_id = r.addr_create()
+    import roboger.core as r
+    os.environ['ROBOGER_MASTERKEY'] = '123'
+    r.load(fname=configfile)
 
-for tp in ['txt', 'ogv', 'jpg', 'png']:
-    with open(f'./tests/test.{tp}', 'rb') as fh:
-        content = fh.read()
-        object_id = r.bucket_put(content=content,
-                                 creator='test',
-                                 addr_id=addr_id,
-                                 public=True,
-                                 fname=f'test.{tp}',
-                                 metadata={
-                                     'test1': tp,
-                                     'test2': 123
-                                 },
-                                 expires=1 if tp in 'png' else None)
-        test_data.bucket_objects.append(
-            dict(tp=tp, id=object_id, content=content))
+    addr_id = r.addr_create()
+
+    for tp in ['txt', 'ogv', 'jpg', 'png']:
+        with open(f'./tests/test.{tp}', 'rb') as fh:
+            content = fh.read()
+            object_id = r.bucket_put(content=content,
+                                     creator='test',
+                                     addr_id=addr_id,
+                                     public=True,
+                                     fname=f'test.{tp}',
+                                     metadata={
+                                         'test1': tp,
+                                         'test2': 123
+                                     },
+                                     expires=1 if tp in 'png' else None)
+            test_data.bucket_objects.append(
+                dict(tp=tp, id=object_id, content=content))
 
 _test_app = Flask(__name__)
 
@@ -349,6 +351,8 @@ def test014_endpoint_copysub():
 
 
 def test015_bucket():
+    # bucket works only with PostgreSQL
+    if engine.name != 'postgresql': return
     import magic
     time.sleep(1)
     for o in test_data.bucket_objects:
