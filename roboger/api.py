@@ -40,6 +40,8 @@ from .core import cleanup as core_cleanup, plugin_list
 from .core import json, is_parse_db_json, is_use_interval, delete_everything
 from .core import bucket_get, bucket_touch
 
+from .core import rq
+
 from functools import wraps
 
 from pyaltt2.network import netacl_match
@@ -313,26 +315,7 @@ def init():
                     return f'addr {a.addr} not found', 404
                 except OverlimitError as e:
                     return str(e), 429
-                for row in get_db().execute(sql("""
-                    SELECT plugin_name, config, addr.id as addr_id
-                    FROM subscription JOIN endpoint ON
-                        endpoint.id = subscription.endpoint_id JOIN addr ON
-                        endpoint.addr_id = addr.id WHERE
-                        addr.a=:a
-                        AND addr.active=1
-                        AND subscription.active = 1
-                        AND endpoint.active = 1
-                        AND (location=:location or location IS null)
-                        AND (tag=:tag or tag IS null)
-                        AND (sender=:sender or sender IS null)
-                        AND (
-                            (level=:level AND level_match='e') OR
-                            (level<:level and level_match='g') OR
-                            (level<=:level and level_match='ge') OR
-                            (level>:level and level_match='l') OR
-                            (level>=:level and level_match='le')
-                            )
-                            """),
+                for row in get_db().execute(sql(rq('push')),
                                             a=a.addr,
                                             location=a.location,
                                             tag=a.tag,

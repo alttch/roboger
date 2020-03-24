@@ -28,9 +28,13 @@ from pathlib import Path
 from pyaltt2.crypto import gen_random_str
 from pyaltt2.network import parse_host_port, generate_netacl
 from pyaltt2.config import load_yaml, config_value, choose_file
+from pyaltt2.res import ResourceStorage
 from netaddr import IPNetwork
 from functools import partial
 from hashlib import sha256
+
+rs = ResourceStorage(mod='roboger')
+rq = partial(rs.get, resource_subdir='sql', ext='sql')
 
 SERVER_CONFIG_SCHEMA = {
     'type': 'object',
@@ -622,15 +626,12 @@ def db_list(*args, **kwargs):
 
 
 def delete_everything():
-    get_db().execute(sql("""
-            DELETE FROM addr
-            """))
+    get_db().execute(sql(rq('del')))
 
 
 def addr_get(addr_id=None, addr=None):
     result = get_db().execute(sql(
-        """SELECT id, a, active{} FROM addr WHERE id=:id or a=:a""".format(
-            ',lim_c,lim_s' if _d.limits else '')),
+        rq('addr.get').format(',lim_c,lim_s' if _d.limits else '')),
                               id=addr_id,
                               a=addr).fetchone()
     if result:
@@ -641,15 +642,13 @@ def addr_get(addr_id=None, addr=None):
 
 def addr_list():
     return db_list(
-        sql("""SELECT id, a, active{} FROM addr ORDER BY id""".format(
-            ',lim_c, lim_s' if _d.limits else '')))
+        sql(rq('addr.list').format(',lim_c, lim_s' if _d.limits else '')))
 
 
 def addr_create():
     addr = gen_random_str(64)
-    result = get_db().execute(sql("""
-            INSERT INTO addr (a) VALUES (:a) {}
-            """.format('' if is_use_lastrowid() else 'RETURNING id')),
+    result = get_db().execute(sql(
+        rq('addr.create').format('' if is_use_lastrowid() else 'RETURNING id')),
                               a=addr)
     i = result.lastrowid if is_use_lastrowid() else result.fetchone().id
     return i
@@ -659,9 +658,7 @@ def addr_change(addr_id=None, addr=None, to=None):
     if to is None:
         to = gen_random_str(64)
     try:
-        if get_db().execute(sql("""
-                UPDATE addr SET a=:new_a WHERE id=:id or a=:a
-                """),
+        if get_db().execute(sql(rq('addr.update.a')),
                             new_a=to,
                             id=addr_id,
                             a=addr).rowcount:
@@ -673,9 +670,7 @@ def addr_change(addr_id=None, addr=None, to=None):
 
 
 def addr_set_active(addr_id=None, addr=None, active=1):
-    if get_db().execute(sql("""
-            UPDATE addr SET active=:active WHERE id=:id or a=:a
-            """),
+    if get_db().execute(sql(rq('addr.update.active')),
                         active=active,
                         id=addr_id,
                         a=addr).rowcount:
@@ -686,29 +681,20 @@ def addr_set_active(addr_id=None, addr=None, active=1):
 
 def addr_set_limit(addr_id=None, addr=None, lim_c=None, lim_s=None):
     if lim_c is not None:
-        if not get_db().execute(sql("""
-                UPDATE addr SET lim_c=:lim_c WHERE id=:id or a=:a
-                """),
-                                lim_c=lim_c,
-                                id=addr_id,
-                                a=addr).rowcount:
+        if not get_db().execute(
+                sql(rq('addr.update.lim_c')), lim_c=lim_c, id=addr_id,
+                a=addr).rowcount:
             raise LookupError
     if lim_s is not None:
-        if not get_db().execute(sql("""
-                UPDATE addr SET lim_s=:lim_s WHERE id=:id or a=:a
-                """),
-                                lim_s=lim_s,
-                                id=addr_id,
-                                a=addr).rowcount:
+        if not get_db().execute(
+                sql(rq('addr.update.lim_s')), lim_s=lim_s, id=addr_id,
+                a=addr).rowcount:
             raise LookupError
     return addr_get(addr_id=addr_id, addr=addr)
 
 
 def addr_delete(addr_id=None, addr=None):
-    if not get_db().execute(sql("""
-            DELETE FROM addr WHERE id=:id or a=:a
-            """),
-                            id=addr_id,
+    if not get_db().execute(sql(rq('addr.delete')), id=addr_id,
                             a=addr).rowcount:
         raise LookupError
 
