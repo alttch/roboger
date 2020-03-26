@@ -1,7 +1,7 @@
 __author__ = 'Altertech, http://www.altertech.com/'
 __copyright__ = 'Copyright (C) 2018-2020 Altertech Group'
 __license__ = 'Apache License 2.0'
-__version__ = '2.0.32'
+__version__ = '2.0.33'
 
 from flask import request, jsonify, Response, abort, send_file, make_response
 from flask_restx import Api, Resource, reqparse
