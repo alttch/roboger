@@ -14,6 +14,7 @@ setuptools.setup(name='roboger',
                  long_description_content_type='text/markdown',
                  url='https://github.com/alttch/roboger',
                  packages=setuptools.find_packages(),
+                 include_package_data=True,
                  license='Apache License 2.0',
                  install_requires=[
                      'requests', 'pyyaml', 'sqlalchemy', 'pyaltt2>=0.0.64',
