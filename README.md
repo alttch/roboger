@@ -212,7 +212,7 @@ server config:
     smtp-server: your-smtp-server:port, required. for SSL use ssl:server:port
     # smtp-tls: true # use tls
     # smtp-login: someuser # SMTP server login
-    # smtp-password: "123" # SMTP server login
+    # smtp-password: "123" # SMTP server password
     # default-location: location # if not specified, host name is used
 ```
 
