@@ -70,7 +70,8 @@ def load(plugin_config, **kwargs):
         _cfg.use_tls = plugin_config.get('smtp-tls', False)
         _cfg.login = plugin_config.get('smtp-login')
         _cfg.password = config_value(config=plugin_config,
-                                     config_path='/smtp-password')
+                                     config_path='/smtp-password',
+                                     default=None)
         if _cfg.host.startswith('ssl:'):
             _cfg.host = _cfg.host[4:]
             _cfg.use_ssl = True
