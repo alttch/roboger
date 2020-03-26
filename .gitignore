@@ -5,8 +5,8 @@ bak.sql
 dev
 dist
 etc/roboger.yml
-etc/roboger_push.ini
-etc/roboger.db
+etc/*.ini
+etc/*.db
 lib/_test.py
 data
 .idea/

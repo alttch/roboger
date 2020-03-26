@@ -1,4 +1,4 @@
-__version__ = '1.0.0'
+__version__ = '1.0.1'
 __description__ = 'sends event by email'
 
 import smtplib
@@ -16,7 +16,13 @@ from roboger.core import logger, log_traceback
 
 from jsonschema import validate
 
-_cfg = SimpleNamespace(host=None, port=25)
+_cfg = SimpleNamespace(host=None,
+                       port=25,
+                       tls=False,
+                       login=None,
+                       password=None,
+                       use_ssl=False,
+                       sendfunc=smtplib.SMTP)
 
 hostname = platform.node()
 
@@ -37,6 +43,15 @@ PLUGIN_PROPERTY_MAP_SCHEMA = {
         'smtp-server': {
             'type': 'string',
         },
+        'smtp-tls': {
+            'type': 'boolean',
+        },
+        'smtp-login': {
+            'type': 'string',
+        },
+        'smtp-password': {
+            'type': 'string',
+        },
         'default-location': {
             'type': 'string',
         }
@@ -50,10 +65,21 @@ def load(plugin_config, **kwargs):
     smtp = plugin_config.get('smtp-server')
     if smtp:
         _cfg.host, _cfg.port = parse_host_port(smtp, 25)
-        logger.debug(f'{__name__} loaded, SMTP server: {_cfg.host}:{_cfg.port}')
+        _cfg.default_location = plugin_config.get('default-location')
+        _cfg.use_tls = plugin_config.get('smtp-tls', False)
+        _cfg.login = plugin_config.get('smtp-login')
+        _cfg.password = plugin_config.get('smtp-password')
+        if _cfg.host.startswith('ssl:'):
+            _cfg.host = _cfg.host[4:]
+            _cfg.use_ssl = True
+        logger.debug(
+            f'{__name__} loaded, SMTP server: {_cfg.host}:{_cfg.port}, '
+            f'ssl: {_cfg.use_ssl}, tls: {_cfg.use_tls}, '
+            f'auth: {_cfg.login is not None}')
+        if _cfg.use_ssl:
+            _cfg.sendfunc = smtplib.SMTP_SSL
     else:
         logger.error(f'{__name__} not active, no SMTP server provided')
-    _cfg.default_location = plugin_config.get('default-location')
 
 
 def send(config, event_id, msg, formatted_subject, sender, location, media,
@@ -83,7 +109,12 @@ def send(config, event_id, msg, formatted_subject, sender, location, media,
                 a['Content-Disposition'] = (f'attachment; '
                                             f'filename="{media_fname}"')
                 m.attach(a)
-            sm = smtplib.SMTP(_cfg.host, _cfg.port)
+            sm = _cfg.sendfunc(_cfg.host, _cfg.port)
+            sm.ehlo()
+            if _cfg.use_tls:
+                sm.starttls()
+            if _cfg.login is not None:
+                sm.login(_cfg.login, _cfg.password)
             sm.sendmail(sender, rcpt, m.as_string())
             sm.close()
         else:
