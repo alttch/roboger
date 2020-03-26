@@ -13,6 +13,7 @@ from types import SimpleNamespace
 from pyaltt2.network import parse_host_port
 
 from roboger.core import logger, log_traceback
+from pyaltt2.config import config_value
 
 from jsonschema import validate
 
@@ -68,7 +69,8 @@ def load(plugin_config, **kwargs):
         _cfg.default_location = plugin_config.get('default-location')
         _cfg.use_tls = plugin_config.get('smtp-tls', False)
         _cfg.login = plugin_config.get('smtp-login')
-        _cfg.password = plugin_config.get('smtp-password')
+        _cfg.password = config_value(config=plugin_config,
+                                     config_path='/smtp-password')
         if _cfg.host.startswith('ssl:'):
             _cfg.host = _cfg.host[4:]
             _cfg.use_ssl = True

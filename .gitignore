@@ -7,6 +7,7 @@ dist
 etc/roboger.yml
 etc/*.ini
 etc/*.db
+keys/*
 lib/_test.py
 data
 .idea/
