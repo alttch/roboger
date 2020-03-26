@@ -213,7 +213,7 @@ server config:
     # smtp-tls: true # use tls
     # smtp-login: someuser # SMTP server login
     # smtp-password: "123" # SMTP server login
-    default-location: location # if not specified, host name is used
+    # default-location: location # if not specified, host name is used
 ```
 
 ## webhook
