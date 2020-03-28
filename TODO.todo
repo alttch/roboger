@@ -1,5 +1,5 @@
-- [ ] migrate roboger.com UI
 - [ ] create android plugin
+- [ ] fix templates (english), fix sender(s) - sender, fix keyword(s) - tag, fix admin area
 - [ ] management API (v2 only) documentation
 - [ ] reset limits with captcha
 - [ ] script plugin (script dir), send parameters in env variables or to stdin
