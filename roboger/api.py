@@ -970,6 +970,11 @@ def _format_legacy_endpoint(endpoint):
     elif endpoint['type'] == 'telegram':
         endpoint['data'] = endpoint['config'].get('chat_id', '')
         endpoint['chat_id'] = endpoint['data']
+    elif endpoint['type'] == 'android':
+        endpoint['data'] = endpoint['config'].get('registration_id', '')
+        endpoint['registration_id'] = endpoint['data']
+        endpoint['data2'] = endpoint['config'].get('device_id', '')
+        endpoint['device_id'] = endpoint['data2']
     del endpoint['config']
     endpoint['skip_dups'] = 0
     return endpoint
@@ -1035,6 +1040,15 @@ def _format_legacy_endpoint_config(plugin_name, kwargs):
             chat_id = kwargs.get('data')
         if chat_id:
             cfg['chat_id'] = chat_id
+    elif plugin_name == 'android':
+        if 'registration_id' not in cfg:
+            registration_id = kwargs.get('data')
+        if registration_id:
+            cfg['registration_id'] = registration_id
+        if 'device_id' not in cfg:
+            device_id = kwargs.get('data2')
+        if device_id:
+            cfg['device_id'] = device_id
     kwargs['config'] = cfg
 
 
