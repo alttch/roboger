@@ -1,4 +1,4 @@
-from altertech/pytpl:35
+from altertech/pytpl:36
 RUN /opt/venv/bin/pip3 install pytest PyMySQL
 COPY ./etc/supervisor/conf.d/roboger.conf /etc/supervisor/conf.d/
 RUN /opt/venv/bin/pip3 install --no-cache-dir pyfcm==1.4.7
