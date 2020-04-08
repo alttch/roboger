@@ -1,4 +1,4 @@
-__version__ = '1.0.1'
+__version__ = '1.0.2'
 __description__ = 'sends event by email'
 
 import smtplib
@@ -11,21 +11,14 @@ from email.mime.multipart import MIMEMultipart
 
 from types import SimpleNamespace
 from pyaltt2.network import parse_host_port
+from pyaltt2.mail import SMTP
 
 from roboger.core import logger, log_traceback
 from pyaltt2.config import config_value
 
 from jsonschema import validate
 
-_cfg = SimpleNamespace(host=None,
-                       port=25,
-                       tls=False,
-                       login=None,
-                       password=None,
-                       use_ssl=False,
-                       sendfunc=smtplib.SMTP)
-
-hostname = platform.node()
+_d = SimpleNamespace(smtp=None, default_location=platform.node())
 
 PROPERTY_MAP_SCHEMA = {
     'type': 'object',
@@ -63,40 +56,42 @@ PLUGIN_PROPERTY_MAP_SCHEMA = {
 
 
 def load(plugin_config, **kwargs):
-    smtp = plugin_config.get('smtp-server')
-    if smtp:
-        _cfg.host, _cfg.port = parse_host_port(smtp, 25)
-        _cfg.default_location = plugin_config.get('default-location')
-        _cfg.use_tls = plugin_config.get('smtp-tls', False)
-        _cfg.login = plugin_config.get('smtp-login')
-        _cfg.password = config_value(config=plugin_config,
-                                     config_path='/smtp-password',
-                                     default=None)
-        if _cfg.host.startswith('ssl:'):
-            _cfg.host = _cfg.host[4:]
-            _cfg.use_ssl = True
+    smtp_server = plugin_config.get('smtp-server')
+    if smtp_server:
+        host, port = parse_host_port(smtp_server, 25)
+        if host.startswith('ssl:'):
+            host = host[4:]
+            ssl = True
+        else:
+            ssl = False
+        _d.default_location = plugin_config.get('default-location')
+        _d.smtp = SMTP(host=host,
+                       port=port,
+                       tls=plugin_config.get('smtp-tls', False),
+                       ssl=ssl,
+                       login=plugin_config.get('smtp-login'),
+                       password=config_value(config=plugin_config,
+                                             config_path='/smtp-password',
+                                             default=None))
         logger.debug(
-            f'{__name__} loaded, SMTP server: {_cfg.host}:{_cfg.port}, '
-            f'ssl: {_cfg.use_ssl}, tls: {_cfg.use_tls}, '
-            f'auth: {_cfg.login is not None}')
-        if _cfg.use_ssl:
-            _cfg.sendfunc = smtplib.SMTP_SSL
+            f'{__name__} loaded, SMTP server: {_d.smtp.host}:{_d.smtp.port}, '
+            f'ssl: {_d.smtp.ssl}, tls: {_d.smtp.tls}, '
+            f'auth: {_d.smtp.login is not None}')
     else:
         logger.error(f'{__name__} not active, no SMTP server provided')
 
 
 def send(config, event_id, msg, formatted_subject, sender, location, media,
          media_fname, **kwargs):
-    if _cfg.host:
+    if _d.smtp:
         rcpt = config.get('rcpt')
         if rcpt:
             logger.debug(f'{__name__} {event_id} sending message to {rcpt}')
             if not sender:
                 sender = 'roboger'
             if '@' not in sender:
-                sender += '@{}'.format(location if location else (
-                    _cfg.default_location if _cfg.default_location else hostname
-                ))
+                sender += '@{}'.format(
+                    location if location else _d.default_location)
             m = MIMEMultipart() if media else MIMEText(
                 msg if msg is not None else '')
             m['Subject'] = formatted_subject
@@ -112,14 +107,7 @@ def send(config, event_id, msg, formatted_subject, sender, location, media,
                 a['Content-Disposition'] = (f'attachment; '
                                             f'filename="{media_fname}"')
                 m.attach(a)
-            sm = _cfg.sendfunc(_cfg.host, _cfg.port)
-            sm.ehlo()
-            if _cfg.use_tls:
-                sm.starttls()
-            if _cfg.login is not None:
-                sm.login(_cfg.login, _cfg.password)
-            sm.sendmail(sender, rcpt, m.as_string())
-            sm.close()
+            _d.smtp.send(sender, rcpt, m.as_string())
         else:
             logger.debug(f'{__name__} {event_id} failed to'
                          f' send message from {sender} to {rcpt}')
