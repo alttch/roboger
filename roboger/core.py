@@ -246,6 +246,13 @@ def load(fname=None):
                 f'CORE failed to load plugin configuration for {plugin_name}')
             log_traceback()
             return False
+        try:
+            getattr(mod, 'send')
+            return True
+        except:
+            logger.info(f'CORE plugin {plugin_name} has no send method, '
+                        'don\'t including into endpoint plugins')
+            return False
 
     logger.info(f'CORE Roboger server {__version__} {product.build}')
     if not fname:

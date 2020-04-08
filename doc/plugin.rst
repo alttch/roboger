@@ -18,8 +18,9 @@ Methods
 send
 ----
 
-Plugin module SHOULD implement at least *send* method, which is called when
-configured endpoint receives an event, and gets the following data in kwargs:
+Endpoint plugin module SHOULD implement at least *send* method, which is called
+when configured endpoint receives an event, and gets the following data in
+kwargs:
 
 * **config** dict with endpoint configuration
 * **event_id** event unique id (UUID, string)
@@ -35,6 +36,8 @@ configured endpoint receives an event, and gets the following data in kwargs:
 * **media** event media, binary
 * **media_encoded** event media, base64-encoded
 * **media_fname** event media file name, if specified by sender
+
+If plugin has no *send* method, it's considered as a core plugin only.
 
 validate_config
 ---------------
