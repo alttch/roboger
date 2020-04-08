@@ -941,5 +941,6 @@ def bucket_cleanup():
         d = time.time()
     else:
         d = datetime.datetime.now()
-        q = 'bucket.cleanup:sqlite' if _d.db.name == 'sqlite' else 'bucket.cleanup'
+        q = 'bucket.cleanup:sqlite' if _d.db.name == 'sqlite' else \
+                'bucket.cleanup'
     _d.db.query(q, d=d)
