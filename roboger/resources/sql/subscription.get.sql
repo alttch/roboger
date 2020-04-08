@@ -2,10 +2,10 @@ SELECT subscription.id AS id,
        addr.id AS addr_id,
        endpoint_id,
        subscription.active AS active,
-       LOCATION,
+       location,
        tag,
        sender,
-       LEVEL,
+       level,
        level_match
 FROM subscription
 JOIN endpoint ON endpoint.id=subscription.endpoint_id
