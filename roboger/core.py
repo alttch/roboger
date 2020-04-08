@@ -306,7 +306,7 @@ def load(fname=None):
         kw['pool_size'] = config.get('db-pool-size', default_db_pool_size)
         kw['max_overflow'] = kw['pool_size'] * 2
     _d.db = Database(config['db'], rq_func=rq, **kw)
-    logger.debug(f'CORE database {_d.db}')
+    logger.debug(f'CORE database {_d.db} ({_d.db.name})')
     _d.db.connect()
     thread_pool_size = config.get('thread-pool-size', default_thread_pool_size)
     logger.debug('CORE initializing thread pool for plugins '
