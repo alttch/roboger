@@ -19,8 +19,6 @@ import logging
 import datetime
 from functools import wraps
 
-from sqlalchemy import text as sql
-
 from .core import logger, convert_level, log_traceback, config as core_config
 from .core import get_real_ip
 from .core import get_app, get_db, send, product, is_secure_mode, is_use_limits
@@ -184,7 +182,7 @@ def init():
             """
             Check server health
             """
-            get_db()
+            get_db().connect()
             return '', 204
 
     @ns_public.route('/file/<string:object_id>')
@@ -315,12 +313,12 @@ def init():
                     return f'addr {a.addr} not found', 404
                 except OverlimitError as e:
                     return str(e), 429
-                for row in get_db().execute(sql(rq('push')),
-                                            a=a.addr,
-                                            location=a.location,
-                                            tag=a.tag,
-                                            sender=a.sender,
-                                            level=level):
+                for row in get_db().query('push',
+                                          a=a.addr,
+                                          location=a.location,
+                                          tag=a.tag,
+                                          sender=a.sender,
+                                          level=level):
                     send(row.plugin_name,
                          config=json.loads(row.config)
                          if is_parse_db_json() else row.config,

@@ -1,1 +1,1 @@
-INSERT INTO addr (a) VALUES (:a) {}
+INSERT INTO addr (a) VALUES (:a)

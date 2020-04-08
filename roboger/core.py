@@ -14,14 +14,12 @@ import sqlalchemy
 import signal
 import datetime
 import time
-try:
-    import rapidjson as json
-except:
-    import json
+
+import pyaltt2.json as json
+
 from types import SimpleNamespace
 from flask import Flask, request
 from concurrent.futures import ThreadPoolExecutor
-from sqlalchemy import text as sql
 
 from pathlib import Path
 
@@ -29,6 +27,7 @@ from pyaltt2.crypto import gen_random_str
 from pyaltt2.network import parse_host_port, generate_netacl
 from pyaltt2.config import load_yaml, config_value, choose_file
 from pyaltt2.res import ResourceStorage
+from pyaltt2.db import Database
 from netaddr import IPNetwork
 from functools import partial
 from hashlib import sha256
@@ -152,9 +151,6 @@ logging.getLogger('requests').setLevel(logging.CRITICAL)
 logging.getLogger('urllib3').setLevel(logging.CRITICAL)
 
 _d = SimpleNamespace(db=None,
-                     use_lastrowid=False,
-                     parse_db_json=False,
-                     use_interval=False,
                      pool=None,
                      secure_mode=False,
                      ip_header=None,
@@ -220,14 +216,6 @@ def log_traceback():
 
 
 def load(fname=None):
-
-    class ForeignKeysListener(sqlalchemy.interfaces.PoolListener):
-
-        def connect(self, dbapi_con, con_record):
-            try:
-                dbapi_con.execute('pragma foreign_keys=ON')
-            except:
-                pass
 
     def _init_plugin(plugin_name, mod, config):
         try:
@@ -313,22 +301,13 @@ def load(fname=None):
             logger.info(f'CORE added plugin {plugin_name}')
 
     logger.debug('CORE initializing database')
-    if config['db'].startswith('sqlite'):
-        _d.db = sqlalchemy.create_engine(config['db'],
-                                         listeners=[ForeignKeysListener()])
-    else:
-        pool_size = config.get('db-pool-size', default_db_pool_size)
-        _d.db = sqlalchemy.create_engine(config['db'],
-                                         pool_size=pool_size,
-                                         max_overflow=pool_size * 2)
-    _d.use_lastrowid = config['db'].startswith(
-        'sqlite') or config['db'].startswith('mysql')
-    _d.parse_db_json = config['db'].startswith(
-        'sqlite') or config['db'].startswith('mysql')
-    _d.use_interval = not config['db'].startswith(
-        'sqlite') and not config['db'].startswith('mysql')
+    kw = {}
+    if not config['db'].startswith('sqlite'):
+        kw['pool_size'] = config.get('db-pool-size', default_db_pool_size)
+        kw['max_overflow'] = kw['pool_size'] * 2
+    _d.db = Database(config['db'], rq_func=rq, **kw)
     logger.debug(f'CORE database {_d.db}')
-    get_db()
+    _d.db.connect()
     thread_pool_size = config.get('thread-pool-size', default_thread_pool_size)
     logger.debug('CORE initializing thread pool for plugins '
                  f'with max size {thread_pool_size}')
@@ -455,20 +434,10 @@ def init_db():
                    Column('content', LargeBinary, nullable=False),
                    mysql_engine='InnoDB',
                    mysql_charset='utf8mb4')
-    meta.create_all(_d.db)
+    meta.create_all(_d.db.connect())
 
 
 def get_db():
-    with db_lock:
-        try:
-            g.conn.execute('select 1')
-            return g.conn
-        except:
-            g.conn = _d.db.connect()
-            return g.conn
-
-
-def get_db_engine():
     return _d.db
 
 
@@ -491,15 +460,15 @@ def get_plugin(plugin_name):
 
 
 def is_use_lastrowid():
-    return _d.use_lastrowid
+    return _d.db.use_lastrowid
 
 
 def is_use_interval():
-    return _d.use_interval
+    return _d.db.use_interval
 
 
 def is_parse_db_json():
-    return _d.parse_db_json
+    return _d.db.parse_db_json
 
 
 def is_secure_mode():
@@ -632,36 +601,26 @@ def plugin_list():
 # object functions
 
 
-def db_list(*args, **kwargs):
-    return [dict(row) for row in get_db().execute(*args, **kwargs).fetchall()]
-
-
 def delete_everything():
-    get_db().execute(sql(rq('del')))
+    _d.db.query('del')
 
 
 def addr_get(addr_id=None, addr=None):
-    result = get_db().execute(sql(
-        rq('addr.get').format(',lim_c,lim_s' if _d.limits else '')),
-                              id=addr_id,
-                              a=addr).fetchone()
-    if result:
-        return dict(result)
-    else:
-        raise LookupError
+    return _d.db.qlookup('addr.get',
+                         qargs=[',lim_c,lim_s'] if _d.limits else [''],
+                         id=addr_id,
+                         a=addr)
 
 
 def addr_list():
-    return db_list(
-        sql(rq('addr.list').format(',lim_c, lim_s' if _d.limits else '')))
+    return _d.db.qlist('addr.list',
+                       qargs=[',lim_c, lim_s'] if _d.limits else [])
 
 
 def addr_create():
     addr = gen_random_str(64)
-    result = get_db().execute(sql(
-        rq('addr.create').format('' if is_use_lastrowid() else 'RETURNING id')),
-                              a=addr)
-    i = result.lastrowid if is_use_lastrowid() else result.fetchone().id
+    i = _d.db.qcreate('addr.create', a=addr)
+    logger.debug(f'CORE created address {i} ({addr})')
     return i
 
 
@@ -669,72 +628,54 @@ def addr_change(addr_id=None, addr=None, to=None):
     if to is None:
         to = gen_random_str(64)
     try:
-        if get_db().execute(sql(rq('addr.update.a')),
-                            new_a=to,
-                            id=addr_id,
-                            a=addr).rowcount:
-            return to
+        _d.db.query('addr.update.a', _cr=True, new_a=to, id=addr_id, a=addr)
+        return to
     except sqlalchemy.exc.IntegrityError:
         raise ValueError
-    else:
-        raise LookupError
 
 
 def addr_set_active(addr_id=None, addr=None, active=1):
-    if get_db().execute(sql(rq('addr.update.active')),
-                        active=active,
-                        id=addr_id,
-                        a=addr).rowcount:
-        return addr_get(addr_id=addr_id, addr=addr)
-    else:
-        raise LookupError
+    _d.db.query('addr.update.active',
+                _cr=True,
+                active=active,
+                id=addr_id,
+                a=addr)
+    return addr_get(addr_id=addr_id, addr=addr)
 
 
 def addr_set_limit(addr_id=None, addr=None, lim_c=None, lim_s=None):
     if lim_c is not None:
-        if not get_db().execute(
-                sql(rq('addr.update.lim_c')), lim_c=lim_c, id=addr_id,
-                a=addr).rowcount:
-            raise LookupError
+        _d.db.query('addr.update.lim_c',
+                    _cr=True,
+                    lim_c=lim_c,
+                    id=addr_id,
+                    a=addr)
     if lim_s is not None:
-        if not get_db().execute(
-                sql(rq('addr.update.lim_s')), lim_s=lim_s, id=addr_id,
-                a=addr).rowcount:
-            raise LookupError
+        _d.db.query('addr.update.lim_s',
+                    _cr=True,
+                    lim_s=lim_s,
+                    id=addr_id,
+                    a=addr)
     return addr_get(addr_id=addr_id, addr=addr)
 
 
 def addr_delete(addr_id=None, addr=None):
-    if not get_db().execute(sql(rq('addr.delete')), id=addr_id,
-                            a=addr).rowcount:
-        raise LookupError
+    _d.db.query('addr.delete', _cr=True, id=addr_id, a=addr)
+    logger.debug(f'CORE deleted address {addr_id}')
 
 
 def endpoint_get(endpoint_id):
-    result = get_db().execute(
-        sql("""SELECT id, addr_id, plugin_name, config, active,
-                description FROM endpoint WHERE id=:id"""),
-        id=endpoint_id).fetchone()
-    if result:
-        result = dict(result)
-        if is_parse_db_json():
-            result['config'] = json.loads(result['config'])
-        return result
-    else:
-        raise LookupError
+    return _d.db.qlookup('endpoint.get',
+                         _cr=True,
+                         json_fields=['config'],
+                         id=endpoint_id)
 
 
 def endpoint_list(addr_id=None, addr=None):
-    result = db_list(sql("""SELECT endpoint.id as id, addr_id, plugin_name,
-        config, endpoint.active as active,
-        description FROM endpoint JOIN addr ON addr.id=endpoint.addr_id
-        WHERE addr.id=:addr_id OR addr.a=:addr ORDER BY id"""),
-                     addr_id=addr_id,
-                     addr=addr)
-    if is_parse_db_json():
-        for r in result:
-            r['config'] = json.loads(r['config'])
-    return result
+    return _d.db.qlist('endpoint.list',
+                       json_fields=['config'],
+                       addr_id=addr_id,
+                       addr=addr)
 
 
 def endpoint_create(plugin_name,
@@ -751,28 +692,19 @@ def endpoint_create(plugin_name,
             safe_run_method(plugins[plugin_name], 'validate_config', config)
         except Exception as e:
             raise ValueError(e)
-    result = get_db().execute(sql("""
-            INSERT INTO endpoint (addr_id, plugin_name, config, description)
-            VALUES (
-                (SELECT id FROM addr where id=:addr_id or a=:addr),
-                :plugin,
-                :config,
-                :description
-            ) {}
-            """.format('' if is_use_lastrowid() else 'RETURNING id')),
-                              addr_id=addr_id,
-                              addr=addr,
-                              plugin=plugin_name,
-                              config=json.dumps(config),
-                              description=description)
-    i = result.lastrowid if is_use_lastrowid() else result.fetchone().id
+    i = _d.db.qcreate('endpoint.create',
+                      addr_id=addr_id,
+                      addr=addr,
+                      plugin=plugin_name,
+                      config=json.dumps(config),
+                      description=description)
     logger.debug(f'CORE created endpoint {i} (plugin: {plugin_name})')
     return i
 
 
 def endpoint_update(endpoint_id, data, validate_config=False, plugin_name=None):
-    db = get_db()
-    dbt = db.begin()
+    conn = _d.db.connect()
+    dbt = conn.begin()
     try:
         if 'config' in data:
             try:
@@ -788,13 +720,11 @@ def endpoint_update(endpoint_id, data, validate_config=False, plugin_name=None):
         for k, v in data.items():
             if k == 'active':
                 v = int(v)
-            if not db.execute(
-                    sql(f"""
-            UPDATE endpoint SET {k}=:v WHERE id=:id
-            """),
-                    id=endpoint_id,
-                    v=json.dumps(v) if isinstance(v, dict) else v).rowcount:
-                raise LookupError
+            _d.db.query('endpoint.update',
+                        qargs=[k],
+                        _cr=True,
+                        id=endpoint_id,
+                        v=json.dumps(v) if isinstance(v, dict) else v)
         dbt.commit()
     except:
         dbt.rollback()
@@ -802,18 +732,13 @@ def endpoint_update(endpoint_id, data, validate_config=False, plugin_name=None):
 
 
 def endpoint_delete(endpoint_id):
-    if not get_db().execute(sql("""
-            DELETE FROM endpoint WHERE id=:id
-            """),
-                            id=endpoint_id).rowcount:
-        raise LookupError
+    _d.db.query('endpoint.delete', _cr=True, id=endpoint_id)
+    logger.debug(f'CORE deleted endpoint {endpoint_id}')
 
 
 def endpoint_delete_subscriptions(endpoint_id):
-    return get_db().execute(
-        sql("""
-            DELETE FROM subscription WHERE endpoint_id=:id
-            """),
+    return _d.db.query(
+        'endpoint.deletesub',
         id=endpoint_id,
     ).rowcount
 
@@ -822,38 +747,21 @@ def subscription_get(subscription_id, endpoint_id=None):
     xkw = {'subscription_id': subscription_id}
     if endpoint_id is not None:
         xkw['endpoint_id'] = endpoint_id
-    result = get_db().execute(
-        sql("""SELECT
-        subscription.id as id, addr.id as addr_id,
-        endpoint_id, subscription.active as active, location, tag, sender,
-        level, level_match
-        FROM subscription
-            JOIN endpoint ON endpoint.id=subscription.endpoint_id
-            JOIN addr ON addr.id=endpoint.addr_id
-        WHERE subscription.id=:subscription_id {}""".format(
-            'AND endpoint_id=:endpoint_id' if endpoint_id is not None else '')),
-        **xkw).fetchone()
-    if result:
-        return dict(result)
-    else:
-        raise LookupError
+    return _d.db.qlookup('subscription.get',
+                         qargs=['AND endpoint_id=:endpoint_id']
+                         if endpoint_id is not None else [''],
+                         _cr=True,
+                         **xkw)
 
 
 def subscription_list(endpoint_id, addr_id=None):
     xkw = {'endpoint_id': endpoint_id}
     if addr_id is not None:
         xkw['addr_id'] = addr_id
-    return db_list(
-        sql("""
-        SELECT subscription.id as id, addr.id as addr_id,
-            endpoint_id, subscription.active as active, location, tag,
-            sender, level, level_match
-        FROM subscription
-            JOIN endpoint ON endpoint.id=subscription.endpoint_id
-            JOIN addr ON addr.id=endpoint.addr_id
-        WHERE endpoint.id=:endpoint_id {}
-        ORDER BY id""".format(
-            'AND addr.id=:addr_id' if addr_id is not None else '')), **xkw)
+    return _d.db.qlist(
+        'subscription.list',
+        qargs=['AND addr.id=:addr_id'] if addr_id is not None else [''],
+        **xkw)
 
 
 def subscription_create(endpoint_id,
@@ -867,32 +775,20 @@ def subscription_create(endpoint_id,
     if sender == '': sender = None
     if level is None: level = 20
     if level_match is None: level_match = 'ge'
-    result = get_db().execute(sql("""
-            INSERT INTO subscription (endpoint_id, location, tag,
-                    sender, level, level_match)
-            VALUES (
-                :endpoint_id,
-                :location,
-                :tag,
-                :sender,
-                :level,
-                :level_match
-            ) {}
-            """.format('' if is_use_lastrowid() else 'RETURNING id')),
-                              endpoint_id=endpoint_id,
-                              location=location,
-                              tag=tag,
-                              sender=sender,
-                              level=level,
-                              level_match=level_match)
-    i = result.lastrowid if is_use_lastrowid() else result.fetchone().id
+    i = _d.db.qcreate('subscription.create',
+                      endpoint_id=endpoint_id,
+                      location=location,
+                      tag=tag,
+                      sender=sender,
+                      level=level,
+                      level_match=level_match)
     logger.debug(f'CORE created subscription {i} for endpoint {endpoint_id}')
     return i
 
 
 def subscription_update(subscription_id, data):
-    db = get_db()
-    dbt = db.begin()
+    conn = _d.db.connect()
+    dbt = conn.begin()
     try:
         for k, v in data.items():
             if v == '' and k in ['location', 'tag', 'sender']:
@@ -904,13 +800,11 @@ def subscription_update(subscription_id, data):
                     v = v[0]
             elif k == 'active':
                 v = int(v)
-            if not db.execute(
-                    sql(f"""
-            UPDATE subscription SET {k}=:v WHERE id=:id
-            """),
-                    id=subscription_id,
-                    v=json.dumps(v) if isinstance(v, dict) else v).rowcount:
-                raise LookupError
+            _d.db.query('subscription.update',
+                        _cr=True,
+                        qargs=[k],
+                        id=subscription_id,
+                        v=json.dumps(v) if isinstance(v, dict) else v)
         dbt.commit()
     except:
         dbt.rollback()
@@ -918,11 +812,8 @@ def subscription_update(subscription_id, data):
 
 
 def subscription_delete(subscription_id):
-    if not get_db().execute(sql("""
-            DELETE FROM subscription WHERE id=:id
-            """),
-                            id=subscription_id).rowcount:
-        raise LookupError
+    _d.db.query('subscription.delete', _cr=True, id=subscription_id)
+    logger.debug(f'CORE deleted subscription {subscription_id}')
 
 
 def bucket_get(object_id, public=None):
@@ -941,41 +832,18 @@ def bucket_get(object_id, public=None):
     else:
         xargs = {'public': public}
         cond = """ AND public = :public"""
-    if _d.db.name == 'sqlite':
-        q = f"""SELECT
-            id, creator, mimetype, fname, size, public, metadata, d, da,
-            datetime(strftime('%s', d) + expires, 'unixepoch') as de,
-            strftime('%s', d) - :d + expires as expires, content
-            FROM bucket WHERE id=:object_id {cond} AND
-                DATETIME(STRFTIME('%s', d) + expires, 'unixepoch') >= :d"""
-        d = datetime.datetime.now()
-    elif _d.db.name == 'mysql':
-        q = f"""SELECT
-            id, creator, mimetype, fname, size, public, metadata, d, da,
-            DATE_FORMAT(FROM_UNIXTIME(UNIX_TIMESTAMP(d)),
-                '%Y-%m-%d %H:%i:%s.%f') as de,
-            UNIX_TIMESTAMP(d) - :d + expires as expires,
-                content
-            FROM bucket WHERE id=:object_id {cond} AND
-                UNIX_TIMESTAMP(d) + expires >= :d"""
+    if _d.db.name == 'mysql':
         d = time.time()
-        logger.info(q)
-        logger.info(d)
+        q = 'bucket.get:mysql'
     else:
-        q = f"""SELECT
-            id, creator, mimetype, fname, size, public, metadata, d, da,
-            d + expires as de, d - :d + expires as expires, content
-            FROM bucket WHERE id=:object_id {cond} AND d + expires >= :d"""
         d = datetime.datetime.now()
-    result = get_db().execute(sql(q), object_id=object_id, d=d,
-                              **xargs).fetchone()
-    if result:
-        result = dict(result)
-        if is_parse_db_json():
-            result['metadata'] = json.loads(result['metadata'])
-        return result
-    else:
-        raise LookupError
+        q = 'bucket.get:sqlite' if _d.db.name == 'sqlite' else 'bucket.get'
+    return _d.db.qlookup(q,
+                         json_fields=['metadata'],
+                         qargs=[cond],
+                         object_id=object_id,
+                         d=d,
+                         **xargs)
 
 
 def bucket_put(content,
@@ -1024,25 +892,18 @@ def bucket_put(content,
     else:
         if expires is None:
             expires = config['bucket']['default-expires']
-    get_db().execute(sql("""
-        INSERT INTO bucket
-                (id, creator, addr_id, mimetype, fname, size, public,
-                metadata, d, expires, content)
-            VALUES
-                (:object_id, :creator, :addr_id, :mimetype, :fname, :size,
-                :public, :metadata, :d, :expires, :content)
-        """),
-                     object_id=object_id,
-                     creator=creator,
-                     addr_id=addr_id,
-                     mimetype=mimetype,
-                     fname=fname,
-                     size=len(content),
-                     public=public,
-                     metadata=json.dumps(metadata),
-                     d=datetime.datetime.now(),
-                     expires=expires,
-                     content=content)
+    _d.db.query('bucket.create',
+                object_id=object_id,
+                creator=creator,
+                addr_id=addr_id,
+                mimetype=mimetype,
+                fname=fname,
+                size=len(content),
+                public=public,
+                metadata=json.dumps(metadata),
+                d=datetime.datetime.now(),
+                expires=expires,
+                content=content)
     logger.debug(
         f'CORE new bucket object {object_id} {mimetype} from {creator}')
     return object_id
@@ -1055,12 +916,10 @@ def bucket_touch(object_id):
     Raises:
         LookupError: if object is not found
     """
-    if not get_db().execute(sql("""
-            UPDATE bucket SET da = :da WHERE id=:object_id
-            """),
-                            da=datetime.datetime.now(),
-                            object_id=object_id).rowcount:
-        raise LookupError
+    _d.db.query('bucket.touch',
+                _cr=True,
+                da=datetime.datetime.now(),
+                object_id=object_id)
 
 
 def bucket_delete(object_id):
@@ -1072,23 +931,15 @@ def bucket_delete(object_id):
     Raises:
         LookupError: if object is not found
     """
-    if not get_db().execute(sql("""
-            DELETE FROM bucket WHERE id=:object_id
-            """),
-                            object_id=object_id).rowcount:
-        raise LookupError
+    _d.db.query('bucket.delete', _cr=True, object_id=object_id)
     logger.debug(f'CORE deleted bucket object {object_id}')
 
 
 def bucket_cleanup():
-    if _d.db.name == 'sqlite':
-        q = """DELETE FROM bucket WHERE
-                    DATETIME(STRFTIME('%s', d) + expires, 'unixepoch') < :d"""
-        d = datetime.datetime.now()
-    elif _d.db.name == 'mysql':
-        q = 'DELETE FROM bucket WHERE UNIX_TIMESTAMP(d) + expires < :d'
+    if _d.db.name == 'mysql':
+        q = 'bucket.cleanup:mysql'
         d = time.time()
     else:
-        q = 'DELETE FROM bucket WHERE d + expires < :d'
         d = datetime.datetime.now()
-    get_db().execute(sql(q), d=d)
+        q = 'bucket.cleanup:sqlite' if _d.db.name == 'sqlite' else 'bucket.cleanup'
+    _d.db.query(q, d=d)

@@ -107,26 +107,20 @@ Additional core methods
 
 The following additional *roboger.core* methods may be useful for plugins:
 
-* **get_db_engine()** get database engine (SQLAlchemy)
-
-* **get_db()** get database connection (thread-local)
-
 * **spawn(method, \*args, \*\*kwargs)** submit function to core thread-pool
+
+* **get_db()** get database object (*pyaltt2.db.Database* SQLAlchemy wrapper)
 
 * **get_app()** get core web application. If plugin want to have own HTTP
   methods, they SHOULD have URI: */plugin/{plugin_name}/whatever_you_want*
 
 * **get_timeout()** get default timeout
 
-* **get_real_ip()** get IP address of current API call
+* **get_real_ip()** get IP address of current HTTP request
 
 * **get_plugin(plugin_name)** get another plugin module
 
 * **convert_level(level)** convert event level to integer code
-
-* **is_use_lastrowid()** should *lastrowid* be used for the database queries (if not - database supports *RETURNING*)
-
-* **is_use_limits()** is Roboger server configured to have limits applied on addresses or not.
 
 Bucket
 ======
