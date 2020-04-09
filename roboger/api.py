@@ -50,9 +50,9 @@ authenticators = []
 """
 custom authenticator is a method defined as:
 
-    def myauth(f, ip, *args, **kwargs):
-        # f - requested API function
+    def myauth(ip, f, *args, **kwargs):
         # ip - remote IP address
+        # f - requested API function
         # *args, **kwargs - function arguments
 
 custom authenticator return values:
@@ -149,7 +149,7 @@ def public_method(f):
     return do
 
 
-def master_authenticator(f, ip, *args, **kw):
+def master_authenticator(ip, f, *args, **kw):
     logger.debug(f'API admin call {ip} method: {f.__qualname__}, args: {args}, '
                  f'kwargs: {kw}')
     key = request.headers.get('X-Auth-Key', kw.get('k'))
@@ -176,10 +176,10 @@ def authenticated_method(f):
         payload = request.json if request.json else {}
         kw = {**kwargs, **payload}
         for c in authenticators:
-            if c(f, ip, *args, **kw):
+            if c(ip, f, *args, **kw):
                 break
         else:
-            if not master_authenticator(f, ip, *args, **kw):
+            if not master_authenticator(ip, f, *args, **kw):
                 abort(403)
         return f(*args, **kw)
 
