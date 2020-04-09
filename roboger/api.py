@@ -131,32 +131,45 @@ def public_method(f):
     return do
 
 
-def admin_method(f):
+def custom_authenticator(f, ip, *args, **kwargs):
+    """
+    can be overriden
+    """
+    logger.debug(f'API {ip} calling {f.__qualname__} {args} {kwargs}')
+    return False
+
+
+def master_authenticator(f, ip, *args, **kw):
+    logger.debug(f'API admin call {ip} method: {f.__qualname__}, args: {args}, '
+                 f'kwargs: {kw}')
+    key = request.headers.get('X-Auth-Key', kw.get('k'))
+    if key is None:
+        logger.warning(f'API unauthorized access to admin functions from {ip}:'
+                       ' no key provided')
+        abort(401)
+    if key != core_config['master']['key']:
+        logger.warning(f'API unauthorized access to admin functions from {ip}:'
+                       ' invalid key provided')
+        abort(403)
+    if core_config['_acl'] and not netacl_match(ip, core_config['_acl']):
+        logger.warning(f'API unauthorized access to admin functions from {ip}:'
+                       ' ACL doesn\'t match')
+        abort(403)
+    return True
+
+
+def authenticated_method(f):
 
     @wraps(f)
     def do(*args, **kwargs):
         ip = get_real_ip()
         payload = request.json if request.json else {}
         kw = {**kwargs, **payload}
-        logger.debug(f'API admin call {ip} method: {f.__name__}, args: {args}, '
-                     f'kwargs: {kw}')
-        key = request.headers.get('X-Auth-Key', payload.get('k'))
-        if key is None:
-            logger.warning(
-                f'API unauthorized access to admin functions from {ip}:'
-                ' no key provided')
-            abort(401)
-        if key != core_config['master']['key']:
-            logger.warning(
-                f'API unauthorized access to admin functions from {ip}:'
-                ' invalid key provided')
+        if not custom_authenticator(f, ip, *args, **kw) and \
+                not master_authenticator(f, ip, *args, **kw):
             abort(403)
-        if core_config['_acl'] and not netacl_match(ip, core_config['_acl']):
-            logger.warning(
-                f'API unauthorized access to admin functions from {ip}:'
-                ' ACL doesn\'t match')
-            abort(403)
-        return f(*args, **kw)
+        else:
+            return f(*args, **kw)
 
     return do
 
@@ -562,14 +575,14 @@ def _process_addr(a):
         return (None, a if isinstance(a, str) else None)
 
 
-@admin_method
+@authenticated_method
 def test(**kwargs):
     result = success.copy()
     result.update({'version': product.version, 'build': product.build})
     return jsonify(result)
 
 
-@admin_method
+@authenticated_method
 def r_core_cmd(cmd=None):
     if cmd == 'reset-addr-limits':
         reset_addr_limits()
@@ -582,7 +595,7 @@ def r_core_cmd(cmd=None):
     return _response_empty()
 
 
-@admin_method
+@authenticated_method
 def r_plugin_list():
     result = []
     for k, v in plugin_list().items():
@@ -595,12 +608,12 @@ def r_plugin_list():
     return jsonify(sorted(result, key=lambda k: k['plugin_name']))
 
 
-@admin_method
+@authenticated_method
 def r_addr_list():
     return jsonify(addr_list())
 
 
-@admin_method
+@authenticated_method
 def r_addr_get(a):
     addr_id, addr = _process_addr(a)
     try:
@@ -609,7 +622,7 @@ def r_addr_get(a):
         return _response_not_found(f'addr {a} not found')
 
 
-@admin_method
+@authenticated_method
 def r_addr_cmd(a, cmd, to=None):
     addr_id, addr = _process_addr(a)
     try:
@@ -625,7 +638,7 @@ def r_addr_cmd(a, cmd, to=None):
         return _response_not_found(f'addr {a} not found')
 
 
-@admin_method
+@authenticated_method
 def r_addr_create():
     result = addr_get(addr_create())
     return _response_created(
@@ -633,7 +646,7 @@ def r_addr_create():
         'addr')
 
 
-@admin_method
+@authenticated_method
 def r_addr_modify(a, active=None, lim_c=None, lim_s=None):
     addr_id, addr = _process_addr(a)
     try:
@@ -651,7 +664,7 @@ def r_addr_modify(a, active=None, lim_c=None, lim_s=None):
         return _response_not_found(f'addr {a} not found')
 
 
-@admin_method
+@authenticated_method
 def r_addr_delete(a):
     addr_id, addr = _process_addr(a)
     try:
@@ -672,7 +685,7 @@ def _get_object_verify_addr(obj_id, a, getfunc, **kwargs):
         raise LookupError
 
 
-@admin_method
+@authenticated_method
 def r_endpoint_list(a):
     addr_id, addr = _process_addr(a)
     try:
@@ -682,7 +695,7 @@ def r_endpoint_list(a):
         return _response_not_found(f'addr {a} not found')
 
 
-@admin_method
+@authenticated_method
 def r_endpoint_get(a, ep):
     try:
         endpoint = _get_object_verify_addr(ep, a, endpoint_get)
@@ -691,7 +704,7 @@ def r_endpoint_get(a, ep):
         return _response_not_found(f'endpoint {a}/{ep} not found')
 
 
-@admin_method
+@authenticated_method
 def r_endpoint_cmd(a, ep, cmd, **kwargs):
     try:
         endpoint = _get_object_verify_addr(ep, a, endpoint_get)
@@ -718,7 +731,7 @@ def r_endpoint_cmd(a, ep, cmd, **kwargs):
         return _response_not_found(f'endpoint {a}/{ep} not found')
 
 
-@admin_method
+@authenticated_method
 def r_endpoint_create(a, plugin_name, **kwargs):
     addr_id, addr = _process_addr(a)
     try:
@@ -741,7 +754,7 @@ def r_endpoint_create(a, plugin_name, **kwargs):
         f'addr/{a}/endpoint')
 
 
-@admin_method
+@authenticated_method
 def r_endpoint_modify(a, ep, **kwargs):
     try:
         endpoint = _get_object_verify_addr(ep, a, endpoint_get)
@@ -763,7 +776,7 @@ def r_endpoint_modify(a, ep, **kwargs):
         'roboger.endpoint') else _response_empty()
 
 
-@admin_method
+@authenticated_method
 def r_endpoint_delete(a, ep):
     try:
         endpoint = _get_object_verify_addr(ep, a, endpoint_get)
@@ -773,7 +786,7 @@ def r_endpoint_delete(a, ep):
         return _response_not_found(f'endpoint {a}/{ep} not found')
 
 
-@admin_method
+@authenticated_method
 def r_subscription_list(a, ep):
     try:
         endpoint = _get_object_verify_addr(ep, a, endpoint_get)
@@ -782,7 +795,7 @@ def r_subscription_list(a, ep):
         return _response_not_found(f'endpoint {a}/{ep} not found')
 
 
-@admin_method
+@authenticated_method
 def r_subscription_get(a, ep, s):
     try:
         subscription = _get_object_verify_addr(s,
@@ -797,7 +810,7 @@ def r_subscription_get(a, ep, s):
         return _response_not_found(f'subscription {a}/{ep}/{s} not found')
 
 
-@admin_method
+@authenticated_method
 def r_subscription_cmd(a, ep, s, cmd):
     try:
         subscription = _get_object_verify_addr(s,
@@ -813,7 +826,7 @@ def r_subscription_cmd(a, ep, s, cmd):
         return _response_not_found(f'subscription {a}/{ep}/{s} not found')
 
 
-@admin_method
+@authenticated_method
 def r_subscription_create(a, ep, **kwargs):
     addr_id, addr = _process_addr(a)
     try:
@@ -829,7 +842,7 @@ def r_subscription_create(a, ep, **kwargs):
         result['id'], f'addr/{a}/subscription')
 
 
-@admin_method
+@authenticated_method
 def r_subscription_modify(a, ep, s, **kwargs):
     try:
         subscription = _get_object_verify_addr(s, a, subscription_get)
@@ -851,7 +864,7 @@ def r_subscription_modify(a, ep, s, **kwargs):
         'roboger.subscription') else _response_empty()
 
 
-@admin_method
+@authenticated_method
 def r_subscription_delete(a, ep, s):
     try:
         subscription = _get_object_verify_addr(s, a, subscription_get)
@@ -877,7 +890,7 @@ _legacy_endpoint_types = {
 _legacy_endpoint_ids = {v: k for k, v in _legacy_endpoint_types.items()}
 
 
-@admin_method
+@authenticated_method
 def m_addr_list(addr_id=None, addr=None, **kwargs):
     logger.warning('API DEPRECATED addr_list')
     if addr_id or addr:
@@ -889,13 +902,13 @@ def m_addr_list(addr_id=None, addr=None, **kwargs):
         return jsonify(addr_list())
 
 
-@admin_method
+@authenticated_method
 def m_addr_create(**kwargs):
     logger.warning('API DEPRECATED addr_create')
     return jsonify(addr_get(addr_create()))
 
 
-@admin_method
+@authenticated_method
 def m_addr_change(addr_id=None, addr=None, **kwargs):
     logger.warning('API DEPRECATED addr_change')
     try:
@@ -905,7 +918,7 @@ def m_addr_change(addr_id=None, addr=None, **kwargs):
         abort(404)
 
 
-@admin_method
+@authenticated_method
 def m_addr_set_active(addr_id=None, addr=None, active=1, **kwargs):
     logger.warning('API DEPRECATED addr_set_active')
     try:
@@ -915,7 +928,7 @@ def m_addr_set_active(addr_id=None, addr=None, active=1, **kwargs):
         abort(404)
 
 
-@admin_method
+@authenticated_method
 def m_addr_enable(addr_id=None, addr=None, active=1, **kwargs):
     logger.warning('API DEPRECATED addr_enable')
     try:
@@ -924,7 +937,7 @@ def m_addr_enable(addr_id=None, addr=None, active=1, **kwargs):
         abort(404)
 
 
-@admin_method
+@authenticated_method
 def m_addr_disable(addr_id=None, addr=None, active=1, **kwargs):
     logger.warning('API DEPRECATED addr_disable')
     try:
@@ -933,7 +946,7 @@ def m_addr_disable(addr_id=None, addr=None, active=1, **kwargs):
         abort(404)
 
 
-@admin_method
+@authenticated_method
 def m_addr_delete(addr_id=None, addr=None, **kwargs):
     logger.warning('API DEPRECATED addr_delete')
     try:
@@ -943,7 +956,7 @@ def m_addr_delete(addr_id=None, addr=None, **kwargs):
         abort(404)
 
 
-@admin_method
+@authenticated_method
 def m_endpoint_types(**kwargs):
     return jsonify(_legacy_endpoint_types)
 
@@ -978,7 +991,7 @@ def _format_legacy_endpoint(endpoint):
     return endpoint
 
 
-@admin_method
+@authenticated_method
 def m_endpoint_list(endpoint_id=None, addr_id=None, addr=None, **kwargs):
     logger.warning('API DEPRECATED endpoint_list')
     if endpoint_id:
@@ -1050,7 +1063,7 @@ def _format_legacy_endpoint_config(plugin_name, kwargs):
     kwargs['config'] = cfg
 
 
-@admin_method
+@authenticated_method
 def m_endpoint_create(**kwargs):
     logger.warning('API DEPRECATED endpoint_create')
     if 'et' in kwargs:
@@ -1071,7 +1084,7 @@ def m_endpoint_create(**kwargs):
             endpoint_get(endpoint_create(plugin_name, **kwargs))))
 
 
-@admin_method
+@authenticated_method
 def m_endpoint_data(endpoint_id,
                     addr_id=None,
                     addr=None,
@@ -1108,7 +1121,7 @@ def m_endpoint_data(endpoint_id,
     return jsonify(_format_legacy_endpoint(endpoint))
 
 
-@admin_method
+@authenticated_method
 def m_endpoint_config(endpoint_id, addr_id=None, addr=None, **kwargs):
     logger.warning('API DEPRECATED endpoint_config')
     try:
@@ -1131,7 +1144,7 @@ def m_endpoint_config(endpoint_id, addr_id=None, addr=None, **kwargs):
     return jsonify(_format_legacy_endpoint(endpoint))
 
 
-@admin_method
+@authenticated_method
 def m_endpoint_skipdups(endpoint_id, addr_id=None, addr=None, **kwargs):
     logger.warning('API DEPRECATED endpoint_skipdups [dummy]')
     try:
@@ -1148,7 +1161,7 @@ def m_endpoint_skipdups(endpoint_id, addr_id=None, addr=None, **kwargs):
     return jsonify(_format_legacy_endpoint(endpoint))
 
 
-@admin_method
+@authenticated_method
 def m_endpoint_description(endpoint_id,
                            addr_id=None,
                            addr=None,
@@ -1176,7 +1189,7 @@ def m_endpoint_description(endpoint_id,
     return jsonify(_format_legacy_endpoint(endpoint))
 
 
-@admin_method
+@authenticated_method
 def m_endpoint_enable(endpoint_id, addr_id=None, addr=None, **kwargs):
     logger.warning('API DEPRECATED endpoint_enable')
     try:
@@ -1198,7 +1211,7 @@ def m_endpoint_enable(endpoint_id, addr_id=None, addr=None, **kwargs):
     return jsonify(_format_legacy_endpoint(endpoint))
 
 
-@admin_method
+@authenticated_method
 def m_endpoint_disable(endpoint_id, addr_id=None, addr=None, **kwargs):
     logger.warning('API DEPRECATED endpoint_disable')
     try:
@@ -1220,7 +1233,7 @@ def m_endpoint_disable(endpoint_id, addr_id=None, addr=None, **kwargs):
     return jsonify(_format_legacy_endpoint(endpoint))
 
 
-@admin_method
+@authenticated_method
 def m_endpoint_set_active(endpoint_id,
                           addr_id=None,
                           addr=None,
@@ -1247,7 +1260,7 @@ def m_endpoint_set_active(endpoint_id,
     return jsonify(_format_legacy_endpoint(endpoint))
 
 
-@admin_method
+@authenticated_method
 def m_endpoint_delete(endpoint_id, addr_id=None, addr=None, **kwargs):
     logger.warning('API DEPRECATED endpoint_delete')
     try:
@@ -1284,7 +1297,7 @@ def _format_legacy_subscription(subscription):
     return subscription
 
 
-@admin_method
+@authenticated_method
 def m_subscription_create(endpoint_id, addr_id=None, addr=None, **kwargs):
     logger.warning('API DEPRECATED subscription_create')
     if is_secure_mode():
@@ -1317,7 +1330,7 @@ def m_subscription_create(endpoint_id, addr_id=None, addr=None, **kwargs):
             subscription_get(subscription_create(endpoint_id, **kwargs))))
 
 
-@admin_method
+@authenticated_method
 def m_subscription_list(subscription_id=None,
                         endpoint_id=None,
                         addr_id=None,
@@ -1346,7 +1359,7 @@ def m_subscription_list(subscription_id=None,
         ])
 
 
-@admin_method
+@authenticated_method
 def m_subscription_delete(subscription_id, addr_id=None, addr=None, **kwargs):
     logger.warning('API DEPRECATED subscription_delete')
     if is_secure_mode():
@@ -1364,7 +1377,7 @@ def m_subscription_delete(subscription_id, addr_id=None, addr=None, **kwargs):
     return jsonify(success)
 
 
-@admin_method
+@authenticated_method
 def m_subscription_enable(subscription_id, addr_id=None, addr=None, **kwargs):
     logger.warning('API DEPRECATED subscription_enable')
     if is_secure_mode():
@@ -1383,7 +1396,7 @@ def m_subscription_enable(subscription_id, addr_id=None, addr=None, **kwargs):
     return jsonify(_format_legacy_subscription(subscription))
 
 
-@admin_method
+@authenticated_method
 def m_subscription_disable(subscription_id, addr_id=None, addr=None, **kwargs):
     logger.warning('API DEPRECATED subscription_disable')
     if is_secure_mode():
@@ -1402,7 +1415,7 @@ def m_subscription_disable(subscription_id, addr_id=None, addr=None, **kwargs):
     return jsonify(_format_legacy_subscription(subscription))
 
 
-@admin_method
+@authenticated_method
 def m_subscription_set_active(subscription_id,
                               addr_id=None,
                               addr=None,
@@ -1426,7 +1439,7 @@ def m_subscription_set_active(subscription_id,
     return jsonify(_format_legacy_subscription(subscription))
 
 
-@admin_method
+@authenticated_method
 def m_subscription_location(subscription_id,
                             addr_id=None,
                             addr=None,
@@ -1449,7 +1462,7 @@ def m_subscription_location(subscription_id,
     return jsonify(_format_legacy_subscription(subscription))
 
 
-@admin_method
+@authenticated_method
 def m_subscription_keywords(subscription_id,
                             addr_id=None,
                             addr=None,
@@ -1476,7 +1489,7 @@ def m_subscription_keywords(subscription_id,
     return jsonify(_format_legacy_subscription(subscription))
 
 
-@admin_method
+@authenticated_method
 def m_subscription_senders(subscription_id,
                            addr_id=None,
                            addr=None,
@@ -1503,7 +1516,7 @@ def m_subscription_senders(subscription_id,
     return jsonify(_format_legacy_subscription(subscription))
 
 
-@admin_method
+@authenticated_method
 def m_subscription_level(subscription_id, addr_id=None, addr=None, **kwargs):
     logger.warning('API DEPRECATED subscription_level')
     if is_secure_mode():
