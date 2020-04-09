@@ -50,7 +50,7 @@ build-packages:
 	python3 setup.py build
 
 pub:
-	@echo "please use jenkins to build"
+	jks build roboger
 
 pub-pypi:
 	twine upload dist/*
