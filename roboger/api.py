@@ -46,6 +46,24 @@ from pyaltt2.network import netacl_match
 
 success = {'ok': True}
 
+authenticators = []
+"""
+custom authenticator is a method defined as:
+
+    def myauth(f, ip, *args, **kwargs):
+        # f - requested API function
+        # ip - remote IP address
+        # *args, **kwargs - function arguments
+
+custom authenticator return values:
+
+* True: API request can be passed
+* None or False: ignored, go to next authenticator
+
+in case of unsuccessful authentication attempt, custom authenticator should
+call abort(status) or raise an exception
+"""
+
 
 def arr_from_str(s):
     if not isinstance(s, str) or s.find('|') == -1: return s
@@ -131,14 +149,6 @@ def public_method(f):
     return do
 
 
-def custom_authenticator(f, ip, *args, **kwargs):
-    """
-    can be overriden
-    """
-    logger.debug(f'API {ip} calling {f.__qualname__} {args} {kwargs}')
-    return False
-
-
 def master_authenticator(f, ip, *args, **kw):
     logger.debug(f'API admin call {ip} method: {f.__qualname__}, args: {args}, '
                  f'kwargs: {kw}')
@@ -165,11 +175,13 @@ def authenticated_method(f):
         ip = get_real_ip()
         payload = request.json if request.json else {}
         kw = {**kwargs, **payload}
-        if not custom_authenticator(f, ip, *args, **kw) and \
-                not master_authenticator(f, ip, *args, **kw):
-            abort(403)
+        for c in authenticators:
+            if c(f, ip, *args, **kw):
+                break
         else:
-            return f(*args, **kw)
+            if not master_authenticator(f, ip, *args, **kw):
+                abort(403)
+        return f(*args, **kw)
 
     return do
 
