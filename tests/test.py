@@ -81,7 +81,8 @@ with open(configfile, 'w') as fh:
             - name: webhook
             - name: email
               config:
-                  smtp-server: 127.0.0.1
+                  smtp:
+                    host: 127.0.0.1
             - name: slack
         gunicorn:
             listen: {test_server_bind}:{test_server_port}
