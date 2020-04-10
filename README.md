@@ -209,10 +209,13 @@ server config:
 ```yaml
 - name: email
   config:
-    smtp-server: your-smtp-server:port, required. for SSL use ssl:server:port
-    # smtp-tls: true # use tls
-    # smtp-login: someuser # SMTP server login
-    # smtp-password: "123" # SMTP server password
+    smtp:
+        host: your-smtp-host # required
+        port: your-smtp-port
+        # tls: true # use tls
+        # ssl: true # use ssl
+        # login: someuser # SMTP server login
+        # password: "123" # SMTP server password
     # default-location: location # if not specified, host name is used
 ```
 

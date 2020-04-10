@@ -1,4 +1,4 @@
-__version__ = '1.0.2'
+__version__ = '1.1.0'
 __description__ = 'sends event by email'
 
 import smtplib
@@ -34,45 +34,45 @@ PROPERTY_MAP_SCHEMA = {
 PLUGIN_PROPERTY_MAP_SCHEMA = {
     'type': 'object',
     'properties': {
-        'smtp-server': {
-            'type': 'string',
-        },
-        'smtp-tls': {
-            'type': 'boolean',
-        },
-        'smtp-login': {
-            'type': 'string',
-        },
-        'smtp-password': {
-            'type': 'string',
+        'smtp': {
+            'type': 'object',
+            'properties': {
+                'host': {
+                    'type': 'string',
+                },
+                'port': {
+                    'type': 'integer',
+                    'minimum': 1
+                },
+                'tls': {
+                    'type': 'boolean',
+                },
+                'ssl': {
+                    'type': 'boolean',
+                },
+                'login': {
+                    'type': 'string',
+                },
+                'password': {
+                    'type': 'string',
+                },
+            },
+            'required': ['host']
         },
         'default-location': {
             'type': 'string',
         }
     },
     'additionalProperties': False,
-    'required': ['smtp-server']
 }
 
 
 def load(plugin_config, **kwargs):
-    smtp_server = plugin_config.get('smtp-server')
-    if smtp_server:
-        host, port = parse_host_port(smtp_server, 25)
-        if host.startswith('ssl:'):
-            host = host[4:]
-            ssl = True
-        else:
-            ssl = False
+    if 'smtp' in plugin_config:
         _d.default_location = plugin_config.get('default-location')
-        _d.smtp = SMTP(host=host,
-                       port=port,
-                       tls=plugin_config.get('smtp-tls', False),
-                       ssl=ssl,
-                       login=plugin_config.get('smtp-login'),
-                       password=config_value(config=plugin_config,
-                                             config_path='/smtp-password',
-                                             default=None))
+        smtp_config = plugin_config['smtp']
+        config_value(config=smtp_config, config_path='/password', default=None, in_place=True)
+        _d.smtp = SMTP(**smtp_config)
         logger.debug(
             f'{__name__} loaded, SMTP server: {_d.smtp.host}:{_d.smtp.port}, '
             f'ssl: {_d.smtp.ssl}, tls: {_d.smtp.tls}, '
