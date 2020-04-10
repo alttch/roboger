@@ -41,10 +41,13 @@ from .core import bucket_get, bucket_touch
 from .core import rq
 
 from functools import wraps
+from types import SimpleNamespace
 
 from pyaltt2.network import netacl_match
 
 success = {'ok': True}
+
+_d = SimpleNamespace(api=None)
 
 filters = []
 """
@@ -108,6 +111,10 @@ def dict_from_str(s, spl=','):
                 pass
         result[name] = value
     return result
+
+
+def get_api():
+    return _d.api
 
 
 def _response_new_location(payload, code, new_id, resource):
@@ -197,10 +204,21 @@ api_uri = '/manage'
 api_uri_rest = f'{api_uri}/v2'
 
 
+def render_roboger_root():
+    abort(404)
+
+
+class RobogerApi(Api):
+
+    def render_root(self):
+        return render_roboger_root()
+
+
 def init():
     app = get_app()
 
-    api = Api(app=app, doc=core_config.get('api-doc', '/'), prefix='/manage')
+    api = RobogerApi(app=app, doc=core_config.get('api-doc', '/'))
+    _d.api = api
     ns_public = api.namespace('/', description='Public functions')
 
     @ns_public.route('/ping')
