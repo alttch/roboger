@@ -283,23 +283,6 @@ def load(fname=None):
                  in_place=True)
     _d.ip_header = config.get('ip-header')
 
-    for plugin in config.get('plugins', []):
-        plugin_name = plugin['name']
-        try:
-            mod = importlib.import_module(
-                'roboger.plugins.{}'.format(plugin_name))
-        except:
-            try:
-                mod = importlib.import_module(
-                    'robogercontrib.{}'.format(plugin_name))
-            except:
-                logger.error(f'CORE unable to load plugin: {plugin_name}')
-                log_traceback()
-                continue
-        if _init_plugin(plugin_name, mod, plugin.get('config', {})):
-            plugins[plugin_name] = mod
-            logger.info(f'CORE added plugin {plugin_name}')
-
     logger.debug('CORE initializing database')
     kw = {}
     if not config['db'].startswith('sqlite'):
@@ -317,6 +300,24 @@ def load(fname=None):
     from . import api
     logger.debug('CORE initializing API')
     api.init()
+    logger.debug('CORE initializing plugins')
+    for plugin in config.get('plugins', []):
+        plugin_name = plugin['name']
+        try:
+            mod = importlib.import_module(
+                'roboger.plugins.{}'.format(plugin_name))
+        except:
+            try:
+                mod = importlib.import_module(
+                    'robogercontrib.{}'.format(plugin_name))
+            except:
+                logger.error(f'CORE unable to load plugin: {plugin_name}')
+                log_traceback()
+                continue
+        if _init_plugin(plugin_name, mod, plugin.get('config', {})):
+            plugins[plugin_name] = mod
+            logger.info(f'CORE added plugin {plugin_name}')
+
     logger.debug('CORE initialzation completed')
 
 
@@ -456,7 +457,7 @@ def get_real_ip():
 
 
 def get_plugin(plugin_name):
-    return plugins['plugin_name']
+    return plugins[plugin_name]
 
 
 def is_use_lastrowid():
