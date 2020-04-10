@@ -200,7 +200,7 @@ api_uri_rest = f'{api_uri}/v2'
 def init():
     app = get_app()
 
-    api = Api(app=app)
+    api = Api(app=app, doc=core_config.get('api-doc', '/'), prefix='/manage')
     ns_public = api.namespace('/', description='Public functions')
 
     @ns_public.route('/ping')

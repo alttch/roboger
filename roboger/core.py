@@ -54,6 +54,9 @@ SERVER_CONFIG_SCHEMA = {
                 'ip-header': {
                     'type': 'string',
                 },
+                'api-doc': {
+                    'type': ['boolean', 'string'],
+                },
                 'limits': {
                     'type': 'object',
                     'properties': {
