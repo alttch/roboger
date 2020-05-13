@@ -72,13 +72,15 @@ exception
 
 
 def arr_from_str(s):
-    if not isinstance(s, str) or s.find('|') == -1: return s
+    if not isinstance(s, str) or s.find('|') == -1:
+        return s
     result = []
     vals = s.split('|')
     for v in vals:
         try:
             _v = float(v)
-            if _v == int(_v): _v = int(_v)
+            if _v == int(_v):
+                _v = int(_v)
         except:
             _v = v
         result.append(_v)
@@ -87,9 +89,11 @@ def arr_from_str(s):
 
 # throws exception
 def dict_from_str(s, spl=','):
-    if not isinstance(s, str): return s
+    if not isinstance(s, str):
+        return s
     result = {}
-    if not s: return result
+    if not s:
+        return result
     vals = s.split(spl)
     for v in vals:
         name, value = v.split('=')
@@ -106,7 +110,8 @@ def dict_from_str(s, spl=','):
         if isinstance(value, str):
             try:
                 value = float(value)
-                if value == int(value): value = int(value)
+                if value == int(value):
+                    value = int(value)
             except:
                 pass
         result[name] = value
@@ -1143,12 +1148,16 @@ def m_endpoint_data(endpoint_id,
     cfg = endpoint['config']
     plugin_name = endpoint['plugin_name']
     if plugin_name == 'email':
-        if data: cfg['rcpt'] = data
+        if data:
+            cfg['rcpt'] = data
     elif plugin_name == 'slack':
-        if data: cfg['url'] = data
-        if data2: cfg['rich'] = data2 != 'plain'
+        if data:
+            cfg['url'] = data
+        if data2:
+            cfg['rich'] = data2 != 'plain'
     elif plugin_name == 'telegram':
-        if data: cfg['chat_id'] = data
+        if data:
+            cfg['chat_id'] = data
     try:
         endpoint_update(endpoint_id, data={'config': cfg})
     except LookupError:
