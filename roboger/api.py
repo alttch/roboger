@@ -620,6 +620,9 @@ def _process_addr(a):
 def test(**kwargs):
     result = success.copy()
     result.update({'version': product.version, 'build': product.build})
+    if request.headers.get('X-Auth-Key',
+                           kwargs.get('k')) == core_config['master']['key']:
+        result['master'] = True
     return jsonify(result)
 
 
