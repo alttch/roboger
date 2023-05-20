@@ -1,5 +1,5 @@
 roboger:
-  # supoorts: sqlite, mysql, postgresql
+  # supports: sqlite, mysql, postgresql
   # for mysql requires mysql or pymsql module (pip3 install pymysql)
   # for postgresql requires psycopg2
   #db: postgresql://roboger:4i823h5u45Sqer@10.90.1.7/robo
